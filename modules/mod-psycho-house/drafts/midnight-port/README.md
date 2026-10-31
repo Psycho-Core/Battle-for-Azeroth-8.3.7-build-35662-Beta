@@ -18,6 +18,7 @@ system is actually about.
 | Endeavor milestones | 4, with 59 stock rows on six vendors locked behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
 | Currency | Community Coupons 3363, plus Tricky Treat item 33226 for the Hallow's End stall | `04_decor_retail.sql`, `currency` column |
 | Quest rows | 4, ids 900100-900103, money in the row and everything else module-side | `sql/world/06_quests.sql` |
+| Client menu | Seven-tab housing window, `/house` or the House button by the minimap | `addon/HousingUI/Menu.lua` |
 
 Every vendor row keeps the retail npc id in the table comment, so the mapping between a
 Midnight npc and whichever 8.3.7 creature I end up using for the model is never lost.
@@ -105,4 +106,6 @@ sql/world/06_quests.sql
 tools/sql/bind_town_center_vendors.sql   (optional, binds vendor models)
 ```
 
-Then `Housing.Enable = 1`, `.house`, and the addon from `addon/HousingUI`.
+Then `Housing.Enable = 1`, `.house`, and the addon: copy `addon/HousingUI` into the client's
+`Interface/AddOns/PsychoHouse` (the installer stages it in the source tree and prints the
+path). `/house` opens the housing window; the House button sits next to the minimap.

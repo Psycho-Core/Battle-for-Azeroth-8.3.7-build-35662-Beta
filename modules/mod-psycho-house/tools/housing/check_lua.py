@@ -93,6 +93,18 @@ def check_blocks(name, text):
     return len(per_line)
 
 
+def saved_variables():
+    """Names the .toc declares as SavedVariables are globals on purpose."""
+    toc = os.path.join(ADDON, "HousingUI.toc")
+    if not os.path.exists(toc):
+        return set()
+    with open(toc, encoding="utf-8") as handle:
+        for line in handle:
+            if line.lower().startswith("## savedvariables"):
+                return {name.strip() for name in line.split(":", 1)[1].split(",")}
+    return set()
+
+
 def check_globals(name, text):
     """A global that is assigned outside a table constructor and never declared.
 
@@ -101,7 +113,7 @@ def check_globals(name, text):
     """
     body = strip_lua(text)
     declared = set(re.findall(r"^\s*local\s+([A-Za-z_]\w*)", body, re.M))
-    allowed = {"HousingUI"}
+    allowed = {"HousingUI"} | saved_variables()
     depth = 0
     for number, line in enumerate(body.splitlines(), 1):
         start_depth = depth

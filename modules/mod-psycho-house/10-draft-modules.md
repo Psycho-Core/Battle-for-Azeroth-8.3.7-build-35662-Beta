@@ -20,7 +20,7 @@ Both drafts copy the same trees out of the module:
 | --- | --- | --- |
 | `src/game/Housing/` | 14 | Plots, houses, decor placement, phasing, persistence, the addon protocol |
 | `src/scripts/Housing/` | 4 | `.house` commands, player login hook, world config reload, loader |
-| `addon/HousingUI/` | 2 | The client panel: plot list, catalogue, placement, blueprint codes |
+| `addon/HousingUI/` | 2 | `Core.lua` (transport, protocol, slash commands) and `Menu.lua` (the seven-tab housing window) |
 | `drafts/*/sql/world/01_schema.sql` | 1 | Housing tables, identical in both drafts |
 | `drafts/*/sql/world/02_world_content.sql` | 1 | Six biomes, 55 plot templates, 22 amenity pins, the name pool |
 | `drafts/*/sql/characters/01_characters_schema.sql` | 1 | Ownership, placement, collection, guests, neighborhood membership |
@@ -122,6 +122,10 @@ The installer detects which script layout the tree uses:
 Both layouts place the seven SQL files under `sql/updates/world/` and
 `sql/updates/characters/` with a `2026_10_31_1<seq>` stamp, and both rename the addon's
 `.toc` to match the folder name, since the client pairs them.
+
+The addon is staged inside the source tree only so it travels with the module. The client
+reads addons from its own directory, so the last step is always a copy of the staged
+`PsychoHouse` folder into `Interface/AddOns/` on the client machine.
 
 In both layouts `src/server/game/Housing/` gets the core classes, because a script module
 cannot add game-layer classes on this core. That is the one part of the install that is a

@@ -15,6 +15,7 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 | Vendor stock rows | 350, every native decor piece sold somewhere | same file |
 | Currency | gold only | `currency = 0` on every row |
 | Quest rows | 4, the same ids and beats as the port | `sql/world/06_quests.sql` |
+| Client menu | The same seven-tab window - both drafts ship one core | `addon/HousingUI/Menu.lua` |
 | Substitution for missing art | none needed | the pieces are real game objects |
 
 ## Where the 350 come from
@@ -92,6 +93,7 @@ tools/sql/bind_native_vendors.sql        (optional, binds vendor models)
 ```
 
 `../../tools/housing/install.py --draft bfa-native` puts the four trees where the build
-expects them. `Housing.Map.Mode = "anchor"` is the default here because a clean 8.3.7
+expects them, and stages the addon - copy it into the client's `Interface/AddOns/PsychoHouse`.
+`/house` opens the housing window; the House button sits next to the minimap. `Housing.Map.Mode = "anchor"` is the default here because a clean 8.3.7
 install has no housing map; point `Housing.Map.Id` at any map with room for the plot
 anchors and author them in the world DB.

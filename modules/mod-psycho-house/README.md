@@ -15,6 +15,8 @@ modules/mod-psycho-house/
   01-...09-....md        the reference set
   10-draft-modules.md    the two drafts, side by side
   11-verification-ledger.md  where every number comes from, and what is unchecked
+  12-midnight-item-port.md   item by item: extract, convert, write the DB2 rows, package,
+                         verify - plus how the housing menus are rebuilt client side
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
                          per-vendor captures
@@ -30,7 +32,8 @@ modules/mod-psycho-house/
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
-  addon/HousingUI/       the client addon
+  addon/HousingUI/       the client addon: Core.lua (transport) and Menu.lua (the
+                         seven-tab housing window)
   legacy-prototype/      the original prototype notes and patches, kept verbatim as
                          history - the numbered documents are the current set
   tools/housing/         scrapers, indexers, the draft builder, the installer,
@@ -132,6 +135,16 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, eleventh revision
+
+The client half.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 51 | Nothing explained how a Midnight item actually gets into 8.3.7. Doc 07 said "yes, with an MPQ or a CASC patch" and stopped there | Doc 12: ids, extraction, model conversion, texture conversion, the five DB2 tables, icons, packaging, and the order to verify in. It also says plainly which parts are procedure and which parts I could not check here |
+| 52 | The ported draft had no housing menu - only the protocol harness, so the ported module had no Midnight-style window at all | `addon/HousingUI/Menu.lua`: seven tabs (House, Catalogue, Placed, Neighbours, Endeavors, Blueprints, Guide), a launcher button by the minimap, `/house` to toggle. Every button maps to an opcode Core.lua already speaks |
+| 53 | Doc 07's addon table listed seven files that do not exist | It now separates what ships today (Core.lua, Menu.lua) from what is still planned, and drops the ones that were never going to be separate files |
 
 ## Audit pass, tenth revision
 

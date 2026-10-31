@@ -96,6 +96,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | 09 town centre register | 39 vendors, 1 056 rows, 739 ids, 87 blanks | Current. The 99 rows still behind the page cap are named in doc 09 sec.7.4 |
 | 10 draft modules | What each draft contains, how to install and switch | Row counts re-read from the generated SQL; the mapping split was wrong before (156/365/29) and now reads 223/189/171/35. Quest rows and vendor bindings added this pass |
 | 11 this ledger | Where every number comes from | Written this round |
+| 12 Midnight item port | IDs, extraction, model and texture conversion, the five DB2 tables, icons, packaging, verification order, and how the housing menus are rebuilt | Written this round. The procedure is checked against this folder's own data; the client file formats could not be checked here, and the document says which parts those are |
 
 ## 5. Open items, with exact counts
 
@@ -238,8 +239,9 @@ tree stayed at zero.
 
 `python3 tools/housing/check_lua.py` does the same job for the addon: block balance with
 the `do` in `for ... do` counted once, unterminated strings, globals assigned without a
-`local`, and a `.toc` whose listed files exist. 371 lines, 0 findings, and a missing `end`
-plus a stray global in a copy were both caught.
+`local` (SavedVariables named in the `.toc` excepted), and a `.toc` whose listed files exist.
+`Core.lua` and `Menu.lua` come to 1 134 lines, 0 findings, and a missing `end` plus a stray
+global in a copy were both caught.
 
 `verify_drafts.py` also had a bug worth writing down, because it is the kind that makes a
 clean report worthless: its INSERT pattern required a space before `VALUES`, and it ended
