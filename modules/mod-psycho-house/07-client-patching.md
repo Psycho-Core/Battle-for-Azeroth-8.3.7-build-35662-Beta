@@ -2,6 +2,10 @@
 
 My client is unlocked, so this is permitted territory. What follows is what I think is *worth* doing, in what order, and where the real limits are, because "unlocked client" is not the same thing as "anything is possible".
 
+The item-by-item sequence - extract a Midnight item, convert the model, write the DB2 rows,
+package the patch, verify it in game - is doc 12. This document is the budget and the
+policy; doc 12 is the procedure.
+
 ## 1. What an unlocked 8.3.7 client can do
 
 | Capability | Supported | Notes |
@@ -76,13 +80,10 @@ Everything else - decor, trees, tents, carts, braziers, fences - comes from the 
 | File | Contents |
 | --- | --- |
 | `PsychoHouse.toc` | `## Interface: 80300`, SavedVariables, file list |
-| `Core.lua` | Transport, message dispatch, slash commands |
-| `Dashboard.lua` | Main frame, house card, homestone, XP |
-| `Catalogue.lua` | Filters, search, buy |
-| `Placement.lua` | Placement mode, gizmo, budget meter |
-| `Finder.lua` | Neighborhood browser |
+| `Core.lua` | Transport, message dispatch, slash commands. **Ships today** |
+| `Menu.lua` | The housing window: House, Catalogue, Placed, Neighbours, Endeavors, Blueprints, Guide tabs. **Ships today** |
+| `Placement.lua` | Placement mode and gizmo - the Placed tab lists and removes, it does not drag pieces yet |
 | `Permissions.lua` | Two matrices |
-| `Endeavor.lua` | Task list, Favor bar, coffer hint |
 | `Localisation/enUS.lua` | Strings |
 
 Rules that keep the addon debuggable:
