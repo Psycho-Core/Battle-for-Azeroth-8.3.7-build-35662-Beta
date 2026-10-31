@@ -13,6 +13,7 @@ compiled.
 | Vendors | 8 of my own | `sql/world/04_vendors_native.sql` |
 | Vendor stock rows | 350, every native decor piece sold somewhere | same file |
 | Currency | gold only | `currency = 0` on every row |
+| Quest rows | 4, the same ids and beats as the port | `sql/world/06_quests.sql` |
 | Substitution for missing art | none needed | the pieces are real game objects |
 
 ## Where the 350 come from
@@ -82,6 +83,7 @@ sql/world/01_schema.sql
 sql/world/02_world_content.sql
 sql/world/03_decor_native.sql
 sql/world/04_vendors_native.sql
+sql/world/06_quests.sql
 tools/sql/bind_native_vendors.sql        (optional, binds vendor models)
 ```
 

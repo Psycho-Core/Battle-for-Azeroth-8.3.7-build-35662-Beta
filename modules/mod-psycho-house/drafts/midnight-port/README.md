@@ -15,6 +15,7 @@ retail vendor pages, and the numbers are the retail numbers.
 | House levels, budgets, rooms, exteriors | retail values, 1 to 12 | `../../01-retail-housing-reference.md` |
 | Endeavor milestones | 4, with 90 stock rows on vendors that gate pieces behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
 | Currency | Community Coupons 3363, plus Tricky Treat item 33226 for the Hallow's End stall | `04_decor_retail.sql`, `currency` column |
+| Quest rows | 4, ids 900100-900103, money in the row and everything else module-side | `sql/world/06_quests.sql` |
 
 Every vendor row keeps the retail npc id in the table comment, so the mapping between a
 Midnight npc and whichever 8.3.7 creature I end up using for the model is never lost.
@@ -69,12 +70,16 @@ Prices are gold unless `currency` says otherwise:
   touching anything else.
 - 87 stock lines have no published price. They are listed as comments at the end of
   `05_stock_retail.sql` and are not inserted, so they cannot come out free.
-- `creature_entry` is 0 on all 39 vendor rows. The retail npc id is in each row's comment,
-  but a retail npc id is not an 8.3.7 creature entry, so the spawn has to come from a
-  creature that exists in this tree. Until then the vendors exist as data and the addon
-  lists them, but nothing stands in the town centre to talk to.
-- The four story quests in doc 04 are specified, not scripted. They need the steward
-  creature entries from the point above before a `quest_template` row can point at one.
+- `creature_entry` is 0 in the SQL on all 39 vendor rows. The retail npc id is in each
+  row's comment, but a retail npc id is not an 8.3.7 creature entry. Run
+  `tools/sql/bind_town_center_vendors.sql` after the import and it fills the column from
+  `creature_template` by subname, one model per stall; it reports any stall it could not
+  fill. Until that runs, the vendors are data the addon lists, and nothing stands in the
+  town centre.
+- The four story quests ship as `quest_template` rows with no `quest_objectives` rows, on
+  purpose: their objectives are module events (walk a plot, claim a Cornerstone, place
+  three pieces, reach level 2), so the player script completes them. That means the quest
+  text and the money are real and the progress tracking is code, not data.
 - Retail exterior shells (house skins) have no 8.3.7 equivalent. The draft uses the shell
   rooms from doc 06.
 
@@ -94,6 +99,8 @@ sql/world/02_world_content.sql
 sql/world/03_vendors_retail.sql
 sql/world/04_decor_retail.sql
 sql/world/05_stock_retail.sql
+sql/world/06_quests.sql
+tools/sql/bind_town_center_vendors.sql   (optional, binds vendor models)
 ```
 
 Then `Housing.Enable = 1`, `.house`, and the addon from `addon/HousingUI`.

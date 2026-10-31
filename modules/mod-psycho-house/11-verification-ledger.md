@@ -88,13 +88,13 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | 01 retail reference | Prices, quests, budgets, zones, Endeavor scaling | Facts marked `[F]` are sourced, `[?]` are open. Two open items: the remaining quest ids in the introduction chain, and the exact Endeavor plot bonus percentage |
 | 02 feature matrix | Which retail feature maps onto which 8.3.7 mechanism | Complete as a mapping; every row names a mechanism that exists in this tree |
 | 03 asset catalogue | 28 314 named constants, 1 570 game objects, 988 decor shaped | Recounted from the index this round: 1 570, 460 item, 4 912 creature constants |
-| 04 content spec | Quest ids 900100-900103, Endeavor tables, reward bands | Complete; ids are inside the module's reserved range |
+| 04 content spec | Quest ids 900100-900103, Endeavor tables, reward bands | Complete; the four quests are now rows in `06_quests.sql` in both drafts, and the two agree with this spec line for line |
 | 05 build plan | Phase 0 to phase 6, file lists per phase | Complete; the file lists match the shipped `src/` tree |
 | 06 blueprint, dye, pet bed | `PCH1` payload format, checksum, dye channels | Complete; the checksum is defined and a Lua implementation is in the addon |
 | 07 client patching | `.toc`, `## Interface: 80300`, message prefix, DB2 notes | Complete; the addon ships as `addon/HousingUI/` and is renamed on install |
 | 08 source appendix | Pointer to the generated index | Regenerated from `build_appendix.py`; header, 14 sections and the per-section totals agree with the CSV |
 | 09 town centre register | 39 vendors, 1 056 rows, 739 ids, 87 blanks | Current. The 99 rows still behind the page cap are named in doc 09 sec.7.4 |
-| 10 draft modules | What each draft contains, how to install and switch | Row counts re-read from the generated SQL this round; the mapping split was wrong before (156/365/29) and now reads 223/189/171/35 |
+| 10 draft modules | What each draft contains, how to install and switch | Row counts re-read from the generated SQL; the mapping split was wrong before (156/365/29) and now reads 223/189/171/35. Quest rows and vendor bindings added this pass |
 | 11 this ledger | Where every number comes from | Written this round |
 
 ## 5. Open items, with exact counts
@@ -109,13 +109,20 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 3. **87 stock rows have no published price.** Not free, just unpublished.
 4. **One npc id unconfirmed**: Throska, a service NPC outside the vendor list, so the
    register still prints no id for it. Every one of the 39 vendors is confirmed.
-5. **223 of the 618 decor mappings are category fallbacks.** They are valid game objects and
+5. **Vendor models are not bound in the SQL.** `creature_entry` is 0 in all 39 rows and
+   in the 8 native stalls, because no 8.3.7 creature is called "Faarden the Builder". Both
+   drafts ship a bind script that fills the column from `creature_template` by subname and
+   prints whatever it could not fill; running it needs the world database, which is not in
+   this workspace.
+6. **223 of the 618 decor mappings are category fallbacks.** They are valid game objects and
    they place correctly, but the piece will not look like its retail original. The map is a
    CSV for exactly this reason: replacing one is a one-line edit and a rebuild. When a real
    `gameobject_template` export exists, `map_decor_go.py --go-names` takes it and raises the
    family match count.
-6. **Compile, SQL parse and client test** are listed in section 3 and are the reason the
-   drafts are called drafts.
+7. **Compile, SQL parse and client test** are listed in section 3 and are the reason the
+   drafts are called drafts. What that check *can* do is done: every column the generated
+   SQL writes is a column this build's own update files write to, which is what
+   `check_sql_columns.py` harvests and checks.
 
 ## 6. The two drafts, checked as SQL
 
@@ -160,7 +167,51 @@ Two real defects came out of this pass, and both were in the drafts rather than 
    distinct game objects. The section now describes the mapping, its four match reasons and
    the counts, instead of describing a file that no longer looks like that.
 
-What the script cannot settle: whether MySQL accepts the statements (no server here),
+### 6.1 The columns are the build's own
+
+`python3 tools/housing/check_sql_columns.py --repo <source>` reads every `sql/` file in the
+build, harvests the columns it writes - `INSERT` lists, `UPDATE ... SET` assignments,
+`WHERE` predicates and `ALTER TABLE` - and then checks the module's SQL against that
+vocabulary. The point is that nothing here talks to a MySQL server, so the next best claim
+is: every column I write is a column this build's own update files already write to.
+
+```
+harvested 43 tables
+  quest_template            122 columns
+  quest_template_addon        2 columns
+  quest_objectives           12 columns
+  creature_template          11 columns
+4 statement(s) checked against the build vocabulary
+0 finding(s)
+```
+
+The 122 columns above are why the quest rows can be written at all: `quest_template` is a
+wide table, and the list came out of the build's own Duskwood POI update rather than out of
+my memory. The vocabulary is saved to `generated/sql-columns.json`, so the check still
+works on a machine without a source checkout.
+
+### 6.2 What is not in the quest rows, and why
+
+The four quests are rows in `06_quests.sql` with title, text, chain link and money. They
+have no `quest_objectives` rows because none of their objectives is an objective type the
+world database can express - walk a plot, claim a Cornerstone, place three pieces, reach
+level 2 are all module events. A scripted completion with no objective row is honest; an
+invented kill-ten-wolves objective would make the quest completable the wrong way.
+
+The decor and shell rewards are module grants for the same reason: the pieces are
+`housing_decor` rows, so the reward is a collection grant, not a piece of loot that has to
+exist as an item.
+
+### 6.3 Vendor models
+
+Neither draft can bind a creature model in SQL, because 8.3.7 has no NPC by the retail
+names. Both ship a bind script instead - `tools/sql/bind_town_center_vendors.sql` for the
+39 and `tools/sql/bind_native_vendors.sql` for the 8 - that fills `creature_entry` from
+`creature_template` by subname, one model per stall, and then prints every stall it could
+not fill. Running it needs the world database. Until it runs, `creature_entry` is 0, the
+module still lists and sells the stock, and nothing stands in the town centre.
+
+What the scripts cannot settle: whether MySQL accepts the statements (no server here),
 whether the C++ compiles (no boost or MySQL headers here), and whether a mapped game
 object looks right in the game (needs the client). Those three stay open, and section 3
 says why rather than hiding them.

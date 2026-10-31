@@ -83,6 +83,8 @@ publish entry ids for the interior quests.
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
 | `tools/housing/audit.py` | Seven checks over the whole folder: ASCII, voice, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping. Exits non-zero on a finding. |
+| `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
+| `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
 | `tools/housing/verify_drafts.py` | Reads both `drafts/` trees as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
@@ -128,6 +130,18 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, ninth revision
+
+Both drafts get the two things they were missing: quest rows and a way to bind vendor
+models.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 41 | The four introduction quests were specified in doc 04 and existed nowhere as SQL | `tools/housing/build_quests.py` writes `06_quests.sql` into both drafts: 4 `quest_template` rows, 4 `quest_template_addon` rows, chain and money included. Objectives stay in code on purpose and the file header says so |
+| 42 | Nothing checked that the SQL used real column names, and nothing here can reach a MySQL server | `check_sql_columns.py` harvests 43 tables and 122 `quest_template` columns from the build's own `sql/`, saves them to `generated/sql-columns.json`, and fails on any column the build never writes |
+| 43 | `creature_entry` was 0 with no way to fill it | `tools/sql/bind_town_center_vendors.sql`, 39 statements, fills each stall from `creature_template` by subname and reports the ones it could not fill. The native draft already had the same script for its 8 stalls |
+| 44 | Doc 10 said six SQL files per draft | Seven now, and the install order in both draft readmes lists the quest file |
 
 ## Audit pass, eighth revision
 

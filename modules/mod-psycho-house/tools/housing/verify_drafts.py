@@ -121,11 +121,15 @@ def check_file(path, schema_columns, go_entries, expect):
         checks_run += 1
         known = schema_columns.get(table)
         if known is None:
-            fail(label, "inserts into unknown table " + table)
-            continue
-        unknown = [c for c in columns if c not in known]
-        if unknown:
-            fail(label, "{} has columns the schema does not: {}".format(table, unknown))
+            # A table the build owns rather than the module (quest_template and friends).
+            # Its columns are checked against the build's own SQL vocabulary by
+            # check_sql_columns.py; here only the value count can be checked.
+            print("{:<52} {:>5} rows  {:>2} checks   ({})".format(
+                "  " + table, len(rows), 0, "build table"))
+        else:
+            unknown = [c for c in columns if c not in known]
+            if unknown:
+                fail(label, "{} has columns the schema does not: {}".format(table, unknown))
         for number, row in enumerate(rows, 1):
             total += 1
             if len(row) != len(columns):
