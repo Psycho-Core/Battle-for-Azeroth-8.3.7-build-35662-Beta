@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `housing_biome` (
   `flags`       INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'bit0 sanctuary, bit1 no fly',
   PRIMARY KEY (`id`),
   KEY `idx_housing_biome_map` (`map_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Housing biomes (neighbourhood sub-zones)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Housing biomes (neighbourhood sub-zones)';
 
 CREATE TABLE IF NOT EXISTS `housing_plot` (
   `map_id`      INT UNSIGNED NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS `housing_plot` (
   `comment`     VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (`map_id`, `plot_index`),
   KEY `idx_housing_plot_biome` (`biome_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Housing plot templates';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Housing plot templates';
 
 CREATE TABLE IF NOT EXISTS `housing_decor` (
   `id`               INT UNSIGNED NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `housing_decor` (
   PRIMARY KEY (`id`),
   KEY `idx_housing_decor_category` (`category`),
   KEY `idx_housing_decor_source` (`source_type`, `source_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Housing decor catalogue';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Housing decor catalogue';
 
 CREATE TABLE IF NOT EXISTS `housing_vendor` (
   `id`             INT UNSIGNED NOT NULL,
@@ -89,14 +89,14 @@ CREATE TABLE IF NOT EXISTS `housing_vendor` (
   `comment`        VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_housing_vendor_biome` (`biome_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Housing vendor placement';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Housing vendor placement';
 
 CREATE TABLE IF NOT EXISTS `housing_vendor_stock` (
   `vendor_id` INT UNSIGNED NOT NULL,
   `decor_id`  INT UNSIGNED NOT NULL,
   `price`     INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = use housing_decor.price',
   PRIMARY KEY (`vendor_id`, `decor_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Housing vendor stock';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Housing vendor stock';
 
 CREATE TABLE IF NOT EXISTS `housing_amenity` (
   `id`       INT UNSIGNED NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS `housing_amenity` (
   `flags`    INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'bit0 show as map pin',
   PRIMARY KEY (`id`),
   KEY `idx_housing_amenity_biome` (`biome_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Housing amenity pins';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Housing amenity pins';
 
 CREATE TABLE IF NOT EXISTS `housing_neighborhood_name` (
   `id`      INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `housing_neighborhood_name` (
   `name`    VARCHAR(64) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_housing_name_faction` (`faction`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Public neighbourhood name pool';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Public neighbourhood name pool';
 
 -- ---------------------------------------------------------------------------
 -- Biomes: six named sub-zones of Founder's Point

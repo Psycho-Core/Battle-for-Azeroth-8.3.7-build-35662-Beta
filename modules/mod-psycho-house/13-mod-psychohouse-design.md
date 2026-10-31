@@ -198,7 +198,13 @@ check_psychohouse.py, added after the spawn-and-write pass
   the same tick is a race the read can win; `AddPhase(..., false)` only on an object that is
   followed by `AddToMap`, because a summon is already in the world and needs `true`
 
-audit.py        ASCII, voice, links, counts over every document in this folder
+check_mariadb.py
+  the module's SQL and all three drafts the way MariaDB 11.8.6 takes them: InnoDB and utf8mb4
+  with an explicit COLLATE on every table, NOT NULL columns an INSERT forgets, literals wider
+  than their column, duplicate keys inside one file, a decor category straddling two surface
+  bands, and the statements that are MariaDB-only or make an install unrepeatable
+
+audit.py        ASCII, voice, source voice, links, counts over every document in this folder
 verify_drafts.py / check_lua.py / check_protocol.py   unchanged, and still clean
 ```
 
@@ -225,7 +231,7 @@ check rather than by memory:
 
 | Decision | What breaks without it |
 | --- | --- |
-| `COLLATE=utf8mb4_general_ci` written on both new tables | the server default differs between MariaDB and MySQL, so a table created today can behave differently after a server move |
+| `COLLATE=utf8mb4_general_ci` written on both new tables - and, since the seventeenth pass, on all 39 tables in the folder | the server default differs between MariaDB and MySQL, so a table created today can behave differently after a server move |
 | `COALESCE((SELECT ...), 0)` around every resolver subquery | with the default `sql_mode` (`STRICT_TRANS_TABLES`), a subquery that matches nothing yields NULL, `entry` is `NOT NULL`, and the statement stops with error 1048 |
 | no `INSERT IGNORE` | it demotes the duplicate-key error the phase allocation depends on to a warning, and two characters could end up sharing a phase |
 | `bigint unsigned` for the character key | `characters.guid` is `bigint(20) unsigned` and `ObjectGuid::LowType` is `uint64`; a 32-bit key is correct until it silently is not |

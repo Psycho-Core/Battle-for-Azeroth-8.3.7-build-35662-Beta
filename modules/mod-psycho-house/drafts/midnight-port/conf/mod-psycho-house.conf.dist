@@ -4,9 +4,10 @@
 #   Copy the keys that matter into worldserver.conf. Every key is optional; the defaults
 #   below are the ones this draft ships with.
 #
-#   This draft carries the retail content: 39 vendors, 675 stock lines, 201 retail decor
-#   item ids, retail house levels 1-12, four Endeavor milestones and the Community Coupon
-#   currency. It is the version that answers "make it look like Midnight".
+#   This draft carries the retail content: 39 vendors, 969 priced stock lines out of the
+#   1 056 captured, 450 retail decor item ids on 571 decor rows, the retail house levels
+#   1-12 as reference, four Endeavor milestones and the Community Coupon currency. It is
+#   the version that answers "make it look like Midnight".
 ###################################################################################################
 
 #   Housing.Enable

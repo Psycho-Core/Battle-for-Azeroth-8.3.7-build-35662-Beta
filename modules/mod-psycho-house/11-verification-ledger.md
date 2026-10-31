@@ -382,3 +382,46 @@ module owns, and `AddPhase(x, ..., false)` without a following `AddToMap(x)`. Fi
 What this section still cannot say: that the module builds or runs. There is no compiler and
 no server here. The repair pass in particular has never executed, and its worst case - a
 creature that dies between two ticks - is a five-second gap, not a guarantee.
+
+### 6.9 All three drafts, checked the way MariaDB takes them
+
+The MariaDB pass in sec.6.7 was run against the third draft, because that was the newest file
+in the folder. Running the same questions against the other two found that they had never been
+asked: every one of the 39 tables outside draft C carried no collation at all, and both older
+drafts carried catalogue bugs the column checkers could not see.
+
+`tools/housing/check_mariadb.py` now reads the module's own SQL and every draft, and it asks
+only the questions a server asks on import:
+
+| Rule | The error it prevents |
+| --- | --- |
+| InnoDB, `utf8mb4`, and an explicit `COLLATE` on every table | a table whose collation depends on which server created it, and a join between two tables that disagree |
+| every `NOT NULL` column with no default is supplied | 1364, halfway through an import |
+| integer and string literals inside the column's range | 1264 and 1406, in strict mode |
+| no duplicate primary or unique key inside one file | 1062, which is how a phase can be handed out twice |
+| a decor category belongs to one surface band, and the band is 0-3 | a catalogue that tells the module a wall painting stands on the floor |
+| no `INSERT IGNORE`, no `REPLACE INTO`, no `ADD COLUMN IF NOT EXISTS`, no `DELIMITER`, no stored routines or events | a duplicate demoted to a warning, a column silently dropped, a MariaDB-only statement, an install that cannot be re-run |
+
+What came out of it in the data rather than the dialect: draft A's 571 decor rows all said
+`surface = 0`, which is floor, including 23 wall pieces and 50 lights; draft B's band table
+had tables, seating and beds on walls and accents on ceilings. One band table in
+`build_drafts.py` now serves both drafts, and the regenerated files differ from the old ones
+in the `surface` column only - 352 of draft A's 571 rows and 176 of draft B's 350.
+
+Seven faults were injected into copies to prove the checker reads what it claims to read: a
+dropped `COLLATE`, a duplicate facility id, an `INSERT IGNORE`, an out-of-range price, a value
+count off by one, a surface of 7, and a VALUES list with one comma removed. All seven were
+reported, and the clean tree reports none.
+
+That last one is not a hypothetical. The first run of the parse rule failed on
+`06_quests.sql` in both drafts, and the reason was in `build_quests.py`: it joined the four
+`quest_template` tuples with a newline instead of a comma, so the statement read
+`VALUES (...) (...) (...) (...)` and MariaDB would have answered error 1064. The file had been
+shipped in both drafts since it was written, and every checker in this folder splits rows on
+parentheses, so not one of them could see it. It is fixed in the generator, regenerated in
+both drafts, and now caught twice: by the separator rule and by sqlglot.
+
+Still absent, and still said out loud: there is no MariaDB server in this workspace. Nothing
+in this section was executed. What is claimed is that every statement parses (sqlglot, once),
+that every column exists in the build's own loader or schema, and that none of the six error
+classes above can fire on the data as written.

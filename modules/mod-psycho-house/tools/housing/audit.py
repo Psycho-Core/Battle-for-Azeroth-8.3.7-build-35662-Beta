@@ -118,6 +118,62 @@ def check_voice(findings):
                     break
 
 
+# The GPL header every C++ file carries says "you can redistribute it" and is not the
+# narrating voice. Neither is a quoted server error inside a comment.
+LICENSE_TEXT = ("free software", "redistribute", "free software foundation", "warranty",
+                "general public license", "merchantability", "gnu", "copyright (c)",
+                "www.gnu.org", "received a copy")
+
+COMMENT_EXT = {".sql": "--", ".cpp": "c", ".h": "c", ".lua": "lua"}
+
+
+def comments_of(path, text):
+    """Yield (line, comment) for the comment blocks of a source file.
+
+    String and char literals are blanked first: the gossip text and the command output are
+    written in the second person on purpose, because a player reads them.
+    """
+    style = COMMENT_EXT.get(os.path.splitext(path)[1])
+    if not style:
+        return
+    if style == "c":
+        clean = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+        clean = re.sub(r"'(?:[^'\\]|\\.)*'", "''", clean)
+        pattern = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+    elif style == "lua":
+        clean = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+        clean = re.sub(r"'(?:[^'\\]|\\.)*'", "''", clean)
+        pattern = re.compile(r"--\[\[.*?\]\]|--[^\n]*", re.S)
+    else:
+        clean = text
+        pattern = re.compile(r"--[^\n]*")
+    for match in pattern.finditer(clean):
+        yield clean.count("\n", 0, match.start()) + 1, match.group(0)
+
+
+def check_source_voice(findings):
+    """The same rules, applied to the comments in the SQL, C++ and Lua.
+
+    The documents were swept in rounds 16 and 17 and the code was left alone, but the prose
+    in a file header is read by the same person as the prose in the readme.
+    """
+    for path in walk(set(COMMENT_EXT)):
+        text = read(path).decode("utf-8", "replace")
+        for line, comment in comments_of(path, text):
+            probe = " ".join(comment.split())
+            if not probe:
+                continue
+            if any(marker in probe.lower() for marker in LICENSE_TEXT):
+                continue
+            probe = QUOTED.sub(" ", probe)
+            for pattern, label in FORBIDDEN:
+                match = pattern.search(probe)
+                if match:
+                    findings.append(("voice", rel(path), "line %d: %s '%s' in a comment"
+                                     % (line, label, match.group(0))))
+                    break
+
+
 def check_links(findings):
     for path in walk({".md"}):
         text = read(path).decode("utf-8", "replace")
@@ -265,6 +321,7 @@ def check_mapping(findings):
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
+    "source-voice": check_source_voice,
     "links": check_links,
     "counts": check_counts,
     "csv": check_csv,

@@ -181,9 +181,11 @@ the core it runs on and the phase range it deliberately avoids. Doc 13 is the de
 | Content | retail item ids and prices | 8.3.7 ids only | 13 facility rows, entries resolved from the realm |
 | Phases | 10000-46374 | same | 50000-64999 |
 | Furniture | yes | yes | no - services only |
-| Install | `install.py --draft midnight-port` | `install.py --draft bfa-native` | manual, sec.8 of the draft README |
+| Install | `install.py --draft midnight-port` | `install.py --draft bfa-native` | `install.py --draft mod-psychohouse` |
 
-`install.py` covers A and B; it does not know about C, and rather than half-teach it, the
-draft's own README carries the five-step install. The one step that matters: the scripts
-folder must be `PsychoHouse` and not `mod-psychohouse`, because the build derives
-`AddPsychoHouseScripts()` from the folder name and a hyphen does not compile.
+`install.py` covers all three since the seventeenth audit pass; until then it refused C, which
+is the one doc 13 sec.11 says ships first. C has no game tree and no addon, so the installer
+copies its flat `src/` into the scripts folder and says so in the closing notes. The one step
+that matters on any of them: the scripts folder must be `PsychoHouse` and not
+`mod-psychohouse`, because the build derives `AddPsychoHouseScripts()` from the folder name and
+a hyphen does not compile.

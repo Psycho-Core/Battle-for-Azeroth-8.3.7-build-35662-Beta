@@ -87,10 +87,10 @@ publish entry ids for the interior quests.
 | `data/vendor_npc_ids.csv` | 39 vendors: npc id, catalogue item count and slug. All 39 npc ids are confirmed against a live NPC page, Hordranin included (250820). The item column sums to 1 155, the catalogue total the register works from. |
 | `tools/housing/merge_capture.py` | Merges one vendor capture file from `data/captures/` into both CSVs: replaces that vendor's stock rows, or adds to them with `--append` when a vendor stands as two npcs, adds the ids, keeps an empty price empty and preserves an existing gate note. Re-running it is safe. |
 | `tools/housing/build_drafts.py` | Builds both drafts from the CSVs: vendor rows, decor catalogue, stock rows, and the native catalogue's name refresh. Re-running rewrites every generated file. |
-| `tools/housing/install.py` | Copies one draft into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. |
+| `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
-| `tools/housing/audit.py` | Seven checks over the whole folder: ASCII, voice, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping. Exits non-zero on a finding. |
+| `tools/housing/audit.py` | Eight checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping. Exits non-zero on a finding. |
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
 | `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL and all three drafts against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
@@ -98,6 +98,7 @@ publish entry ids for the interior quests.
 | `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. `--src` and `--sql` point it at any tree, which is how the third draft is checked. |
 | `tools/housing/build_schema.py` | Reads the column lists of `creature_template`, `gameobject_template` and `creature_template_model` out of the build's own loader queries. Shared by the two checkers so they cannot disagree about what a column is. |
 | `tools/housing/check_psychohouse.py` | The third draft's checker: SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, fourteen statements this document makes about build 35662 checked against the source tree, and the MariaDB rules: printf dialect and argument counts, a 64-bit house key on both sides, `COLLATE` on every table, no `INSERT IGNORE`, no bare scalar subquery, no config section header. |
+| `tools/housing/check_mariadb.py` | Reads the module's SQL and all three drafts the way MariaDB 11.8.6 would: every table pinned to InnoDB and utf8mb4 with an explicit COLLATE, NOT NULL columns with no default that an INSERT forgets (error 1364), integer and string literals wider than the column (1264 and 1406), duplicate primary and unique keys inside one file (1062), a decor category straddling two surface bands, and the statements that are MariaDB-only or that make an install unrepeatable. |
 | `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
 | `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
@@ -143,6 +144,28 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, seventeenth revision
+
+All three drafts at once, this time against the server they import into. The last two rounds
+audited the third draft alone, which is how two year-old generator bugs and a stale config
+header survived three passes.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 76 | Not one table in this folder pinned its collation. Thirteen tables in the module, thirteen in each of the two older drafts, all `DEFAULT CHARSET=utf8mb4` and nothing more, so the collation came from whichever server created the table - and MariaDB and MySQL do not default utf8mb4 to the same one | `COLLATE=utf8mb4_general_ci` on all 39, written in the two module schema files and regenerated into the drafts, and a checker that refuses a table without it |
+| 77 | Draft A wrote `surface = 0` on all 571 decor rows, so every wall painting, hanging lantern and banner in its catalogue claimed to stand on the floor. Draft B had the opposite problem: its band table put tables, seating and beds on walls and accents on ceilings | One band table in `build_drafts.py`, shared by both drafts: floor for rugs, tables, beds, seating, storage, books, pets and plants, wall for wall art, and `SurfaceAny` for lighting, structural, holiday and accents, because a lantern can be a sconce or a chandelier and a wrong band locks a placement out |
+| 78 | Draft A's readme said its 571 pieces landed on 187 distinct game objects. They land on 177; 187 is the same question asked of all 618 mapped names, including the ones whose price never resolved and that ship no row | Both numbers stated, and the sentence now says which is which |
+| 79 | Draft A's config header was two revisions stale: 675 stock lines and 201 retail item ids, against 969 priced lines and 450 item ids in the files it describes | Corrected, with the 1 056 captured lines named as the pool the 969 come from |
+| 80 | Two stalls import empty and nothing said so. Burlee Jinglepocket and Roz Copperpinch have sixteen lines each and not one published price between them, so the town centre has two stalls with nothing on them | Named in draft A's readme, with the count of lines the other ten stalls lose and the note that the rest ship everything their page printed |
+| 81 | `install.py` refused the third draft - the one doc 13 sec.11 says ships first - because it only knew the two drafts that have a game tree and an addon | It installs all three now, on both layouts, and says which of the remaining steps differ for a draft with no addon |
+| 82 | Nothing checked that MariaDB would accept the SQL, and nothing checked the voice of the comments in the SQL, C++ and Lua: three rounds of prose sweeping had only ever looked at the documents | `check_mariadb.py`, and a `source-voice` check in `audit.py` that strips string literals first, because the gossip text and the command output address the player on purpose |
+| 83 | **The quest file did not parse on any server.** `build_quests.py` joined the four `quest_template` tuples with a newline instead of a comma, so the statement was `VALUES (...) (...) (...) (...)` - syntax error 1064 on MariaDB, and the file has been in both drafts since it was written. Every checker in this folder splits rows on parentheses, so none of them could see it | `",\n".join()`, both files regenerated, and two rules that between them cannot miss it again: the tuples of a `VALUES` list must be comma-separated, and every file is parsed as MySQL by sqlglot when it is installed |
+
+Both new checks were mutation-tested rather than trusted: seven injected faults in the SQL - a
+dropped COLLATE, a duplicate facility id, an `INSERT IGNORE`, an out-of-range price, a value
+count off by one, a surface of 7, and a VALUES list with a comma removed - were all reported,
+and one injected second-person comment was reported by the voice check.
 
 ## Audit pass, sixteenth revision
 

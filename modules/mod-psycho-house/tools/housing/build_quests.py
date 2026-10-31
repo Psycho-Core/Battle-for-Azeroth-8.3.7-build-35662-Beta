@@ -172,7 +172,11 @@ def rows():
 
 
 def build():
-    body = "\n".join(rows())
+    # The separator is the statement: four tuples with nothing between them is a syntax
+    # error 1064, not four rows. Every checker in this folder splits on parentheses, so a
+    # missing comma here is invisible to all of them - which is why the MariaDB check parses
+    # the statements now.
+    body = ",\n".join(rows())
     sql = (HEADER
            + "\nDELETE FROM `quest_template` WHERE `ID` BETWEEN 900100 AND 900103;\n"
            + "INSERT INTO `quest_template` ({}) VALUES\n".format(

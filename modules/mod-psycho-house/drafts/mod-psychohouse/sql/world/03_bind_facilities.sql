@@ -27,8 +27,8 @@
 --     nothing returns NULL, `entry` is NOT NULL, and MariaDB in STRICT_TRANS_TABLES aborts
 --     the statement with error 1048 - which would stop this whole file on the first missing
 --     service. With the COALESCE the row stays at 0 and the report says so.
---   * Nothing here writes to a table the statement also reads, so the "You can't specify
---     target table for update in FROM clause" error cannot happen either.
+--   * No statement here writes to the table it reads from, so MariaDB's restriction on a
+--     target table inside a FROM clause never comes into play.
 
 -- ---------------------------------------------------------------------------
 -- 1. Models for the two module NPCs
