@@ -42,7 +42,9 @@ SELECT COUNT(*) FROM `item_template`;
 
 If the answer is below 235 000, the 439 ids are free and nothing in the module has to
 change: the CSV, the SQL and the client patch all agree, and a piece bought in game is the
-same id as the piece in the register. If a handful collide, do not renumber the whole
+same id as the piece in the register. The lowest id in the register is 235 523 and the
+highest is 282 347, so the only way this fails is a database that has already taken the
+235 000-282 000 band for custom items of its own. If a handful collide, do not renumber the whole
 register - offset just the colliding ids into a high band (3 000 000+) and update
 `item_entry` in `04_decor_retail.sql` plus the id column in the CSV.
 
@@ -63,6 +65,39 @@ The cheapest port, and the one I would ship first:
 The result is the retail catalogue with 8.3.7 furniture in the slots. That is what draft A
 already assumes, and it is the reason the port can be useful before a single Midnight file is
 converted. It also works whether the client is patched or not.
+
+### 3.1 Copy a row, do not type one
+
+I will not write out an `INSERT` with every `item_template` column, because I have not
+verified that column list against a live database and a wrong guess fails loudly on twenty
+required columns. `check_sql_columns.py` harvests this build's own SQL vocabulary and
+`item_template` is not in it - no update file in the tree inserts into that table, so there
+is nothing to check a guess against. So the safe way is to copy a row that already works:
+
+```sql
+-- 12345 is any real 8.3.7 item of the same shape: a container or a piece of furniture
+CREATE TEMPORARY TABLE `port_donor` AS SELECT * FROM `item_template` WHERE `entry` = 12345;
+
+UPDATE `port_donor`
+   SET `entry`       = 263043,
+       `name`        = 'Consortium Energy Barrel',
+       `description` = '',
+       `displayid`   = 0,          -- 0 until a converted model exists
+       `BuyPrice`    = 0,          -- the module charges through housing_decor, not here
+       `SellPrice`   = 0;
+
+INSERT INTO `item_template` SELECT * FROM `port_donor`;
+DROP TEMPORARY TABLE `port_donor`;
+```
+
+Four columns matter and the rest can stay copied: `entry` (must equal the id in the
+register), `name` (what the tooltip and `GetItemInfo` show), `displayid` (0 until the model
+chain exists, which is why Route A places the mapped game object) and the two prices, which
+should be zero so the item cannot be bought from a normal vendor for less than the housing
+catalogue charges.
+
+Run it once per id. `tools/housing/build_quests.py` shows the same pattern for a table I did
+have a verified column list for, which is why quests can be generated and items cannot.
 
 ## 4. Route B - the full port, file by file
 
@@ -190,6 +225,7 @@ API, and its FrameXML is its own. What it can be is the same arrangement, rebuil
 | Catalogue with filters | Catalogue tab: name filter, buy, "owned" state, currency named per row |
 | Placement mode | `/housing place`, `/housing move`, `/housing remove`, or the Placed tab |
 | Neighbourhood directory | Neighbours tab: every plot with owner, tier, and a Visit button |
+| Hub amenities (stage, mailbox, board) | House tab: the amenity list comes from the server (`C:VAREA`), not from the addon |
 | Endeavor track and milestones | Endeavors tab: the four milestones and what each unlocks |
 | Blueprint share codes | Blueprints tab: the `PCH1` format, with copy and paste |
 | Nothing equivalent | Guide tab: the opcode list, so the transport is never a mystery |
@@ -198,6 +234,13 @@ That is `addon/HousingUI/Menu.lua` plus `Core.lua`, in the ported draft at
 `drafts/midnight-port/addon/HousingUI/`, and in the native draft as well because both drafts
 ship the same core. Install renames the folder and the `.toc` to `PsychoHouse`, which the
 client pairs by name.
+
+The menu is checked against the server rather than eyeballed.
+`python3 tools/housing/check_protocol.py` reads both halves and reports three things: a
+`C:` opcode the addon sends that the server does not dispatch, an `S:` opcode the server
+sends that the addon never handles, and a handler that reads a field past the end of the
+line the server builds. That last one is the bug that would otherwise only show up as a
+`nil` in a tooltip, and it is the reason the amenity list reads six fields and not seven.
 
 Two optional extras, both of which need the patched client and neither of which I would do
 before the addon menu works:
