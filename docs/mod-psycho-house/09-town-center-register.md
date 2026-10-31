@@ -2,8 +2,8 @@
 
 The Founder's Point Town Center and the Razorwind Shores Commons in full: every service,
 every NPC, every vendor, every item they stock, its price, its currency, and its unlock
-condition. Vendor-level data covers all 39 neighborhood vendors; item-level data covers 26
-of them (543 items), with the remaining 13 listed by count and captured by the scraper.
+condition. Vendor-level data covers all 39 neighborhood vendors; item-level data covers 29 of
+them (588 items), with the remaining 10 listed by count and captured by the scraper.
 
 ## 1. Coverage, stated up front
 
@@ -11,13 +11,17 @@ of them (543 items), with the remaining 13 listed by count and captured by the s
 | --- | --- | --- | --- |
 | Founder's Point Town Center + local | 19 | 434 | **complete**, every item, price and gate |
 | Founder's Point Breakwater Bight (smugglers) | 3 | 331 | vendor data complete, item capture pending |
-| Razorwind Shores Commons + local | 11 | 350 | 4 complete, 7 pending |
+| Razorwind Shores Commons + local | 11 | 350 | 8 complete, 3 pending |
 | Shared (both neighborhoods) | 6 | - | counted above, not double-counted |
-| **Total** | **39** | **1 143** | **543 items transcribed** |
+| **Total** | **39** | **1 143** | **588 items transcribed, 29 of 39 vendors** |
 
-The CSV next to this document, `data/town-center-stock.csv`, holds the 543 transcribed
+The CSV next to this document, `data/town-center-stock.csv`, holds the 588 transcribed
 rows in `vendor, item, price, currency, note` form. The scraper in
-`tools/housing/fetch_vendor_stock.py` fills the remaining 600 without retyping.
+`tools/housing/fetch_vendor_stock.py` fills the remaining 555 without retyping.
+
+**Still to capture, largest first**: "High Tides" Ren (146), "Len" Splinthoof (117),
+Gronthul (83), "Yen" Malone (68), Jehzar Starfall (54), Shon'ja (48), Roz Copperpinch (16),
+Aeeshna (12), Spew Gutsout (11).
 
 ## 2. What is physically in the hub
 
@@ -109,11 +113,11 @@ not yet, and they are the largest single block of stock in the game.
 | "Den" Nightshade | 27 | Community Coupons | 39.4 / 70.2 | 257303 | **complete** |
 | Jolli Maxiboom | 23 | Gold | 52.4 / 54.3 | 271366 | **complete** |
 | Hesta Forlath | 18 | Coupons, gold | 54.4 / 56.0 | 252917 | **complete** |
-| Pascal-K1N6 | 17 | Community Coupons | Commons | not confirmed | pending |
+| Pascal-K1N6 | 17 | Community Coupons | 54.1 / 56.0 | 248525 | **complete** |
 | Roz Copperpinch | 16 | Gold | Commons | not confirmed | pending |
 | Timicky | 16 | Community Coupons | 54.9 / 57.3 | 271173 | complete (shared) |
-| Lefton Farrer | 15 | Gold | 53.6 / 58.6 | 255299 | pending |
-| Merki | 13 | Gold | Commons | not confirmed | pending |
+| Lefton Farrer | 15 | Gold | 53.5 / 58.5 | 255299 | **complete** |
+| Merki | 13 | Gold | 54.0 / 58.8 | 257257 | **complete** |
 | Aeeshna | 12 | Community Coupons | Commons | not confirmed | pending |
 | Spew Gutsout | 11 | Tricky Treat | Commons | not confirmed | pending |
 | Agratha | 9 | Gold | 53.6 / 54.4 | 267794 | **complete** |
@@ -371,6 +375,39 @@ achievement *Ever Painting*); and seven "Unframed Painting" pieces at **1 500g e
 requiring a **Deed of Patronage**: Autumnal Eversong, Brunch and a Book, Fresh Canvas,
 Isolation, Reclamation, River's Protectors, The Fallen Protectors, The Light Blooms.
 
+### 5.14 Horde: Lefton Farrer and Merki (gold, mirrors of the Alliance vendors)
+
+**Lefton Farrer (15)** is the Horde copy of Argan Hammerfist, same fifteen elven pieces at the
+same prices: Circular Elven Table (100); Elegant Almond Table (100); Elegant Carved Bench
+(75); Elegant Covered Bench (75); Elegant Curved Table (100); Elegant Elven Barrel (10);
+Elegant Elven Water Well; Elven Floral Window (50); Elven Wood Crate (25); Elven Woodvine
+Trellis (150); Grand Elven Bench (125); Open Elegant Elven Barrel (10); Open Elven Wood Crate
+(25); Rectangular Elegant Table (100); Standing Ornate Weapon Rack (100).
+
+**Merki (13)** is the Horde copy of Devin Slatesmith: Counterspiral Wooden Stairs; Large
+Triangular Wooden Tile (100); Large Wooden Floor Tile (100); Large Wooden Wall Tile (100);
+Short Round Wooden Column (25); Short Square Wooden Column (25); Small Triangular Wooden Tile
+(25); Small Wooden Floor Tile (25); Small Wooden Wall Tile (25); Spiral Wooden Stairs (75);
+Tall Round Wooden Column (50); Tall Square Wooden Column (50); Wide Wooden Staircase (75).
+
+That mirroring is a deliberate design choice worth copying: **the structural and elven
+furniture sets are faction-neutral in stock and identical in price**, so a build looks the
+same in either neighborhood. Only the local architecture, plants and seasonal stock differ.
+
+### 5.15 Horde: Pascal-K1N6 (17, coupons) - Mechagon tinkering
+
+11 of 17 gated by Endeavor milestone. Blue-Glo Lantern (5); Dual Mechanical Gauge (2);
+Dual-Action Turbo Pro Lever (2, first); Galvanic Storage and Maintenance Device (15, fourth);
+Ineffective Mechanical Privacy Screen (10, third); Jury-Rigged Electrical Couple (2, second);
+Lively Pistons (2); Mad Science Blueprints (5, first); Mechagon Control Console (10, second);
+Mechanical Gauge (2); Miniature Charging Station (20, fourth); Safety Electrical Cabling (5,
+second); Sticky Lever (2, first); Sturdy Drive Belt (2); Triple-Tested Steam Valve (2);
+Well-Oiled Machine Cog (2, first); Z-205 Mechanical Device (10, third).
+
+This vendor is the one I care about most for the port: every piece is a 8.3.7 Mechagon prop,
+so it is directly harvestable, and the gating structure is a textbook four-tier milestone
+spread (2 coupons at milestone 1 up to 15-20 at milestone 4).
+
 ## 6. Three things this data proves that the guides do not say
 
 1. **Endeavor milestones gate vendor stock, permanently.** Roughly a third of the coupon
@@ -413,8 +450,8 @@ not, which is exactly why the shell system in doc 06 exists.
 | Check | Rule | Result |
 | --- | --- | --- |
 | Roster | Every vendor stocking decor inside either neighborhood appears once | 39/39 |
-| Counts | Transcribed item count equals published count | 26/26 vendors match exactly |
+| Counts | Transcribed item count equals published count | 29/29 vendors match exactly |
 | Currency | Gold, Community Coupons, Tricky Treat, Deed of Patronage kept distinct | verified |
-| Ids | Printed only when confirmed against an NPC page | 15 confirmed, 12 not |
+| Ids | Printed only when confirmed against an NPC page | 18 confirmed, 9 not |
 | Coordinates | Every coordinate carries its `/way` map id | verified, #2351 vs #2352 |
 | Prices | Printed only when the source prints them | blanks left blank |

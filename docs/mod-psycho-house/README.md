@@ -29,7 +29,7 @@ publish entry ids for the interior quests.
 | 06 | [Blueprints, dyes and pet beds](06-blueprint-dye-petbed.md) | Deep design for the three systems that need real engineering rather than data. |
 | 07 | [Client patching and assets](07-client-patching.md) | What an unlocked 8.3.7 client can and cannot be made to do, and the patch pipeline for housing art. |
 | 08 | [Source asset appendix](08-source-asset-appendix.md) | Generated: 767 game objects and 221 creatures that already have ids in my source tree, with file and line, per family. |
-| 09 | [Town Center register](09-town-center-register.md) | Every hub service, every service NPC, every one of the 39 neighborhood vendors with currency, coordinates and npc ids, and the **complete item list for 26 vendors (543 items)** with prices and unlock gates. Raw data in `data/town-center-stock.csv`. |
+| 09 | [Town Center register](09-town-center-register.md) | Every hub service, every service NPC, every one of the 39 neighborhood vendors with currency, coordinates and npc ids, and the **complete item list for 29 of 39 vendors (588 items)** with prices and unlock gates. Raw data in `data/town-center-stock.csv`. |
 | - | [Generated index](generated/source-asset-index.md) | Auto-generated inventory (28 314 named id constants) plus the CSV. |
 
 ## Tools that ship with this
@@ -96,7 +96,8 @@ and fixed:
 | 5 | Doc 01's "300 starting budget" line looked like a contradiction of the level table | Now explicitly flagged as an early guide figure superseded by the shipped table |
 | 6 | Endeavor milestone gating of vendor stock was **missing entirely** from docs 01, 02, 04 and 05 | Added: doc 01 sec.7.5, doc 02 schema + matrix rows, doc 04 sec.4.2b, doc 05 phase 3 |
 | 7 | The "Deed of Patronage" entitlement and achievement-gated decor were unknown | Documented in doc 01 sec.7.5 and doc 09 sec.5.13 |
-| 8 | Doc 09's coverage was implied complete when only 4 vendors had item data | Now states exact coverage: 26 of 39 vendors, 543 of 1 143 items, with the pending list named |
+| 7b | Mirror vendors (Argan/Lefton, Devin/Merki) looked like separate stock | Confirmed identical stock and prices; documented as a design rule in doc 09 sec.5.14 |
+| 8 | Doc 09's coverage was implied complete when only 4 vendors had item data | Now states exact coverage: 29 of 39 vendors, 588 of 1 143 items, with the 9 pending vendors named in size order |
 | 9 | All 21 cross-references between documents verified against actual section headings | 0 broken |
 | 10 | Non-ASCII characters (em dashes, arrows, section signs) that render as garbage in some Windows encodings | All files folded to pure ASCII and verified byte by byte |
 
@@ -120,9 +121,9 @@ time of writing. Where two sources disagree I record both and say which I use.
 | Balen Starfinder stock | Two mirror pages | 53 vs 54 items; both printed, difference is one late addition |
 | Neighborhood vendor count | Vendor index | 39 vendors stocking decor inside the two neighborhoods, out of 166 worldwide |
 | Source asset counts | Own index run over `src/` | 28 314 named id constants, 988 decor-shaped |
-| Vendor item counts | Each transcribed vendor compared to its published total | 26/26 exact: Faarden 69, Xiao Dan 65, Balen 54, Trevor 43, Boh'an 32, Den 27, Jolli 23, Holly 21, Hesta 18, Burlee 16, Timicky 16, Argan 15, Dovetail 15, Fel'orei 15, Griftah 15, Roshai 15, Taifa 15, Devin 13, Harlowe 13, Cordula 11, Perry 9, Agratha 9, Klasa 5, Lonomia 5, Unquestionably Griftah 3, Cousin Shortkaf 1 |
-| Endeavor milestone gating | Six vendors cross-checked for "Reach the Nth milestone" conditions | Confirmed on 5 of 6 coupon vendors, 64 gated items total |
-| Vendor npc ids | Each printed id traced to an NPC page | 15 confirmed, 12 deliberately left blank |
+| Vendor item counts | Each transcribed vendor compared to its published total | 29/29 exact: Faarden 69, Xiao Dan 65, Balen 54, Trevor 43, Boh'an 32, Den 27, Jolli 23, Holly 21, Hesta 18, Pascal 17, Burlee 16, Timicky 16, Argan 15, Dovetail 15, Fel'orei 15, Griftah 15, Lefton 15, Roshai 15, Taifa 15, Devin 13, Harlowe 13, Merki 13, Cordula 11, Perry 9, Agratha 9, Klasa 5, Lonomia 5, Unquestionably Griftah 3, Cousin Shortkaf 1 |
+| Endeavor milestone gating | Coupon vendors cross-checked for "Reach the Nth milestone" conditions | Confirmed on 7 vendors, 75 gated items |
+| Vendor npc ids | Each printed id traced to an NPC page | 18 confirmed, 9 deliberately left blank |
 
 Open items I could not confirm and therefore did not print: the quest ids after 93057, the
 Endeavor currency id, per-room placement costs, npc ids for vendors marked "not confirmed"
