@@ -14,7 +14,7 @@ modules/mod-psycho-house/
   README.md              this file
   01-...09-....md        the reference set
   10-draft-modules.md    the two drafts, side by side
-  data/                  CSV snapshots: 675 stock lines, 201 item ids, 38 npc ids
+  data/                  CSV snapshots: 675 stock lines, 201 item ids, 38 of 39 npc ids
   generated/             source asset index (28 314 constants, 988 decor-shaped)
   vendor-slugs.txt       the 39 vendor slugs every scraper consumes
   drafts/
