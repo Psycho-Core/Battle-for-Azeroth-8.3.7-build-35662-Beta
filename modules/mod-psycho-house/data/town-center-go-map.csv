@@ -1,4 +1,5 @@
 item,category,gameobject_entry,go_constant,go_subcategory,match,confidence
+"""Sunrise Canyon"" Painting",Wall Art,195339,GO_ALLIANCE_BANNER_REFINERY,Ornamental,category,medium
 590 Quel'Lithien Red,Accents,7366,GO_RED_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 590 Quel'Lithien Red Display Bottle,Accents,7366,GO_RED_CLUSTER_DISPLAY_LARGE,db,keyword,high
 Amani Anvil,Accents,186609,GO_GLOWING_ANVIL_1,Utility,family:ANVIL,high
@@ -226,6 +227,8 @@ Heartsbane Doom Catcher,Holiday,190475,GO_WINTERGRASP_FACTORY_BANNER_NE,Ornament
 Heartsbane Ritual Markings,Wall Art,265596,GO_RITUAL_STONE,db,keyword,medium
 Heartsbane Stone Circle,Holiday,195130,GO_HORDE_BANNER_HANGAR,Ornamental,category,medium
 Hearty Niffen Grub,Accents,192564,GO_SLAD_RAN_STATUE,Ornamental,category,medium
+Hide-Covered Bench,Seating,186922,GO_BENCH_2,Seating,family:BENCH,high
+Hide-Covered Wall Shelf,Structural,246948,GO_WALL_OF_SOULS_2,Walls and Columns,family:WALL,high
 High-Backed Orgrimmar Chair,Seating,269779,GO_ELUNES_THRONE,Seating,family:CHAIR,high
 Highlighting High Light,Lighting,208906,GO_FIRE_WALL_FENDRAL,Walls and Columns,family:LIGHT,high
 Hilltop Boulder,Nature,196485,GO_SARONITE_ROCK,db,family:BOULDER,high
@@ -235,6 +238,7 @@ Horned Hanging Sconce,Lighting,176093,GO_BEACON_TORCH,Small Lights,category,medi
 Horrific Head of the Horseman,Holiday,195396,GO_ALLIANCE_BANNER,Ornamental,category,medium
 Hot Kobold Treasure,Accents,288639,GO_TREASURE_RICH_FLOTSAM,db,keyword,medium
 Ineffective Mechanical Privacy Screen,Accents,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
+Iron Candlelight Lantern,Lighting,195424,GO_BRAZIER_4,Small Lights,family:LANTERN,high
 Iron Chain Chandelier,Lighting,201775,GO_BALL_AND_CHAIN,db,keyword,medium
 Iron-Reinforced Crate,Storage,221908,GO_LIGHTWEIGHT_CRATE_OF_MOGU_34,Storage,family:CRATE,high
 Iron-Reinforced Cupboard,Accents,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
@@ -272,6 +276,7 @@ Large Wooden Wall Tile,Structural,246435,GO_WALL_OF_SOULS_3,Walls and Columns,fa
 Leather Valance,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
 Leather-Banded Wooden Bench,Seating,186896,GO_BENCH_1,Seating,family:BENCH,high
 Legerdemain Lounge Sign Board,Wall Art,195132,GO_ALLIANCE_BANNER_HANGAR,Ornamental,family:SIGN,high
+Lightly Adorned Hanging Razorwind Ropes,Lighting,207408,GO_MAGIC_BRAZIER,Small Lights,category,medium
 Lively Pistons,Accents,195403,GO_BRAZIER_2,Small Lights,category,medium
 Loamm Archway,Structural,184596,GO_KAEL_STATUE_RIGHT,Ornamental,category,medium
 Loamm Bartering Stall,Accents,195424,GO_BRAZIER_4,Small Lights,category,medium
@@ -358,6 +363,7 @@ Pet Food and Water Tray,Pets,221820,GO_STOUT_CRATE_OF_MANTID_5,Storage,category,
 Pillar Cobweb,Structural,184635,GO_MAGTHERIDON_COLUMN_2,Walls and Columns,family:PILLAR,high
 Pink Gilnean Rose,Accents,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
 Pink Razorwind Paintbrush,Accents,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
+Plain Hanging Razorwind Ropes,Accents,188165,GO_KAEL_STATUE_1,Ornamental,category,medium
 Plain Interior Doorway,Structural,312234,GO_ZULDAZAR_RAID_INTERIOR_ELEVATOR,db,keyword,medium
 Plain Interior Narrow Wall,Structural,212908,GO_SNOWDRIFT_FIRE_WALL,Walls and Columns,family:WALL,high
 Plain Interior Wall,Structural,221422,GO_WALL_OF_ICE,Walls and Columns,family:WALL,high
@@ -566,10 +572,12 @@ Traditional Brewfest Stein,Accents,148836,GO_ATALAI_IDOL,db,category,medium
 Trampled Wisps of Hay,Nature,191144,GO_INCONSPICUOUS_TREE,Large Foliage,category,medium
 Triple-Tested Steam Valve,Accents,195424,GO_BRAZIER_4,Small Lights,category,medium
 Tusked Candleholder,Lighting,207408,GO_MAGIC_BRAZIER,Small Lights,category,medium
+Tusked Chandelier,Lighting,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
 Tusked Fireplace,Lighting,195402,GO_BRAZIER_1,Small Lights,category,medium
 Tusked Gazebo,Nature,203037,GO_BURNING_TREE_4,Large Foliage,category,medium
 Tusked Hanging Sconce,Lighting,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
 Tusked Leather Tapestry,Wall Art,195343,GO_REFINERY_BANNER,Ornamental,category,medium
+Tusked Sconce,Lighting,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
 Tusked Weapon Rack,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Tusked Weapon Stand,Accents,184596,GO_KAEL_STATUE_RIGHT,Ornamental,category,medium
 Twisted Rope Coil,Accents,208844,GO_VENOXIS_COIL,db,keyword,medium

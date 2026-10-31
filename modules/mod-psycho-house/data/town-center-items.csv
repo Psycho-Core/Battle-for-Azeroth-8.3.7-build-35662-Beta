@@ -13,39 +13,82 @@ vendor,item_id,item_name,price,currency,source
 """Den"" Nightshade",280652,Sentinel Hill Picnic Table,30,Community Coupons,wowhead npc 257303
 """Den"" Nightshade",280654,Old Moonbrook Daylight Window,20,Community Coupons,wowhead npc 257303
 """Den"" Nightshade",282347,Old Moonbrook Nighttime Window,20,Community Coupons,wowhead npc 257303
+"""High Tides"" Ren",235633,Circular Woolen Rug,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",235675,Three-Candle Wrought Iron Chandelier,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",235677,Wrought Iron Floor Lamp,50,Gold,wowhead npc 255325
 """High Tides"" Ren",236653,Orgrimmar Interior Narrow Wall,75,Gold,wowhead npc 255222
 """High Tides"" Ren",236654,Orgrimmar Interior Doorway,100,Gold,wowhead npc 255222
 """High Tides"" Ren",236655,Orgrimmar Interior Wall,100,Gold,wowhead npc 255222
 """High Tides"" Ren",236666,Orgrimmar Round Interior Pillar,50,Gold,wowhead npc 255222
 """High Tides"" Ren",236667,Orgrimmar Square Interior Pillar,50,Gold,wowhead npc 255222
+"""High Tides"" Ren",236675,Stormwind Interior Pillar,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",236676,Stormwind Interior Narrow Wall,75,Gold,wowhead npc 255325
+"""High Tides"" Ren",236677,Stormwind Interior Wall,100,Gold,wowhead npc 255325
+"""High Tides"" Ren",236678,Stormwind Interior Doorway,100,Gold,wowhead npc 255325
+"""High Tides"" Ren",239075,Wrought Iron Chandelier,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",242255,Stormwind Hall Rug,75,Gold,wowhead npc 255325
+"""High Tides"" Ren",244530,Sturdy Wall Rack,75,Gold,wowhead npc 255325
+"""High Tides"" Ren",244531,Sturdy Fireplace,100,Gold,wowhead npc 255325
 """High Tides"" Ren",244533,Iron Chain Chandelier,50,Gold,wowhead npc 255222
 """High Tides"" Ren",244534,Iron-Reinforced Door,50,Gold,wowhead npc 255222
 """High Tides"" Ren",244661,Tied-Left Leather Curtains,50,Gold,wowhead npc 255222
 """High Tides"" Ren",244662,Closed Leather Curtains,50,Gold,wowhead npc 255222
 """High Tides"" Ren",244663,Leather Valance,50,Gold,wowhead npc 255222
+"""High Tides"" Ren",244664,Tied-Open Folk Curtains,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",244665,Closed Folk Curtains,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",244666,Durable Folk Valance,50,Gold,wowhead npc 255325
 """High Tides"" Ren",244778,Sethraliss Priest's Pillow,2,Gold,wowhead npc 255222
 """High Tides"" Ren",245264,Round Stitched Cushion,10,Gold,wowhead npc 255222
 """High Tides"" Ren",245265,Stitched Pillow Roll,10,Gold,wowhead npc 255222
 """High Tides"" Ren",245266,Iron-Studded Wooden Window,50,Gold,wowhead npc 255222
+"""High Tides"" Ren",245267,Charming Seat Cushion,10,Gold,wowhead npc 255325
+"""High Tides"" Ren",245268,Checkered Charming Seat Cushion,10,Gold,wowhead npc 255325
+"""High Tides"" Ren",245334,Wicker Basket,10,Gold,wowhead npc 255325
+"""High Tides"" Ren",245335,Empty Wicker Basket,10,Gold,wowhead npc 255325
+"""High Tides"" Ren",245336,Sturdy Wooden Bed,100,Gold,wowhead npc 255325
+"""High Tides"" Ren",245352,Sturdy Wooden Coffin,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",245353,Open Wooden Coffin,75,Gold,wowhead npc 255325
+"""High Tides"" Ren",245354,Wooden Coffin Lid,25,Gold,wowhead npc 255325
+"""High Tides"" Ren",245355,Sturdy Wooden Interior Door,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",245356,Goldshire Window,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",245358,Small Fruit Platter,10,Gold,wowhead npc 255325
+"""High Tides"" Ren",245370,Secretive Bookcase Wall,125,Gold,wowhead npc 255325
+"""High Tides"" Ren",245375,Sturdy Wooden Bookcase,100,Gold,wowhead npc 255325
+"""High Tides"" Ren",245376,Tall Sturdy Wooden Bookcase,125,Gold,wowhead npc 255325
+"""High Tides"" Ren",245383,"""Sunrise Canyon"" Painting",150,Gold,wowhead npc 255325
+"""High Tides"" Ren",245384,Sturdy Wooden Shelf,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",245392,Sturdy Wooden Interior Pillar,50,Gold,wowhead npc 255325
 """High Tides"" Ren",245393,Plain Interior Wall,100,Gold,wowhead npc 255222
 """High Tides"" Ren",245394,Plain Interior Doorway,100,Gold,wowhead npc 255222
 """High Tides"" Ren",245395,Plain Interior Narrow Wall,75,Gold,wowhead npc 255222
 """High Tides"" Ren",245398,Tusked Fireplace,100,Gold,wowhead npc 255222
 """High Tides"" Ren",245532,Orgrimmar Chair,50,Gold,wowhead npc 255222
 """High Tides"" Ren",245545,Orgrimmar Nightstand,25,Gold,wowhead npc 255222
+"""High Tides"" Ren",245547,Wide Charming Couch,100,Gold,wowhead npc 255325
+"""High Tides"" Ren",245548,Iron-Reinforced Cupboard,100,Gold,wowhead npc 255325
 """High Tides"" Ren",245555,Orgrimmar Tusked Bed,100,Gold,wowhead npc 255222
+"""High Tides"" Ren",245556,Iron-Reinforced Standing Mirror,100,Gold,wowhead npc 255325
 """High Tides"" Ren",245680,Orgrimmar Bureaucrat's Desk,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246036,High-Backed Orgrimmar Chair,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246037,Iron-Reinforced Wooden Rack,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246038,Stitched Leather Rug,75,Gold,wowhead npc 255222
+"""High Tides"" Ren",246101,Small Wooden Stool,10,Gold,wowhead npc 255325
+"""High Tides"" Ren",246103,Small Wooden Nightstand,25,Gold,wowhead npc 255325
+"""High Tides"" Ren",246106,Wooden Chamberstick,10,Gold,wowhead npc 255325
 """High Tides"" Ren",246223,Cozy Hide-Covered Bench,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246224,Large Orgrimmar Bookcase,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246225,Small Leather Rug,50,Gold,wowhead npc 255222
+"""High Tides"" Ren",246243,Stormwind Beam Platform,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",246245,Stormwind Round Platform,100,Gold,wowhead npc 255325
+"""High Tides"" Ren",246246,Stormwind Large Platform,125,Gold,wowhead npc 255325
+"""High Tides"" Ren",246247,Stormwind Small Platform,75,Gold,wowhead npc 255325
+"""High Tides"" Ren",246248,Stormwind Angled Platform,50,Gold,wowhead npc 255325
 """High Tides"" Ren",246259,Orgrimmar Beam Platform,50,Gold,wowhead npc 255222
 """High Tides"" Ren",246260,Orgrimmar Round Platform,100,Gold,wowhead npc 255222
 """High Tides"" Ren",246261,Orgrimmar Large Platform,125,Gold,wowhead npc 255222
 """High Tides"" Ren",246262,Orgrimmar Small Platform,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246263,Orgrimmar Angled Platform,50,Gold,wowhead npc 255222
+"""High Tides"" Ren",246502,Charming Couch,100,Gold,wowhead npc 255325
 """High Tides"" Ren",246587,Short Orgrimmar Bookcase,25,Gold,wowhead npc 255222
 """High Tides"" Ren",246607,Durable Hex Table,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246608,Long Leather-Clad Table,125,Gold,wowhead npc 255222
@@ -56,37 +99,90 @@ vendor,item_id,item_name,price,currency,source
 """High Tides"" Ren",246687,Tusked Candleholder,10,Gold,wowhead npc 255222
 """High Tides"" Ren",246869,Razorwind Wall Mirror,75,Gold,wowhead npc 255222
 """High Tides"" Ren",246879,Tusked Hanging Sconce,25,Gold,wowhead npc 255222
+"""High Tides"" Ren",246934,Small Covered Wooden Table,50,Gold,wowhead npc 255325
+"""High Tides"" Ren",246935,Small Sturdy Wooden Table,50,Gold,wowhead npc 255325
 """High Tides"" Ren",247221,Small Orgrimmar Chair,50,Gold,wowhead npc 255222
 """High Tides"" Ren",248246,Razorwind Storage Table,75,Gold,wowhead npc 255222
+"""High Tides"" Ren",250092,Small Wooden Footstool,10,Gold,wowhead npc 255325
 """High Tides"" Ren",250093,Tusked Weapon Rack,75,Gold,wowhead npc 255222
 """High Tides"" Ren",250094,Empty Orgrimmar Bathtub,75,Gold,wowhead npc 255222
 """High Tides"" Ren",250691,Tusked Leather Tapestry,50,Gold,wowhead npc 255222
 """High Tides"" Ren",250692,Razorwind Banner Pelt,50,Gold,wowhead npc 255222
 """High Tides"" Ren",250913,Small Razorwind Bar Table,75,Gold,wowhead npc 255222
+"""Len"" Splinthoof",235523,Sturdy Wooden Chair,50,Gold,wowhead npc 255326
+"""Len"" Splinthoof",242951,Sturdy Wooden Bench,75,Gold,wowhead npc 255326
+"""Len"" Splinthoof",243334,Reinforced Wooden Chest,50,Gold,wowhead npc 255326
 """Len"" Splinthoof",244532,Rugged Stool,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",244535,Tusked Gazebo,150,Gold,wowhead npc 255228
+"""Len"" Splinthoof",244667,Restful Wooden Bench,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245357,Gryphon Roost,150,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245359,Large Stonework Fountain,150,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245360,Small Stonework Fountain,75,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245365,Empty Stormwind Market Stand,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245366,Stormwind Bean Seller's Stand,150,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245367,Stormwind Produce Seller's Stand,150,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245368,Stormwind Spice Merchant's Stand,150,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245372,Covered Wooden Table,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245374,Sturdy Wooden Table,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245377,Open-Air Sturdy Tent,75,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245378,Sturdy Sheltering Tent,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245379,Sturdy Roofed Wagon,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245380,Sturdy Open Wagon,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245382,Sturdy Covered Wagon,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245385,Well-Built Well,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245386,Sturdy Wooden Wheelbarrow,125,Gold,wowhead npc 255326
 """Len"" Splinthoof",245533,Rugged Brazier,50,Gold,wowhead npc 255228
 """Len"" Splinthoof",245546,Durable Wooden Chest,50,Gold,wowhead npc 255228
+"""Len"" Splinthoof",245551,Worker's Wooden Desk,75,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245656,Wooden Gazebo,150,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245657,Stonework Fountain,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",245662,Carved Wooden Bar Table,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246102,Large Covered Wooden Table,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246104,Carved Wooden Crate,25,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246105,Sturdy Weapon Rack,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246106,Wooden Chamberstick,10,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246107,Large Sturdy Wooden Table,125,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246109,Open Carved Wooden Crate,25,Gold,wowhead npc 255326
 """Len"" Splinthoof",246217,Short Orgrimmar Bench,75,Gold,wowhead npc 255228
 """Len"" Splinthoof",246218,Iron-Reinforced Crate,25,Gold,wowhead npc 255228
+"""Len"" Splinthoof",246219,Weather-Treated Wooden Table,100,Gold,wowhead npc 255326
 """Len"" Splinthoof",246220,Leather-Banded Wooden Bench,125,Gold,wowhead npc 255228
 """Len"" Splinthoof",246241,Spiky Banded Barrel,10,Gold,wowhead npc 255228
+"""Len"" Splinthoof",246588,Sturdy Wooden Trellis,150,Gold,wowhead npc 255326
 """Len"" Splinthoof",246611,Razorwind Fountain,125,Gold,wowhead npc 255228
 """Len"" Splinthoof",246612,Logger's Picnic Table,100,Gold,wowhead npc 255228
 """Len"" Splinthoof",246615,Open Spiky Banded Barrel,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",246616,Open Iron-Reinforced Crate,25,Gold,wowhead npc 255228
+"""Len"" Splinthoof",246742,Tall Sturdy Wooden Chair,75,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246803,Arched Wooden Bench,75,Gold,wowhead npc 255326
 """Len"" Splinthoof",246868,Wide Hide-Covered Bench,100,Gold,wowhead npc 255228
+"""Len"" Splinthoof",246870,Farmer's Water Trough,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246871,Hay-Filled Sturdy Feeding Trough,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246872,Carved Stone Bench,75,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246874,Sturdy Brazier,50,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246875,Founder's Point Street Light,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246876,Founder's Point Lamppost,100,Gold,wowhead npc 255326
+"""Len"" Splinthoof",246877,Sturdy Feeding Trough,100,Gold,wowhead npc 255326
 """Len"" Splinthoof",246880,Horned Banded Barrel,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",246881,Open Horned Banded Barrel,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",246882,Long Orgrimmar Bench,100,Gold,wowhead npc 255228
 """Len"" Splinthoof",246883,Crude Banded Crate,25,Gold,wowhead npc 255228
 """Len"" Splinthoof",246884,Open Crude Banded Crate,25,Gold,wowhead npc 255228
+"""Len"" Splinthoof",248400,Founder's Point Signpost,25,Gold,wowhead npc 255326
 """Len"" Splinthoof",249550,Wind Rider Roost,150,Gold,wowhead npc 255228
+"""Len"" Splinthoof",249822,Founder's Point Street Sign,10,Gold,wowhead npc 255326
+"""Len"" Splinthoof",249823,Founder's Point Navigation Sign,10,Gold,wowhead npc 255326
+"""Len"" Splinthoof",250095,Runed Stone Placard,10,Gold,wowhead npc 255326
+"""Len"" Splinthoof",250249,Founder's Point Gravestone,25,Gold,wowhead npc 255326
+"""Len"" Splinthoof",250250,Small Founder's Point Gravestone,10,Gold,wowhead npc 255326
+"""Len"" Splinthoof",250251,Tall Founder's Point Gravestone,50,Gold,wowhead npc 255326
+"""Len"" Splinthoof",250252,Large Founder's Point Gravestone,100,Gold,wowhead npc 255326
 """Len"" Splinthoof",251011,Painted Wood Scraps,25,Gold,wowhead npc 255228
 """Len"" Splinthoof",251012,Painted Wood Scrap Pile,50,Gold,wowhead npc 255228
 """Len"" Splinthoof",251545,Razorwind Cooking Grill,100,Gold,wowhead npc 255228
 """Len"" Splinthoof",251637,Tusked Weapon Stand,100,Gold,wowhead npc 255228
 """Len"" Splinthoof",251638,Jagged Orgrimmar Trellis,150,Gold,wowhead npc 255228
+"""Len"" Splinthoof",252004,Wooden Planter Pot,25,Gold,wowhead npc 255326
 """Len"" Splinthoof",252008,Razorwind Wheelbarrow,50,Gold,wowhead npc 255228
 """Len"" Splinthoof",253019,Razorwind Banded Planter,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",254893,Large Razorwind Gazebo,150,Gold,wowhead npc 255228
@@ -111,6 +207,18 @@ vendor,item_id,item_name,price,currency,source
 """Len"" Splinthoof",268026,Scattered Wisps of Hay,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",268027,Windblown Wisps of Hay,10,Gold,wowhead npc 255228
 """Len"" Splinthoof",268028,Trampled Wisps of Hay,10,Gold,wowhead npc 255228
+"""Yen"" Malone",245298,Wild Violet Bellflowers,25,Gold,wowhead npc 255319
+"""Yen"" Malone",245299,Reaching Violet Bellflowers,25,Gold,wowhead npc 255319
+"""Yen"" Malone",245300,Arched Violet Bellflowers,25,Gold,wowhead npc 255319
+"""Yen"" Malone",245327,Creeping Corner Ivy,50,Gold,wowhead npc 255319
+"""Yen"" Malone",245328,Small Boxwood Bush,25,Gold,wowhead npc 255319
+"""Yen"" Malone",245329,Small Poppy Cluster,25,Gold,wowhead npc 255319
+"""Yen"" Malone",245369,Gift of Gilneas,25,Gold,wowhead npc 255319
+"""Yen"" Malone",245371,Charming Laurel Tree,75,Gold,wowhead npc 255319
+"""Yen"" Malone",245658,Elwynn Cobblestone Round,10,Gold,wowhead npc 255319
+"""Yen"" Malone",245659,Elwynn Cobblestone,10,Gold,wowhead npc 255319
+"""Yen"" Malone",245660,Elwynn Cobblestone Pair,10,Gold,wowhead npc 255319
+"""Yen"" Malone",245661,Elwynn Cobblestone Cluster,10,Gold,wowhead npc 255319
 """Yen"" Malone",248337,Round-Top Boulder,50,Gold,wowhead npc 255230
 """Yen"" Malone",248338,Flat Boulder,50,Gold,wowhead npc 255230
 """Yen"" Malone",248339,Hilltop Boulder,50,Gold,wowhead npc 255230
@@ -124,14 +232,33 @@ vendor,item_id,item_name,price,currency,source
 """Yen"" Malone",248632,Hardy Razorwind Grass Patch,75,Gold,wowhead npc 255230
 """Yen"" Malone",248633,Flowering Durotar Cactus,50,Gold,wowhead npc 255230
 """Yen"" Malone",248634,Razorwind Acacia Tree,125,Gold,wowhead npc 255230
+"""Yen"" Malone",248635,Elwynn Whitebrush,25,Gold,wowhead npc 255319
 """Yen"" Malone",248636,Razorwind Gobtree,75,Gold,wowhead npc 255230
 """Yen"" Malone",248637,Sunset Aster Flowers,10,Gold,wowhead npc 255230
 """Yen"" Malone",248638,Pink Razorwind Paintbrush,25,Gold,wowhead npc 255230
+"""Yen"" Malone",248639,Gloomrose,25,Gold,wowhead npc 255319
+"""Yen"" Malone",248640,Duskberry Bush,25,Gold,wowhead npc 255319
+"""Yen"" Malone",248641,Duskwood Shadebrush,25,Gold,wowhead npc 255319
+"""Yen"" Malone",248642,Creeping Lattice Ivy,50,Gold,wowhead npc 255319
+"""Yen"" Malone",248643,Duskwood Sycamore Shrub,125,Gold,wowhead npc 255319
+"""Yen"" Malone",248644,Spiritbloom Flower,25,Gold,wowhead npc 255319
+"""Yen"" Malone",248645,Pink Gilnean Rose,25,Gold,wowhead npc 255319
+"""Yen"" Malone",248646,Silvermoon Sunrise Bush,50,Gold,wowhead npc 255319
+"""Yen"" Malone",248647,Founder's Point Blooming Grass Patch,10,Gold,wowhead npc 255319
+"""Yen"" Malone",248648,Autumn Leaf Pile,50,Gold,wowhead npc 255319
+"""Yen"" Malone",248649,Young Chestnut Tree,125,Gold,wowhead npc 255319
 """Yen"" Malone",248650,Razorwind Flamebrush,10,Gold,wowhead npc 255230
+"""Yen"" Malone",248802,Elwynn Grass Patch,10,Gold,wowhead npc 255319
+"""Yen"" Malone",248803,Elwynn Grass Spread,25,Gold,wowhead npc 255319
+"""Yen"" Malone",248811,Elwynn Small Grass Patch,10,Gold,wowhead npc 255319
+"""Yen"" Malone",255644,Elwynn Apple Tree,150,Gold,wowhead npc 255319
+"""Yen"" Malone",255646,Founder's Point Apple Tree,150,Gold,wowhead npc 255319
 """Yen"" Malone",257359,Slate Cobblestone Pair,10,Gold,wowhead npc 255230
 """Yen"" Malone",257388,Slate Cobblestone,10,Gold,wowhead npc 255230
 """Yen"" Malone",257390,Slate Cobblestone Path,10,Gold,wowhead npc 255230
 """Yen"" Malone",257392,Slate Cobblestone Trio,10,Gold,wowhead npc 255230
+"""Yen"" Malone",258658,Elwynn Autumn Apple Tree,150,Gold,wowhead npc 255319
+"""Yen"" Malone",258659,Founder's Point Autumn Apple Tree,150,Gold,wowhead npc 255319
 """Yen"" Malone",260701,Red Razorwind Paintbrush,25,Gold,wowhead npc 255230
 """Yen"" Malone",260702,Dry Razorwind Grass Patch,75,Gold,wowhead npc 255230
 """Yen"" Malone",266234,Saltfang Shoals Large Garden Cluster,150,Gold,wowhead npc 255230
@@ -139,6 +266,11 @@ vendor,item_id,item_name,price,currency,source
 """Yen"" Malone",266236,Razorwind Blooms Large Garden Cluster,150,Gold,wowhead npc 255230
 """Yen"" Malone",266237,Runetotem's Bounty Large Garden Cluster,150,Gold,wowhead npc 255230
 """Yen"" Malone",266238,Cragthorn Highlands Large Garden Cluster,150,Gold,wowhead npc 255230
+"""Yen"" Malone",266239,Outer Banks Large Garden Cluster,150,Gold,wowhead npc 255319
+"""Yen"" Malone",266240,Founder's Point Large Garden Cluster,150,Gold,wowhead npc 255319
+"""Yen"" Malone",266241,Brumewood Hollow Large Garden Cluster,150,Gold,wowhead npc 255319
+"""Yen"" Malone",266242,Gilded Oaks Large Garden Cluster,150,Gold,wowhead npc 255319
+"""Yen"" Malone",266243,Stoneveil Ridge Large Garden Cluster,150,Gold,wowhead npc 255319
 """Yen"" Malone",266244,Granite Cobblestone Path Corner,75,Gold,wowhead npc 255230
 """Yen"" Malone",266245,Granite Cobblestone Path Arc,75,Gold,wowhead npc 255230
 """Yen"" Malone",266443,Granite Cobblestone Long Path,75,Gold,wowhead npc 255230
@@ -357,6 +489,13 @@ Gronthul,250691,Tusked Leather Tapestry,50,Gold,wowhead npc 255278
 Gronthul,250692,Razorwind Banner Pelt,50,Gold,wowhead npc 255278
 Gronthul,250913,Small Razorwind Bar Table,75,Gold,wowhead npc 255278
 Gronthul,250920,Horned Hanging Sconce,25,Gold,wowhead npc 255278
+Gronthul,251639,Hide-Covered Bench,100,Gold,wowhead items filter=129;0;255278
+Gronthul,251973,Hide-Covered Wall Shelf,50,Gold,wowhead items filter=129;0;255278
+Gronthul,251974,Tusked Chandelier,50,Gold,wowhead items filter=129;0;255278
+Gronthul,251975,Tusked Sconce,25,Gold,wowhead items filter=129;0;255278
+Gronthul,259468,Plain Hanging Razorwind Ropes,50,Gold,wowhead items filter=129;0;255278
+Gronthul,259470,Lightly Adorned Hanging Razorwind Ropes,75,Gold,wowhead items filter=129;0;255278
+Gronthul,267088,Iron Candlelight Lantern,25,Gold,wowhead items filter=129;0;255278
 Hordranin,250627,Forbidden Fork,5,Community Coupons,wowhead npc 250820
 Hordranin,250694,Draconic Metalshaper's Anvil,15,Community Coupons,wowhead npc 250820
 Hordranin,250695,Replica Grathardormu's Hammer,10,Community Coupons,wowhead npc 250820

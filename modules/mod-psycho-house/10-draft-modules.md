@@ -36,9 +36,9 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | Piece | Value |
 | --- | --- |
 | Vendors | 39, each with the retail npc id, faction and stock count in its row comment |
-| Decor rows | 555, every one carrying a real 8.3.7 game object |
-| Stock lines | 830 |
-| Retail item ids on those rows | 434 rows carry one (600 ids in total) |
+| Decor rows | 571, every one carrying a real 8.3.7 game object |
+| Stock lines | 969 |
+| Retail item ids on those rows | 450 rows carry one (739 ids in total) |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
 | Gated stock | 90 stock rows sit on six vendors that lock pieces behind Endeavor milestones: Den, Pascal, Griftah, Harlowe, Aeeshna and Hordranin. Hordranin's eight gates are recorded per item in the CSV note column; the other five carry a vendor-level count. The draft does not enforce gating yet - that is phase 3 |
 | Unpriced lines | 92, listed as comments and deliberately not inserted |
@@ -76,9 +76,9 @@ decision I can change and re-generate in seconds.
 | Needs retail data | yes, by definition | no |
 | Needs client patches | for art, yes | no |
 | Runs on a clean 8.3.7 install | with an empty catalogue until pieces are mapped | yes, immediately |
-| Number of decor pieces | 555 | 350 |
+| Number of decor pieces | 571 | 350 |
 | Number of vendors | 39 | 8 |
-| Item ids referenced | 600 retail ids | 0 |
+| Item ids referenced | 739 retail ids | 0 |
 | Currency | gold + 3363 + item 33226 | gold |
 | Endeavor gating | yes, 4 milestones | no |
 | House levels | 12, retail budgets | 6, my budgets |

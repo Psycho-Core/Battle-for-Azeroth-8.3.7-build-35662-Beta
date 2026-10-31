@@ -3,8 +3,8 @@
 The Founder's Point Town Center and the Razorwind Shores Commons in full: every service,
 every NPC, every vendor, every item they stock, its price, its currency, and its unlock
 condition. Vendor-level data covers all 39 neighborhood vendors (every one with an npc id);
-item-level data covers **all 39 of them (917 items)**, 600 of which carry a retail item id,
-and every one of the 39 npc ids is now confirmed against a live NPC page.
+item-level data covers **all 39 of them (1 056 items)**, 739 of which carry a retail item id,
+and every one of the 39 npc ids is confirmed against a live NPC page.
 
 One number to be careful with: the vendor index aggregates the two neighborhoods at
 1 143 items, while the per-vendor counts add up to **1 155**. The difference is exactly
@@ -12,31 +12,28 @@ Hordranin's 12, which the index leaves out of its own total, so I use my own sum
 
 ## 1. Coverage, stated up front
 
-| Group | Vendors | Items | Status |
+| Group | Vendors | Rows | Status |
 | --- | --- | --- | --- |
-| Vendors captured in full on their own npc page | 26 | 470 | complete: name, id, price, currency |
-| Vendors captured up to the 50 row page cap | 4 | 218 | Ren 50 of 84, Gronthul 50 of 83, plus the pages that close at 48 and 32 |
-| Vendors whose stock is split across a second faction npc | 3 | 229 | Ren 255325, Len 255326, Yen 255319 still to read |
-| Endeavor trader and shared vendors | 6 | - | counted above |
-| **Total** | **39** | **1 155** | **917 items transcribed, 600 item ids** |
+| Vendors captured in full, row count equals the catalogue count | 35 | 755 | every name, price and gate; the id count trails only where the page cap hides a row |
+| Vendors captured up to the 50 row window | 4 | 301 | Ren 96 of 146, Len 98 of 117, Gronthul 57 of 83, Jehzar 50 of 54 |
+| Vendors standing as two npcs | 3 | - | Ren, Len, Yen: both pages read, rows merged under one vendor name |
+| **Total** | **39** | **1 056 of 1 155** | **739 carry a retail item id, 99 rows behind the window** |
 
 The split by neighborhood is in section 4, vendor by vendor, because several vendors stand
 in both neighborhoods and a single group total would count them twice.
 
-The CSV next to this document, `data/town-center-stock.csv`, holds the 917 transcribed
-rows in `vendor, item, price, currency, note` form. The remaining 238 catalogue items sit
-behind the 50 row page cap and on the three second-faction npcs, and the scraper in
-`tools/housing/fetch_vendor_stock.py` reads them without retyping.
+The CSV next to this document, `data/town-center-stock.csv`, holds the 1 056 transcribed
+rows in `vendor, item, price, currency, note` form. The remaining 99 catalogue items sit
+behind the 50 row page cap, and section 7.7 has the exact split.
 
-**Second pages still to read**: Ren 62 rows behind npc 255325, Len 69 behind 255326, Yen 36
-behind 255319, plus the 34 and 33 rows past the page cap on Ren 255222 and Gronthul 255278.
-That is the whole 238.
+**Second pages read this round**: npc 255325 for Ren (50 rows), 255326 for Len (50), 255319
+for Yen (36). What is left is 99 rows that only exist past the page cap - section 7.7.
 
-**Captured this round**: "High Tides" Ren 50, "Len" Splinthoof 48, Gronthul 50, "Yen"
-Malone 32, Jehzar Starfall 50, Hordranin 12 - 242 new rows, 242 new ids, no price left
-blank. Roz Copperpinch remains the only vendor whose item names are known without prices:
-the vendor page prints no cost for any of her sixteen Winter Veil pieces, so those sixteen
-rows carry a blank price rather than a zero.
+**Captured this round**: Ren 50 + 50, Len 48 + 50, Yen 32 + 36, Gronthul 57, Jehzar 50,
+Hordranin 12 - 385 rows, 385 ids, no price left blank. Roz Copperpinch remains the only
+vendor whose item names are known without prices: the vendor page prints no cost for any of
+her sixteen Winter Veil pieces, so those sixteen rows carry a blank price rather than a
+zero.
 
 ## 2. What is physically in the hub
 
@@ -106,7 +103,7 @@ That is **19 vendors, 434 items**, fully transcribed.
 
 | Vendor | Items | Currency | Coordinates | npc id |
 | --- | --- | --- | --- | --- |
-| "High Tides" Ren | 84 on this npc | Gold | 62.4 / 80.2 | 255222 | rows 1-50 captured |
+| "High Tides" Ren | 84 on this npc | Gold | 62.4 / 80.2 | 255222 | rows 1-50 captured, 34 past the cap |
 | "Len" Splinthoof | 48 on this npc | Gold | 62.4 / 80.0 | 255228 | **complete** |
 | "Yen" Malone | 32 on this npc | Gold | 62.2 / 80.3 | 255230 | **complete** |
 | Unquestionably Griftah | 3 | Community Coupons | 62.4 / 79.2 | 267870 | **complete** |
@@ -120,10 +117,10 @@ because it adds both npc ids together; the Alliance page sells 48, all of them c
 
 | Vendor | Items | Currency | Coordinates | npc id | Item data |
 | --- | --- | --- | --- | --- | --- |
-| "High Tides" Ren | 62 on this npc | Gold | 39.8 / 72.8 | 255325 | second page, not read yet |
-| "Len" Splinthoof | 69 on this npc | Gold | 39.8 / 73.2 | 255326 | second page, not read yet |
-| Gronthul | 83 | Gold | 54.1 / 59.1 | 255278 | rows 1-50 captured |
-| "Yen" Malone | 36 on this npc | Gold | 40.3 / 73.0 | 255319 | second page, not read yet |
+| "High Tides" Ren | 66 on this npc | Gold | 39.8 / 72.8 | 255325 | 50 captured, 16 past the cap |
+| "Len" Splinthoof | 69 on this npc | Gold | 39.8 / 73.2 | 255326 | 50 captured, 19 past the cap |
+| Gronthul | 83 | Gold | 54.1 / 59.1 | 255278 | 57 captured, 26 past the cap |
+| "Yen" Malone | 36 on this npc | Gold | 40.3 / 73.0 | 255319 | **complete** |
 | Jehzar Starfall | 53 | Gold | 53.6 / 58.6 | 255298 | **complete**, 50 ids |
 | Shon'ja | 48 | Gold | 54.1 / 59.0 | 255297 | **complete** |
 | Botanist Boh'an | 32 | Gold | 54.0 / 58.4 | 255301 | **complete**, 31 ids |
@@ -539,20 +536,20 @@ Names and prices are one thing; the **item id** is what actually goes into a ven
 I am collecting them separately, because wowhead's NPC "Sells" list paginates at 50 rows and
 the pager is JavaScript, so one page fetch never returns a vendor's full list.
 
-`data/town-center-items.csv` currently holds **600 resolved item ids**, every one read off a
+`data/town-center-items.csv` currently holds **739 resolved item ids**, every one read off a
 wowhead sell list, none guessed:
 
 | Vendor | Items with ids | Item id range |
 | --- | --- | --- |
-| "High Tides" Ren | 50 of 50 | 236653 - 250913 |
+| "Len" Splinthoof | 98 of 117 | 235523 - 268028 |
+| "High Tides" Ren | 96 of 146 | 235633 - 250913 |
+| "Yen" Malone | 68 of 68 | 245298 - 266444 |
+| Gronthul | 57 of 83 | 236653 - 267088 |
 | Faarden the Builder | 50 of 69 | 235523 - 252004 |
-| Gronthul | 50 of 50 | 236653 - 250920 |
-| Jehzar Starfall | 50 of 50 | 235994 - 264353 |
+| Jehzar Starfall | 50 of 54 | 235994 - 264353 |
 | Xiao Dan | 50 of 65 | 235633 - 252037 |
-| "Len" Splinthoof | 48 of 48 | 244532 - 268028 |
 | Shon'ja | 48 of 48 | 244532 - 268028 |
 | Trevor Grenner | 42 of 43 | 245298 - 266444 |
-| "Yen" Malone | 32 of 32 | 248337 - 266444 |
 | Botanist Boh'an | 31 of 32 | 248337 - 266444 |
 | Balen Starfinder | 30 of 54 | 235994 - 246258 |
 | Pascal-K1N6 | 16 of 17 | 254400 - 254416 |
@@ -565,9 +562,9 @@ wowhead sell list, none guessed:
 | Hordranin | 12 of 12 | 250627 - 250704 |
 | Spew Gutsout | 11 of 11 | 282192 - 282289 |
 
-600 rows, 432 distinct ids: the difference is the large shared sets - the Orgrimmar
-furniture runs sold by Ren, Len and Gronthul, the holiday pieces, and the Chamberstick that
-two vendors both stock. Every row carries a `source` column naming the NPC page it came
+739 rows, 439 distinct ids: the difference is the large shared sets - the Orgrimmar
+furniture runs sold by Ren, Len and Gronthul, the Stormwind runs, the holiday pieces, and
+the Chamberstick that several vendors stock. Every row carries a `source` column naming the NPC page it came
 from, so an id can be retraced in one step.
 
 Sample of what is now pinned down, id first:
@@ -665,6 +662,31 @@ Two things came out of it that were not in the register before:
 The second faction pages are the remaining work on these six: 62 + 69 + 36 rows behind
 npc 255325, 255326 and 255319, plus the 34 and 33 rows past the page cap on Ren and
 Gronthul. Every one of them is a page read with the same routine.
+
+### 7.7 What the 99 missing rows actually are
+
+All 39 vendors are captured; what is left is 99 rows that only exist on the wrong side of
+the 50 row window, and every one of them is counted here:
+
+| Vendor | npc | Sells | Captured | Missing |
+| --- | --- | --- | --- | --- |
+| "High Tides" Ren | 255222 | 84 | 50 | 34 |
+| "High Tides" Ren | 255325 | 66 | 50 | 16 |
+| "Len" Splinthoof | 255326 | 69 | 50 | 19 |
+| Gronthul | 255278 | 83 | 57 | 26 |
+| Jehzar Starfall | 255298 | 53 | 50 | 3 on the page, 4 against the index count of 54 |
+
+Ren's two pages share four items (the three plain interior panels and the Chamberstick), so
+the 146 the index counts for Ren comes out of 84 + 66 minus those four.
+
+One thing did come out of pushing at the cap: the NPC page and
+`www.wowhead.com/items?filter=129;0;<npc>` return the **same total with a different
+ordering**, so their first fifty rows are not the same fifty. Gronthul's second window held
+seven items the NPC page did not (the hanging Razorwind ropes, the tusked sconce and
+chandelier, the hide-covered bench and wall shelf, the iron candlelight lantern). That
+trick bought 7 of the 26 rows still missing on Gronthul and would buy a few on each of the
+other three if the rest of each window could be read; the window is still fifty rows, so
+the union is the ceiling.
 
 ### Price corrections this exercise forced
 

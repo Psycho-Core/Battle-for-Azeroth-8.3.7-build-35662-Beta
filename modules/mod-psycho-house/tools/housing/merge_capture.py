@@ -46,6 +46,13 @@ def main():
     parser.add_argument("--vendor", required=True)
     parser.add_argument("--file", required=True)
     parser.add_argument("--source", default="")
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="keep the vendor's existing rows and add these on top instead of replacing "
+             "them. Use it when one vendor stands as two npcs and each page sells a "
+             "different set.",
+    )
     args = parser.parse_args()
 
     capture = []
@@ -73,11 +80,21 @@ def main():
     items = read_rows(ITEMS)
 
     old = {(r["vendor"], r["item"].strip().lower()): r for r in stock}
-    kept = [r for r in stock if r["vendor"] != args.vendor]
-    replaced = len(stock) - len(kept)
+    if args.append:
+        kept = list(stock)
+        replaced = 0
+    else:
+        kept = [r for r in stock if r["vendor"] != args.vendor]
+        replaced = len(stock) - len(kept)
 
     for row in capture:
         previous = old.get((args.vendor, row["name"].lower()))
+        if args.append and previous is not None:
+            previous["price"] = row["price"]
+            previous["currency"] = row["currency"]
+            if row["note"]:
+                previous["note"] = row["note"]
+            continue
         kept.append({
             "vendor": args.vendor,
             "item": row["name"],

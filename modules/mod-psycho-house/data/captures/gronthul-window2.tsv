@@ -1,0 +1,11 @@
+# www.wowhead.com/items?filter=129;0;255278 - the unsorted item window.
+# It answers "1 - 50 of 83" as well, but with a different ordering than the NPC page,
+# so the two windows do not contain the same fifty items. These seven rows are only in
+# this window; the rest of it repeats the NPC page.
+251973	Hide-Covered Wall Shelf	50	Gold
+251975	Tusked Sconce	25	Gold
+251974	Tusked Chandelier	50	Gold
+251639	Hide-Covered Bench	100	Gold
+259468	Plain Hanging Razorwind Ropes	50	Gold
+259470	Lightly Adorned Hanging Razorwind Ropes	75	Gold
+267088	Iron Candlelight Lantern	25	Gold
