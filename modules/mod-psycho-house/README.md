@@ -17,8 +17,9 @@ modules/mod-psycho-house/
   11-verification-ledger.md  where every number comes from, and what is unchecked
   12-midnight-item-port.md   item by item: extract, convert, write the DB2 rows, package,
                          verify - plus how the housing menus are rebuilt client side
-  13-guildhouse-backup-plan.md  the other guild house module, read line by line, and the
-                         fallback plan if per-player housing has to be cut
+  13-mod-psychohouse-design.md  the third draft: one island house per character, why
+                         every decision in it is the 8.3.7-compatible one, and what the
+                         build does and does not provide
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
                          per-vendor captures
@@ -70,7 +71,7 @@ publish entry ids for the interior quests.
 | 10 | [Draft modules](10-draft-modules.md) | The two drafts in `drafts/`: what each one contains, what it deliberately leaves out, how to install it, and how to switch between them. |
 | 11 | [Verification ledger](11-verification-ledger.md) | Where every number comes from, what the audit checks, what could not be checked here, and the exact size of what is still open. |
 | 12 | [Midnight item port](12-midnight-item-port.md) | Item by item: what a decor id has to be for the module to work, keeping the retail ids, the catalogue-only route, the full port with model and texture conversion, the five DB2 tables, icons, packaging, the order to verify in, and how the housing menus are rebuilt client side. |
-| 13 | [Guild house fallback](13-guildhouse-backup-plan.md) | `azerothcore/mod-guildhouse` read line by line: what it does, its two tables, its 3 NPCs and 10 portals, all 55 facilities with prices, the phase primitive that does not exist in this tree, 9 absent core calls with their replacements, 9 bugs in its own code, what is worth taking, and the F0 fallback plan with its decision gate. |
+| 13 | [mod-psychohouse design](13-mod-psychohouse-design.md) | The third draft, end to end: one house per character on GM Island, phase allocation in 50000-64999, transient spawns so nothing can be orphaned, the 13 row facility catalogue with prices, the two NPCs, the 78 `creature_template` columns this build's loader reads, a table of what build 35662 provides and what it dropped, and exactly what was checked and what is still open. |
 | - | [Generated index](generated/source-asset-index.md) | Auto-generated inventory (28 314 named id constants) plus the CSV. |
 
 ## Tools that ship with this
@@ -91,10 +92,12 @@ publish entry ids for the interior quests.
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
 | `tools/housing/audit.py` | Seven checks over the whole folder: ASCII, voice, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping. Exits non-zero on a finding. |
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
-| `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL against that vocabulary. Catches a column that only exists in my head. |
+| `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL and all three drafts against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
-| `tools/housing/verify_drafts.py` | Reads both `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
-| `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. |
+| `tools/housing/verify_drafts.py` | Reads the three `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
+| `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. `--src` and `--sql` point it at any tree, which is how the third draft is checked. |
+| `tools/housing/build_schema.py` | Reads the column lists of `creature_template`, `gameobject_template` and `creature_template_model` out of the build's own loader queries. Shared by the two checkers so they cannot disagree about what a column is. |
+| `tools/housing/check_psychohouse.py` | The third draft's checker: SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, and fourteen statements this document makes about build 35662 checked against the source tree itself. |
 | `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
 | `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
@@ -143,14 +146,16 @@ runs; P6 is art-bound, not code-bound.
 
 ## Audit pass, fourteenth revision
 
-The backup idea, taken apart, and the two things it found in my own module.
+Writing the third draft turned into an audit of the first two, because a smaller system asks
+questions the big one never has to. Five findings, all of them in my own work.
 
 | # | Finding | Fix |
 | --- | --- | --- |
-| 63 | A guild neighbourhood stores a `guildId` and nothing ever clears it. A guild that disbands leaves a village nobody can administer, with plots stranded behind an access check that can never pass. Found by reading how the guild house module cleans up on `GuildScript::OnDisband`, not by reading my own code | Doc 05 sec.4.3a: a `GuildScript` with `OnDisband` (archive every owned plot, clear its rows, release the neighbourhood) and `OnCreate` (one line of chat). Work item, not code yet, and it is scheduled in P1 |
-| 64 | `AmenityType` has 8 values and not one of them is a service a player would walk to a house for: no bank, mailbox, auctioneer, innkeeper, stable master, trainer, forge, anvil or guild vault. A house with decor and no services is a diorama | Doc 05 sec.4.6 and doc 13 sec.13: thirteen new amenity kinds, six columns on `psycho_house_amenity` (`price`, `currency`, `faction_mask`, `required_level`, `required_rank`, `sold_at`), one purchase path that reuses the existing spawner |
-| 65 | The doc index stopped at 12, so the largest single piece of external research in this folder had nowhere to live | Doc 13 written: 3 076 lines of somebody else's module read, its API surface grepped against this tree row by row, and the fallback plan given a decision gate that can be tested rather than felt |
-| 66 | Ten of the AzerothCore calls that module is built on do not exist in build 35662, or no longer have that shape - `SetPhaseMask`, `CustomData`/`DataMap::Base`, `GlobalScript`, `OnPlayerBeforeTeleport`, `GetPhaseByAuras`, `RemoveRestState`, the three-argument `SaveToDB`, and `sConfigMgr->GetOption` among them - and its removal path queries a `phaseMask` column that the BfA schema replaced with `PhaseId` and `PhaseGroup` | Doc 13 sec.8 is a table of every call it makes with the verdict for each, and sec.15 separates the three things I could not settle from the ones I measured. The conclusion is that it is a port, not a drop-in, and the fallback plan does not depend on it |
+| 63 | A guild neighbourhood stores a `guildId` and nothing ever clears it. A guild that disbands leaves a village nobody can administer, with plots stranded behind an access check that can never pass. The per-character draft answers the same question by construction: a house that belongs to a character has no guild to outlive | Doc 05 sec.4.3a: a `GuildScript` with `OnDisband` (archive every owned plot, clear its rows, release the neighbourhood) and `OnCreate` (one line of chat). Scheduled in P1 |
+| 64 | `AmenityType` has 8 values and not one of them is a service a player would walk to a house for: no bank, mailbox, auctioneer, innkeeper, stable master, trainer, forge, anvil or guild vault. A house with decor and no services is a diorama | Doc 05 sec.4.6 lists the thirteen kinds to add and the four steps to add them; `drafts/mod-psychohouse/` already ships a working catalogue of eleven services plus a faction portal pair, with prices, and the resolver SQL that binds each one to a real entry in this tree |
+| 65 | The doc index stopped at 12, so the largest deliverable of the round - a complete third module - had nowhere to be described | Doc 13 written: the per-character draft, its phase model, its transient spawn path, its content decisions, its open items, and the eleven things it deliberately does not do |
+| 66 | Nothing checked a draft that is not one of the two SQL drafts. `check_cpp.py` was hardwired to this module's `src/`, `verify_drafts.py` to the two draft folders, and the new module's SQL was invisible to every tool | `check_cpp.py` gained `--src` and `--sql`; `build_schema.py` reads the loader column lists for both SQL checkers; `verify_drafts.py` and `check_sql_columns.py` read the third draft; `check_psychohouse.py` checks columns, row widths, catalogue kinds and prices, resolvers both ways, the phase range, config keys both ways, and the draft README's arithmetic. Mutation-tested with seven injected faults in the draft, two in its README, and one in a build claim |
+| 67 | Three capabilities a house module normally leans on are absent from this build: the integer phase mask, the per-player custom data map, and a templated config accessor. The spawn methods also take `CreatureData` and a difficulty list rather than a phase mask, so anything written for an older core fails silently instead of loudly | The new draft is built on `PhasingHandler`, a characters table, `GetIntDefault`, and transient spawns. Doc 13 sec.8 is the table of what exists and what does not, and every one of its fourteen rows is now checked against the source tree by `check_psychohouse.py` rather than trusted |
 
 ## Audit pass, thirteenth revision
 

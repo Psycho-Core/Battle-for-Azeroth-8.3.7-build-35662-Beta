@@ -1,6 +1,8 @@
-# 10 - The two draft modules
+# 10 - The draft modules
 
-I built the housing system twice on purpose. One draft is the port: retail content, retail
+I built the housing system three times on purpose, and the third one is a different product
+rather than a different content pack: one island house per character, gossip only, no addon.
+Section 8 is that one. The first two are two content packs over one C++ core. One draft is the port: retail content, retail
 prices, retail item ids, every piece of it traceable to a Midnight vendor page. The other
 is the native draft: nothing from retail survives, and every id in it already exists in
 8.3.7 build 35662 or in my own source tree. They share one C++ core and one schema, so
@@ -10,6 +12,7 @@ they are the same mod with two content packs, not two codebases.
 drafts/
   midnight-port/     draft A - retail content on an 8.3.7 server
   bfa-native/        draft B - 8.3.7 content only, no port
+  mod-psychohouse/   draft C - one house per character, its own module, no addon
 ```
 
 ## 1. What the two drafts share
@@ -163,3 +166,24 @@ port, four in the native build), copies the character schema into both, and re-c
 C++ and the addon. `tools/housing/build_quests.py` then writes `06_quests.sql` into both.
 Everything they write carries a generated-file header, so the rule is simple: edit the CSVs
 or the C++, never the generated SQL.
+
+## 8. Draft C - `mod-psychohouse`
+
+Not a third content pack: a third program. Draft C is complete on its own - its own SQL, its
+own C++, its own config, its own two NPCs - and it has nothing in common with A and B except
+the core it runs on and the phase range it deliberately avoids. Doc 13 is the design.
+
+| | Draft A | Draft B | Draft C |
+| --- | --- | --- | --- |
+| Ownership | plot in a neighbourhood, per account | same | one house per character |
+| Where | neighbourhood map | same | GM Island, map 1 |
+| Interface | addon, 24 opcodes | same | two gossip menus, five commands |
+| Content | retail item ids and prices | 8.3.7 ids only | 13 facility rows, entries resolved from the realm |
+| Phases | 10000-46374 | same | 50000-64999 |
+| Furniture | yes | yes | no - services only |
+| Install | `install.py --draft midnight-port` | `install.py --draft bfa-native` | manual, sec.8 of the draft README |
+
+`install.py` covers A and B; it does not know about C, and rather than half-teach it, the
+draft's own README carries the five-step install. The one step that matters: the scripts
+folder must be `PsychoHouse` and not `mod-psychohouse`, because the build derives
+`AddPsychoHouseScripts()` from the folder name and a hyphen does not compile.

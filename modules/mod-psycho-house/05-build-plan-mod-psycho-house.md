@@ -135,8 +135,9 @@ band, +/-, tuned after a pass.
 `HousingNeighborhood` stores a `guildId` for guild neighbourhoods, and nothing in the module
 ever clears it. A guild that founds a neighbourhood and then disbands leaves a village owned
 by a guild id that no longer exists: nobody can administer it, and the plots inside it are
-stranded behind an access check that can never pass. This is the one hole reading the guild
-house module found in my own code (doc 13 sec.12).
+stranded behind an access check that can never pass. Found by asking the question of the
+per-character draft the other way round - a house that belongs to a character has no guild to
+outlive, and a neighbourhood that belongs to a guild does (audit finding 63).
 
 Two hooks, both small:
 
@@ -184,15 +185,13 @@ map has art). Gossip states:
 ### 4.6 The facility shop
 
 A house with no bank, no mailbox and no auctioneer is a diorama. The facility layer is
-small, it is independent of decor, and doc 13 sec.13 lays out the four steps in order:
-thirteen additions to `AmenityType`, six columns on `psycho_house_amenity`, one purchase path
-that reuses the existing spawner, and the guild hooks from 4.3a.
+small, independent of decor, and already written: `drafts/mod-psychohouse/` sells eleven
+services and two faction portals from a table, and doc 13 is the design.
 
-The facility list I take from the guild house module, corrected from Wrath to 8.3.7: class
-trainers, primary and secondary profession trainers at BfA ranks, bank, mailbox, guild vault,
-auctioneer and neutral auctioneer, stable master, innkeeper, spirit healer, forge, anvil,
-barber chair, and the portal set. Nothing about it is hard; it is the part of housing that
-makes the plot worth visiting twice.
+Bringing it here is four steps: thirteen additions to `AmenityType`, six columns on
+`psycho_house_amenity`, one purchase path that reuses the existing spawner, and the guild
+hooks from 4.3a. Nothing about it is hard; it is the part of housing that makes the plot worth
+visiting twice.
 
 ## 5. Phase 2 - addon UI v1
 

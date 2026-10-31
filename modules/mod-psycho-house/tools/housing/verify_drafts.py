@@ -184,6 +184,51 @@ def check_file(path, schema_columns, go_entries, expect):
     return total, checks_run
 
 
+def check_sql_against_own_schema(root, label_root):
+    """Every INSERT into a table this tree defines, with the right number of values.
+
+    Used for the module's own SQL and for draft C, which are written independently of the
+    two content drafts and therefore cannot go through the loop above.
+    """
+    schema = {}
+    files = []
+    for base, _dirs, names in os.walk(root):
+        for name in sorted(names):
+            if not name.endswith(".sql"):
+                continue
+            path = os.path.join(base, name)
+            files.append(path)
+            text = read(path)
+            for match in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?`(\w+)` \((.*?)\n\)",
+                                     text, re.S):
+                schema[match.group(1)] = [
+                    l.strip().split()[0].strip("`") for l in match.group(2).splitlines()
+                    if l.strip().startswith("`")]
+
+    rows = 0
+    for path in files:
+        label = os.path.join(label_root, os.path.relpath(path, root))
+        if any(ord(char) > 127 for char in read(path)):
+            fail(label, "non-ASCII byte")
+        for table, columns, tuples in statements(read(path)):
+            known = schema.get(table)
+            if known is None:
+                # A table the build owns. Its columns are checked against the build's own
+                # loader queries by check_psychohouse.py; the value count is all this can see.
+                print("{:<52} {:>5} rows  {:>2} checks   ({})".format(
+                    "  " + table, len(tuples), 0, "build table"))
+            else:
+                unknown = [c for c in columns if c not in known]
+                if unknown:
+                    fail(label, "{} has columns the schema does not: {}".format(table, unknown))
+            for number, row in enumerate(tuples, 1):
+                rows += 1
+                if len(row) != len(columns):
+                    fail(label, "{} row {}: {} values for {} columns".format(
+                        table, number, len(row), len(columns)))
+    return rows
+
+
 def main():
     index = list(csv.DictReader(open(INDEX, newline="", encoding="utf-8")))
     go_entries = {int(r["entry"]) for r in index if r["kind"] == "gameobject" and r["entry"]}
@@ -252,42 +297,15 @@ def main():
             len(catalogue - carried), sorted(catalogue - carried)[:5]))
 
     # the module's own SQL (not a draft) against its own CREATE TABLEs
-    module_schema = {}
-    module_files = []
-    for sub in ("world", "characters"):
-        folder = os.path.join(HERE, "sql", sub)
-        if not os.path.isdir(folder):
-            continue
-        for name in sorted(os.listdir(folder)):
-            if not name.endswith(".sql"):
-                continue
-            path = os.path.join(folder, name)
-            module_files.append(path)
-            text = read(path)
-            for match in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?`(\w+)` \((.*?)\n\)",
-                                     text, re.S):
-                module_schema[match.group(1)] = [
-                    l.strip().split()[0].strip("`") for l in match.group(2).splitlines()
-                    if l.strip().startswith("`")]
-    module_rows = 0
-    for path in module_files:
-        label = os.path.relpath(path, HERE)
-        for table, columns, tuples in statements(read(path)):
-            known = module_schema.get(table)
-            if known is None:
-                fail(label, "inserts into " + table + " which no CREATE TABLE in sql/ defines")
-                continue
-            unknown = [c for c in columns if c not in known]
-            if unknown:
-                fail(label, "{} has columns the schema does not: {}".format(table, unknown))
-            for number, row in enumerate(tuples, 1):
-                module_rows += 1
-                if len(row) != len(columns):
-                    fail(label, "{} row {}: {} values for {} columns".format(
-                        table, number, len(row), len(columns)))
-        if any(ord(char) > 127 for char in read(path)):
-            fail(label, "non-ASCII byte")
+    module_rows = check_sql_against_own_schema(os.path.join(HERE, "sql"), "sql/")
     print("{:<52} {:>5} rows".format("sql/world + sql/characters", module_rows))
+
+    # draft C keeps its own SQL in its own shape, so it is checked the same way
+    draft_c = check_sql_against_own_schema(
+        os.path.join(DRAFTS, "mod-psychohouse", "sql"), "drafts/mod-psychohouse/sql")
+    print("{:<52} {:>5} rows".format("drafts/mod-psychohouse/sql", draft_c))
+    if not draft_c:
+        fail("mod-psychohouse", "its SQL inserts no rows at all")
 
     # both drafts ship the same core, so their C++ headers must agree
     a = sorted(os.listdir(os.path.join(DRAFTS, "midnight-port", "src", "game", "Housing")))
