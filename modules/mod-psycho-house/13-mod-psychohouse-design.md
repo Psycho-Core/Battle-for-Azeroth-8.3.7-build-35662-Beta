@@ -181,6 +181,8 @@ check_cpp.py --src drafts/mod-psychohouse/src --sql drafts/mod-psychohouse/sql
 
 check_psychohouse.py
   4 SQL files, 3 tables, 13 facilities, 3 build tables cross-checked
+  34 core calls matched against their declarations in this source tree, and the includes
+  those calls need; the calls this build does not have must not appear
   INSERT and UPDATE columns against the table they name, value counts against column
   lists, kind/faction/price/is_object agreement, a resolver for every unbound facility,
   the phase range against uint16 and against the neighbourhood range, config keys in both

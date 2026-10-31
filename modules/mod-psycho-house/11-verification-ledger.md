@@ -425,3 +425,23 @@ Still absent, and still said out loud: there is no MariaDB server in this worksp
 in this section was executed. What is claimed is that every statement parses (sqlglot, once),
 that every column exists in the build's own loader or schema, and that none of the six error
 classes above can fire on the data as written.
+
+### 6.10 The core calls, re-checked by a script instead of by eye
+
+Round 17 matched the draft's core calls to their declarations by reading headers one at a
+time, which is how the missing `WorldSession.h` was found. That was two days of reading that
+would have to happen again after any source update, so it is a table now: 34 tuples of call,
+header and declaration fragment, each searched for in this tree, plus the four calls the
+build does not have (`SetPhaseMask`, `GetPhaseByAuras`, `CustomData`, `SetRestState`) which
+must not appear in the draft at all.
+
+A second rule reads the same list backwards: a file that calls a symbol must include the
+header that declares it. That is the `WorldSession.h` defect as a check rather than a story.
+
+Both were mutation-tested: a `SetPhaseMask(...)` call pasted into the manager was reported,
+and deleting `#include "WorldSession.h"` was reported. Neither can be satisfied by the module
+header pulling in the world, which is what makes the include rule worth having.
+
+What is still true and still written down: no compiler has seen this code. The table proves
+that the functions the draft calls exist with the arguments it passes, not that the file
+compiles.
