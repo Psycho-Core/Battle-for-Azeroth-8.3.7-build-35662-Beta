@@ -445,6 +445,67 @@ it. Fences, crates, barrels, chairs, tables, lanterns, cobwebs, trees, boulders,
 staircases all have direct 8.3.7 equivalents. Stormwind and Bel'ameth *architecture* does
 not, which is exactly why the shell system in doc 06 exists.
 
+## 7.5 Item ids
+
+Names and prices are one thing; the **item id** is what actually goes into a vendor table.
+I am collecting them separately, because wowhead's NPC "Sells" list paginates at 50 rows and
+the pager is JavaScript, so one page fetch never returns a vendor's full list.
+
+`data/town-center-items.csv` currently holds **130 resolved item ids**:
+
+| Vendor | Items with ids | Item id range |
+| --- | --- | --- |
+| Xiao Dan (255203) | 50 of 65 | 235633 - 252037 |
+| Faarden the Builder (255213) | 50 of 69 | 235523 - 252004 |
+| Balen Starfinder (255216) | 30 of 53 | 235994 - 246258 |
+
+Sample of what is now pinned down, id first:
+
+| Item id | Item | Vendor | Price |
+| --- | --- | --- | --- |
+| 235523 | Sturdy Wooden Chair | Faarden | 50g |
+| 235633 | Circular Woolen Rug | Xiao Dan | 50g |
+| 235994 | Ornate Stonework Fireplace | Balen | 100g |
+| 242951 | Sturdy Wooden Bench | Faarden | 75g |
+| 243334 | Reinforced Wooden Chest | Faarden | 50g |
+| 245352 | Sturdy Wooden Coffin | Xiao Dan | 50g |
+| 245575 | Bel'ameth Interior Wall | Balen | 100g |
+| 245583 | Silvermoon Interior Wall | Balen | 100g |
+| 246249 | Silvermoon Beam Platform | Balen | 50g |
+| 246875 | Founder's Point Street Light | Faarden | 100g |
+| 246876 | Founder's Point Lamppost | Faarden | 100g |
+| 250249 | Founder's Point Gravestone | Faarden | 25g |
+| 252037 | Covered Wooden Desk | Xiao Dan | 75g |
+
+One item, **246106 Wooden Chamberstick**, is stocked by both Xiao Dan and Faarden at 10g -
+the first confirmed case of exact shared stock between two Town Center vendors, which matters
+because it means a vendor table cannot assume one item belongs to one vendor.
+
+`data/vendor_npc_ids.csv` now carries **34 of 38** vendor npc ids and slugs, so
+`tools/housing/fetch_item_ids.py` can finish the remaining ~1 000 ids unattended. It tries the
+NPC page, the ?sells=N variants, the item-filter endpoint with paging, and finally a per-name
+search, and records which strategy produced each id so a wrong answer is traceable.
+Still missing an npc id: Shon'ja, Roz Copperpinch, Aeeshna, Spew Gutsout.
+
+### Price corrections this exercise forced
+
+Syncing wowhead against the mirror I first transcribed from changed **30 prices**: 7 were
+wrong and 23 were blanks that wowhead fills. The wrong ones:
+
+| Item | Mirror said | Wowhead says |
+| --- | --- | --- |
+| Wicker Basket | 100g | **10g** |
+| Empty Wicker Basket | 50g | **10g** |
+| Wooden Chamberstick | 25g | **10g** |
+| Wooden Coffin Lid | 50g | **25g** |
+| Sturdy Wall Rack | 125g | **75g** |
+| Sturdy Wooden Shelf | 75g | **50g** |
+| Sturdy Wooden Interior Pillar | 50g | **50g** (confirmed, was on a different row) |
+
+Rule from here on: **wowhead is the price authority, the mirror is only a stub to find the
+vendor.** Every price in `data/town-center-stock.csv` that wowhead has confirmed is now
+wowhead's number.
+
 ## 8. Acceptance checks
 
 | Check | Rule | Result |
@@ -454,4 +515,5 @@ not, which is exactly why the shell system in doc 06 exists.
 | Currency | Gold, Community Coupons, Tricky Treat, Deed of Patronage kept distinct | verified |
 | Ids | Printed only when confirmed against an NPC page | 18 confirmed, 9 not |
 | Coordinates | Every coordinate carries its `/way` map id | verified, #2351 vs #2352 |
-| Prices | Printed only when the source prints them | blanks left blank |
+| Prices | Printed only when the source prints them | 30 corrected to wowhead; 85 blanks remain where wowhead has not been read yet |
+| Item ids | Id traced to the item page | 130 resolved, 0 guessed |

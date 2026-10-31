@@ -38,6 +38,9 @@ publish entry ids for the interior quests.
 | --- | --- |
 | `tools/housing/harvest_decor.py` | Reads my world DB read-only and emits a ready-to-run `housing_decor` INSERT file from `gameobject_template`, scored and categorised by keyword, with duplicate handling. |
 | `tools/housing/index_source_assets.py` | Walks `src/` and extracts every named id constant, classifying the furniture-shaped ones. Produces doc 08 and the CSV. |
+| `tools/housing/fetch_item_ids.py` | Resolves each vendor item name to its wowhead item id (four strategies, including paging and a name-search fallback) and records provenance. |
+| `docs/mod-psycho-house/data/town-center-items.csv` | 130 resolved item ids: vendor, item_id, item_name, price, currency. |
+| `docs/mod-psycho-house/data/vendor_npc_ids.csv` | 34 of 38 vendor npc ids and slugs, the input to the id scraper. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
 | `docs/mod-psycho-house/vendor-slugs.txt` | The 39 vendor slugs the scraper consumes. |
 | `sql/tools/psycho_house_harvest.sql` | The same harvest as pure SQL for people who do not want to run Python: candidate queries per furniture family, plus the report I use to spot gaps. |
@@ -81,6 +84,20 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, third revision
+
+The third pass went after the thing the first two missed: **item ids, and whether the prices
+I had were even real.** Findings, all applied:
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 11 | **No item ids at all.** Names and prices are useless for a vendor table without them | 130 item ids resolved from wowhead and stored in `data/town-center-items.csv` |
+| 12 | **Seven prices were simply wrong.** The mirror I transcribed from disagrees with wowhead on Wicker Basket (100 vs 10), Empty Wicker Basket (50 vs 10), Wooden Chamberstick (25 vs 10), Wooden Coffin Lid (50 vs 25), Sturdy Wall Rack (125 vs 75), Sturdy Wooden Shelf (75 vs 50) | Corrected to wowhead; wowhead declared the price authority from here on |
+| 13 | 23 prices were blank that wowhead actually prints | Filled |
+| 14 | Wowhead NPC sell lists **cap at 50 rows** and the pager is JavaScript, so a single fetch can never return a large vendor's full list. Earlier coverage numbers were optimistic because of this | Documented as a hard constraint; paging-aware scraper written to work around it |
+| 15 | Shared stock between vendors was assumed impossible | Item **246106 Wooden Chamberstick** is sold by both Xiao Dan and Faarden at 10g; the schema and docs now allow an item to belong to many vendors |
+| 16 | Five vendors still had no npc id | Gronthul resolved to **255278** (54.1 / 59.1); 34 of 38 now known, 4 named explicitly as unknown |
 
 ## Audit pass, second revision
 
