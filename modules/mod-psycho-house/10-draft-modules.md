@@ -40,7 +40,7 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | Stock lines | 830 |
 | Retail item ids on those rows | 434 rows carry one (600 ids in total) |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
-| Gated stock | 82 stock rows sit on vendors that lock some pieces behind Endeavor milestones (Den 10 of 27, Pascal 11 of 17, Griftah 11 of 15, Harlowe 9 of 13, Dovetail 11 of 15, Aeeshna 10 of 12). The draft does not enforce gating yet - that is phase 3 |
+| Gated stock | 90 stock rows sit on six vendors that lock pieces behind Endeavor milestones: Den, Pascal, Griftah, Harlowe, Aeeshna and Hordranin. Hordranin's eight gates are recorded per item in the CSV note column; the other five carry a vendor-level count. The draft does not enforce gating yet - that is phase 3 |
 | Unpriced lines | 92, listed as comments and deliberately not inserted |
 | Unmapped pieces | none: `tools/housing/map_decor_go.py` maps every piece to a real entry and records how sure the match is |
 

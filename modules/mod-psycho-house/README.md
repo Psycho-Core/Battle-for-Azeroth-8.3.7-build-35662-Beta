@@ -220,7 +220,7 @@ time of writing. Where two sources disagree I record both and say which I use.
 | Neighborhood vendor count | Vendor index | 39 vendors stocking decor inside the two neighborhoods, out of 166 worldwide |
 | Source asset counts | Own index run over `src/` | 28 314 named id constants, 988 decor-shaped |
 | Vendor item counts | Each transcribed vendor compared to its published total | 29/29 exact: Faarden 69, Xiao Dan 65, Balen 54, Trevor 43, Boh'an 32, Den 27, Jolli 23, Holly 21, Hesta 18, Pascal 17, Burlee 16, Timicky 16, Argan 15, Dovetail 15, Fel'orei 15, Griftah 15, Lefton 15, Roshai 15, Taifa 15, Devin 13, Harlowe 13, Merki 13, Cordula 11, Perry 9, Agratha 9, Klasa 5, Lonomia 5, Unquestionably Griftah 3, Cousin Shortkaf 1 |
-| Endeavor milestone gating | Coupon vendors cross-checked for "Reach the Nth milestone" conditions | Confirmed on 6 vendors, 82 stock rows; the per-item gate is in the prose, the CSV carries the vendor-level count |
+| Endeavor milestone gating | Coupon vendors cross-checked for "Reach the Nth milestone" conditions | 90 stock rows sit on 6 gating vendors. Hordranin's 8 are recorded item by item; the other five carry a vendor-level count, because the vendor page prints one line for the whole set |
 | Vendor npc ids | Each printed id traced to an NPC page | 39 of 39 confirmed; the one id that was wrong (Len, 255223 = Voidclot) was caught here |
 | Vendor stock lines | CSV recount per vendor | 917 lines, 39 vendors, 87 unpriced lines named in doc 09 |
 | Retail item ids | Counted against the item CSV, duplicates collapsed | 600 ids, 434 distinct decor rows carrying one in draft A |

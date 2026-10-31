@@ -13,7 +13,7 @@ retail vendor pages, and the numbers are the retail numbers.
 | Vendor stock rows | 830 | `sql/world/05_stock_retail.sql` |
 | Retail decor item ids carried on those rows | 434 | same file, `item_entry` column |
 | House levels, budgets, rooms, exteriors | retail values, 1 to 12 | `../../01-retail-housing-reference.md` |
-| Endeavor milestones | 4, with 82 stock rows on vendors that gate pieces behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
+| Endeavor milestones | 4, with 90 stock rows on vendors that gate pieces behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
 | Currency | Community Coupons 3363, plus Tricky Treat item 33226 for the Hallow's End stall | `04_decor_retail.sql`, `currency` column |
 
 Every vendor row keeps the retail npc id in the table comment, so the mapping between a
