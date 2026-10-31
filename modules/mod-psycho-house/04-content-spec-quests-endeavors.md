@@ -31,8 +31,11 @@ Design notes:
 
 ## 2. House levels as content
 
-The level table is retail's (doc 01 sec.3.1) and lives in `housing_house_level`. Content
-implications I am committing to:
+The level table is retail's (doc 01 sec.3.1) and belongs in `housing_house_level`, which
+is phase 1 work - the table is not in the draft yet. Until it lands the core uses the
+five-rung ladder compiled into `HousingDefines.h`, so the beats below are what each retail
+level is *for*, not what the draft currently charges. Content implications I am
+committing to:
 
 | Level | Content beat |
 | --- | --- |

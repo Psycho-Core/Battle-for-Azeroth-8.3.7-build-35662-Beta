@@ -2,7 +2,9 @@
 
 This is the version that reproduces retail housing content on 8.3.7. It is a draft: the
 C++ core is the prototype I already had, the content is everything I pulled out of the
-retail vendor pages, and the numbers are the retail numbers.
+retail vendor pages, and the numbers are the retail numbers. I would rather ship retail
+numbers on a stand-in model than my own numbers on perfect art - the numbers are what the
+system is actually about.
 
 ## What is in it
 
@@ -12,8 +14,8 @@ retail vendor pages, and the numbers are the retail numbers.
 | Decor rows | 571, every one with a real 8.3.7 game object | `sql/world/04_decor_retail.sql` |
 | Vendor stock rows | 969 | `sql/world/05_stock_retail.sql` |
 | Retail decor item ids carried on those rows | 450 | same file, `item_entry` column |
-| House levels, budgets, rooms, exteriors | retail values, 1 to 12 | `../../01-retail-housing-reference.md` |
-| Endeavor milestones | 4, with 90 stock rows on vendors that gate pieces behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
+| House levels | the core's five rungs (60/90/120/160/200 indoor, 25/45/65/85/110 outdoor). The retail 12-level ladder is reference only until phase 1 | `../../01-retail-housing-reference.md` and `HousingDefines.h` |
+| Endeavor milestones | 4, with 59 stock rows on six vendors locked behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
 | Currency | Community Coupons 3363, plus Tricky Treat item 33226 for the Hallow's End stall | `04_decor_retail.sql`, `currency` column |
 | Quest rows | 4, ids 900100-900103, money in the row and everything else module-side | `sql/world/06_quests.sql` |
 

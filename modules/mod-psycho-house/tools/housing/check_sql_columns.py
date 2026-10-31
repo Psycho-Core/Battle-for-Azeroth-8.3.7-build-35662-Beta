@@ -114,10 +114,21 @@ def module_tables_default():
     return owned
 
 
+def find_repo():
+    """Walk up from the module until a directory with sql/updates turns up."""
+    path = HERE
+    for _ in range(4):
+        if os.path.isdir(os.path.join(path, "sql", "updates")):
+            return path
+        path = os.path.dirname(path)
+    return os.path.dirname(HERE)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", default=os.path.dirname(HERE),
-                        help="source tree to harvest sql/ from")
+    parser.add_argument("--repo", default=find_repo(),
+                        help="source tree to harvest sql/ from, "
+                             "default: the tree this module sits in")
     parser.add_argument("--write", action="store_true",
                         help="save the vocabulary to generated/sql-columns.json")
     args = parser.parse_args()

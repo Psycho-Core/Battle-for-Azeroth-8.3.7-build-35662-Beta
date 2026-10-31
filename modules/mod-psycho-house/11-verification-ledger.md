@@ -75,7 +75,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 
 | Not verified | Why | What it means for the drafts |
 | --- | --- | --- |
-| The C++ compiles | The sandbox has no boost, MySQL or OpenSSL headers, so not even the core headers parse | Every file is written against the signatures in this tree, and the two headers that do parse here (`Define.h`, `Position.h`) were used to check enum and type names. Treat phase 0 as a shakedown build |
+| The C++ compiles | The sandbox has no boost, MySQL or OpenSSL headers, so not even the core headers parse | Every file is written against the signatures in this tree, and `check_cpp.py` checks what a compiler check would catch first: blocks balance, every definition matches a declaration, every table and column in a query string exists in the module schema, no `fields[N]` runs past the end of its SELECT, every include resolves |
 | The SQL parses | No MySQL server or grammar library available | Field counts per tuple are checked mechanically; the schema itself is ordinary `CREATE TABLE` and is reviewed by eye |
 | The CMake patch actually configures | No `cmake` binary in the sandbox | The patch only adds a `file(GLOB)` and one early return, both standard CMake; the script prints exactly what it changes and keeps a backup |
 | Retail values behind `[?]` | Not published by any source I could reach | Left as `[?]` on purpose. Nothing in the drafts depends on those numbers |
@@ -210,6 +210,44 @@ names. Both ship a bind script instead - `tools/sql/bind_town_center_vendors.sql
 `creature_template` by subname, one model per stall, and then prints every stall it could
 not fill. Running it needs the world database. Until it runs, `creature_entry` is 0, the
 module still lists and sells the stock, and nothing stands in the town centre.
+
+### 6.4 The code, checked without a compiler
+
+`python3 tools/housing/check_cpp.py` reads all 5 631 lines of the module the way a compiler
+would start to: blocks have to balance, every `Class::Method` definition has to match a
+declaration in a module header, every table named in a query has to be one the module
+creates, every column named in a query has to exist in that table, every `fields[N]` has to
+be inside the column count of the SELECT that produced it, and every include has to
+resolve.
+
+```
+14 files, 8 classes with methods, 7 tables created by the module
+  HousingAddon             7 methods
+  HousingHouse            21 methods
+  HousingMgr              78 methods
+  HousingNeighborhood     12 methods
+  HousingPlot              8 methods
+
+0 finding(s)
+```
+
+A clean run only means something if the check can fail, so it was tested on a copy with
+three deliberate bugs: `fields[16]` read from a 16 column SELECT, a method defined but
+never declared, and `item_entri` in a query string. All three were reported, and the real
+tree stayed at zero.
+
+`python3 tools/housing/check_lua.py` does the same job for the addon: block balance with
+the `do` in `for ... do` counted once, unterminated strings, globals assigned without a
+`local`, and a `.toc` whose listed files exist. 371 lines, 0 findings, and a missing `end`
+plus a stray global in a copy were both caught.
+
+`verify_drafts.py` also had a bug worth writing down, because it is the kind that makes a
+clean report worthless: its INSERT pattern required a space before `VALUES`, and it ended
+the row list at the first semicolon even when that semicolon was inside a quoted comment.
+The plot inserts are written `INSERT INTO` on one line, the column list on the next, and one
+plot comment contains a semicolon - so 55 plot rows were being read as 13 and never
+checked. Both are fixed, the parser is quote aware, and the row counts it now reports
+(61 in a draft's schema file, 107 across `sql/`) match the files.
 
 What the scripts cannot settle: whether MySQL accepts the statements (no server here),
 whether the C++ compiles (no boost or MySQL headers here), and whether a mapped game
