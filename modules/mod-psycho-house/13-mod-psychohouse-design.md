@@ -15,7 +15,7 @@ rather than assumed.
 A character buys a key from a Keeper NPC for a thousand gold. The purchase allocates a phase,
 writes one row, and gives nothing else: the house itself is the island plus the phase. Walking
 into the area puts the character in that phase and spawns the Keeper, the Steward and every
-service bought so far; walking out despawns them. The Steward sells twelve services and the
+service bought so far; walking out despawns them. The Steward sells eleven services and the
 faction portal one at a time, each for its own price and its own confirmation. Selling the key
 back deletes the row, the purchases, and every spawn, and refunds a share of the price.
 

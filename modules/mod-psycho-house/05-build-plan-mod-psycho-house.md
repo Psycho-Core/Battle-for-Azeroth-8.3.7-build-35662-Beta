@@ -135,8 +135,9 @@ band, +/-, tuned after a pass.
 `HousingNeighborhood` stores a `guildId` for guild neighbourhoods, and nothing in the module
 ever clears it. A guild that founds a neighbourhood and then disbands leaves a village owned
 by a guild id that no longer exists: nobody can administer it, and the plots inside it are
-stranded behind an access check that can never pass. This is the one hole reading the guild
-house module found in my own code (doc 13 sec.12).
+stranded behind an access check that can never pass. Found by asking the question of the
+per-character draft the other way round - a house that belongs to a character has no guild to
+outlive, and a neighbourhood that belongs to a guild does (audit finding 63).
 
 Two hooks, both small:
 
@@ -184,7 +185,7 @@ map has art). Gossip states:
 ### 4.6 The facility shop
 
 A house with no bank, no mailbox and no auctioneer is a diorama. The facility layer is
-small, independent of decor, and already written: `drafts/mod-psychohouse/` sells twelve
+small, independent of decor, and already written: `drafts/mod-psychohouse/` sells eleven
 services and two faction portals from a table, and doc 13 is the design.
 
 Bringing it here is four steps: thirteen additions to `AmenityType`, six columns on
