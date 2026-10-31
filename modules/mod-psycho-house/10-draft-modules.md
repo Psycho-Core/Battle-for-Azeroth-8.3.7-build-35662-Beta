@@ -41,6 +41,7 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | --- | --- |
 | Vendors | 39, each with the retail npc id, faction and stock count in its row comment |
 | Decor rows | 571, every one carrying a real 8.3.7 game object |
+| Faction split | 397 rows are Horde only and 174 Alliance only, from the side the selling vendor stands on. A piece both hubs stock is two rows at two prices, so each side sees one - Autumn Leaf Pile is 50 gold in Razorwind Shores and 150 in Founder's Point |
 | Stock lines | 969 |
 | Retail item ids on those rows | 450 rows carry one; between them they cover all 439 distinct ids in the catalogue |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
@@ -83,7 +84,7 @@ decision I can change and re-generate in seconds.
 | Needs retail data | yes, by definition | no |
 | Needs client patches | for art, yes | no |
 | Runs on a clean 8.3.7 install | yes, every row already has an 8.3.7 stand-in game object | yes, immediately |
-| Number of decor pieces | 571 | 350 |
+| Number of decor pieces | 571, split 397 Horde / 174 Alliance | 350, both factions |
 | Number of vendors | 39 | 8 |
 | Item ids referenced | 439 distinct retail ids on 450 rows | 0 |
 | Currency | gold + 3363 + item 33226 | gold |

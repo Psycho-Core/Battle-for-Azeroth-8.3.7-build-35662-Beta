@@ -445,3 +445,65 @@ header pulling in the world, which is what makes the include rule worth having.
 What is still true and still written down: no compiler has seen this code. The table proves
 that the functions the draft calls exist with the arguments it passes, not that the file
 compiles.
+
+### 6.11 The vendor comments that described the vendor page, not the file
+
+Every `housing_vendor` row carries a comment with its npc id and how many stock lines it
+sells. Twelve of them were wrong in draft A, by between one and sixteen lines, and the two
+that were wrong by sixteen were Winter Veil stalls whose whole catalogue is unpriced, so they
+shipped with no stock at all. The count had been taken from the captured rows, before the
+unpriced ones were dropped for being free.
+
+The comment is now the number of rows the file actually inserts, and when the two numbers
+differ it prints both - `8 of 9 stock lines priced` - so a stall that lost lines cannot look
+complete. That is one comment string per vendor row, regenerated, with the stock file unchanged:
+969 lines over 37 vendors, the same 87 unpriced lines named at the end of it.
+
+The gap that remains is content, not code: Burlee Jinglepocket and Roz Copperpinch need a
+price before their sixteen lines can be sold, and the other ten stalls are short by between
+one and seventeen.
+
+### 6.12 The catalogue said the hubs were separate and the data did not
+
+Draft A's 571 decor rows all had `faction_mask = 3`. The vendor rows beside them name their
+side in the comment - Razorwind Shores is Horde, Founder's Point is Alliance - and the retail
+prices for the same piece differ sharply between the two: Autumn Leaf Pile is 50 gold on the
+Horde side and 150 on the Alliance side, and eight other pieces follow the same pattern.
+
+With a mask of 3 on both copies, an Alliance player's shop offered the 50 gold copy, so the
+Alliance vendor's row was never the cheapest thing on the page and the separation the module
+claims existed only in prose. `HousingMgr::BuyDecor` checks `FactionMask & factionBit` before
+it takes money, and the shop listing filters on the same field, so the fix is in the data and
+it takes effect on the buy path and in the window.
+
+The mask now comes from the vendor that sells the piece: 397 Horde only, 174 Alliance only.
+The ten pieces both hubs stock are unchanged as two rows; what changed is that each side sees
+one of them. Two pieces, Granite Cobblestone Long Path and Granite Cobblestone Path, are sold
+by two Horde vendors at 50 and 75 gold and remain a genuine double listing, which draft A's
+README says out loud rather than hides.
+
+What this costs: an Alliance player now has 174 pieces to furnish a house with instead of 571.
+That is the number the retail hub actually sells, and it is written down in the draft A README
+so nobody reads the catalogue total as per-player stock.
+
+### 6.13 The three round-17 fixes, re-read rather than re-argued
+
+Round 17 changed the draft in three places: `DirectPExecute` on the write path, `AddPhase(..., true)`
+on creatures that were already on the map, and the immune-plus-repair treatment of temporary
+summons. This round re-read all three against the core and none of them moved. Recorded here
+because a fix that was never re-read is a fix that is assumed.
+
+- `DatabaseWorkerPool::DirectPExecute` is the call that returns after the statement is handled;
+  `PExecute` queues it. The read-back that follows the ownership insert is only meaningful
+  with the former, and the file uses the former at all five write sites.
+- `PhasingHandler::AddPhase(WorldObject*, uint32 phaseId, bool update = true)`. `Map::SummonCreature`
+  has already put the creature on the map, so the phase change has to send the visibility
+  update or the NPC stands there invisible. The two summon helpers and the facility path pass
+  `true`; the game object path passes `false` and calls `AddToMap` itself, which is correct
+  because that object is not on a map yet.
+- `TempSummon` on this core lives with `DEAD_DESPAWN`, so a facility that dies is gone for the
+  session. `RepairSpawns` refills from the owner's `Bought` set, `WorldScript::OnUpdate` calls
+  it on a timer, and the three summon paths set `UNIT_FLAG_IMMUNE_TO_PC`.
+
+The one thing this cannot prove: that `DirectPExecute` behaves as its declaration reads on a live
+server. No server in this workspace has executed a line of the module.

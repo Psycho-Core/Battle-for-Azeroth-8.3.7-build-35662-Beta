@@ -66,6 +66,28 @@ Prices are gold unless `currency` says otherwise:
   The rule is `Housing::IsItemCost` in `src/game/Housing/HousingDefines.h`, and
   `HousingMgr::BuyDecor` is the only caller.
 
+## Horde and Alliance
+
+The two neighbourhoods are faction hubs, not shared ground: Razorwind Shores is Horde and
+Founder's Point is Alliance, and each vendor row's comment says which side it stands on.
+
+`faction_mask` carries that into the catalogue. 397 of the 571 pieces are Horde only and 174
+are Alliance only. The mask is not decoration: `HousingMgr::BuyDecor` refuses a row whose
+mask does not carry the buyer's bit, and the shop listing filters on the same field, so a
+player never sees the other side's stock.
+
+That matters most where both hubs sell the same piece. Ten pieces are stocked by a vendor on
+each side, and the two prices are not close - Autumn Leaf Pile is 25 to 50 gold in Razorwind
+Shores and 150 in Founder's Point, and the same holds for Charming Laurel Tree, both ivies,
+Duskberry Bush, Gloomrose, Gift of Gilneas and the Blooming Grass Patch. Without the mask the
+cheap Horde copy would be the best price in the Alliance shop, and the Alliance vendor would
+never be used.
+
+Two pieces are the other case: Granite Cobblestone Long Path and Granite Cobblestone Path are
+each sold by two Horde vendors, Botanist Boh'an and "Yen" Malone, at 50 and 75 gold. Both rows
+stay, because both vendors exist and both prices are real - which does mean a Horde player
+sees each of those two paths twice, at two prices, and buys the cheaper one.
+
 ## What is not complete
 
 - 317 of the 1 056 captured stock lines still have no retail item id, and 19 vendors have
