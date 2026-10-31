@@ -8,9 +8,11 @@ Amani Road Marker,Accents,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
 Amani Water Well,Nature,203035,GO_BURNING_TREE_2,Large Foliage,category,medium
 Amani Wicker Crate,Storage,221884,GO_LIGHTWEIGHT_CRATE_OF_MOGU_21,Storage,family:CRATE,high
 Ancient Memories of the Sea,Accents,185557,GO_ANCIENT_GEM,db,keyword,medium
+Ancient Weyrn Device,Accents,185557,GO_ANCIENT_GEM,db,keyword,medium
 Apothecary's Tortollan Display Rack,Accents,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Arched Violet Bellflowers,Nature,203036,GO_BURNING_TREE_3,Large Foliage,category,medium
 Arched Wooden Bench,Seating,186904,GO_BENCH_4,Seating,family:BENCH,high
+Artisan's Measuring Scales,Wall Art,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Artisanal Display Tent,Accents,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Astalor's Hookah,Accents,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Autumn Leaf Pile,Nature,203036,GO_BURNING_TREE_3,Large Foliage,category,medium
@@ -63,6 +65,7 @@ Circular Elven Floor Rug,Rugs,329650,GO_CIRCULAR_WALL_ASHVANE,Walls and Columns,
 Circular Elven Table,Tables,329650,GO_CIRCULAR_WALL_ASHVANE,Walls and Columns,keyword,medium
 Circular Woolen Rug,Rugs,329650,GO_CIRCULAR_WALL_ASHVANE,Walls and Columns,keyword,medium
 Closed Folk Curtains,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
+Closed Leather Curtains,Accents,178247,GO_NAGA_BRAZIER,Small Lights,category,medium
 Coal-Fired Stovetop,Lighting,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
 Collector's Tortollan Display Rack,Accents,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Color-Curious Candle,Lighting,195424,GO_BRAZIER_4,Small Lights,family:CANDLE,high
@@ -78,6 +81,7 @@ Counterspiral Wooden Stairs,Tables,201709,GO_THE_SKYBREAKER_STAIRS,db,keyword,me
 Covered Wooden Desk,Tables,185119,GO_DUST_COVERED_CHEST,Storage,keyword,medium
 Covered Wooden Table,Tables,185119,GO_DUST_COVERED_CHEST,Storage,keyword,medium
 Cozy Bird Nest,Pets,190095,GO_PLAGUED_CRATE,Storage,category,medium
+Cozy Hide-Covered Bench,Seating,186922,GO_BENCH_2,Seating,family:BENCH,high
 Cozy Kobold Crate,Storage,193597,GO_MALGANIS_CHEST_H,Storage,family:CRATE,high
 Cozy Lightbloom Lilypad,Lighting,195402,GO_BRAZIER_1,Small Lights,category,medium
 Cragthorn Highlands Large Garden Cluster,Nature,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
@@ -89,13 +93,18 @@ Crude Pet Cage,Pets,178147,GO_CAGE,db,keyword,medium
 Dalaran Espresso Machine,Accents,183771,GO_DRAENEI_MACHINE,db,keyword,medium
 Dalaran Kafa Grinder,Accents,184596,GO_KAEL_STATUE_RIGHT,Ornamental,category,medium
 Dalaran Kafa Table,Tables,221843,GO_LIGHTWEIGHT_CRATE_OF_MOGU_11,Storage,fallback,low
+Dark Talon Pennant,Accents,187372,GO_TALON_KING_COFFER,db,keyword,medium
 Decorated Underground Table,Tables,195410,GO_CHAIR_1,Seating,fallback,low
 Demont Orchard Juicer,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
+Draconic Auctioneer's Lectern,Accents,170574,GO_GOLEM_ROOM_S,db,keyword,medium
+Draconic Metalshaper's Anvil,Accents,186611,GO_GLOWING_ANVIL_3,Utility,family:ANVIL,high
+Draconic Trader's Cart,Storage,188160,GO_EXPLOSIVES_CART,db,family:CART,high
 Droopy Longwick Rope,Accents,151973,GO_IDOL_MOUTH_FIRE,db,category,medium
 Dry Razorwind Grass Patch,Nature,203034,GO_BURNING_TREE_1,Large Foliage,category,medium
 Dual Mechanical Gauge,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
 Dual-Action Turbo Pro Lever,Accents,181982,GO_BROGGOK_LEVER,db,keyword,medium
 Durable Folk Valance,Accents,195402,GO_BRAZIER_1,Small Lights,category,medium
+Durable Hex Table,Tables,221833,GO_LIGHTWEIGHT_CRATE_OF_MOGU_3,Storage,fallback,low
 Durable Wooden Chest,Storage,221814,GO_LIGHTWEIGHT_CRATE_OF_MANTID_7,Storage,family:CHEST,high
 Duskberry Bush,Nature,203036,GO_BURNING_TREE_3,Large Foliage,category,medium
 Duskwood Shadebrush,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
@@ -143,6 +152,7 @@ Elwynn Whitebrush,Accents,192567,GO_DRAKKARI_COLOSSUS_STATUE,Ornamental,category
 Empty Consortium Energy Barrel,Storage,170607,GO_BAR_KEG_SHOT,Food and Drink,family:BARREL,high
 Empty Consortium Energy Crate,Storage,201710,GO_THE_CAPTAIN_CHEST_ALLIANCE_NORMAL,Storage,family:CRATE,high
 Empty Elegant Elven Bathtub,Accents,148836,GO_ATALAI_IDOL,db,category,medium
+Empty Orgrimmar Bathtub,Accents,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
 Empty Reinforced Wooden Barrel,Storage,170607,GO_BAR_KEG_SHOT,Food and Drink,family:BARREL,high
 Empty Stormwind Market Stand,Accents,207408,GO_MAGIC_BRAZIER,Small Lights,category,medium
 Empty Tortollan Display Rack,Accents,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
@@ -156,6 +166,7 @@ Festive Red Candle,Lighting,207408,GO_MAGIC_BRAZIER,Small Lights,family:CANDLE,h
 Filled Candy Bucket,Storage,185168,GO_FEL_IRON_CHEST_NORMAL,Storage,category,medium
 Flat Boulder,Nature,196485,GO_SARONITE_ROCK,db,family:BOULDER,high
 Flowering Durotar Cactus,Nature,203034,GO_BURNING_TREE_1,Large Foliage,category,medium
+Forbidden Fork,Accents,221739,GO_VAULT_OF_FORBIDDEN_TREASURES_10,db,keyword,medium
 Forest Troll Fence,Structural,317059,GO_WALL_OF_SPEARS_GRONG,Walls and Columns,category,medium
 Forest Troll Fencepost,Structural,188165,GO_KAEL_STATUE_1,Ornamental,category,medium
 Founder's Point Apple Tree,Nature,203035,GO_BURNING_TREE_2,Large Foliage,family:TREE,high
@@ -195,6 +206,7 @@ Granite Cobblestone Long Path,Accents,195424,GO_BRAZIER_4,Small Lights,category,
 Granite Cobblestone Path,Accents,195425,GO_BRAZIER_3,Small Lights,category,medium
 Granite Cobblestone Path Arc,Accents,188166,GO_KAEL_STATUE_2,Ornamental,category,medium
 Granite Cobblestone Path Corner,Accents,178247,GO_NAGA_BRAZIER,Small Lights,category,medium
+Green Thumb's Watering Can,Accents,7365,GO_GREEN_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Griftah's Mystical Polter-Urn,Accents,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Griftah's Resizing Hex-Skull,Accents,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Griftah's Torch of Rotation,Lighting,195425,GO_BRAZIER_3,Small Lights,family:TORCH,high
@@ -214,16 +226,22 @@ Heartsbane Doom Catcher,Holiday,190475,GO_WINTERGRASP_FACTORY_BANNER_NE,Ornament
 Heartsbane Ritual Markings,Wall Art,265596,GO_RITUAL_STONE,db,keyword,medium
 Heartsbane Stone Circle,Holiday,195130,GO_HORDE_BANNER_HANGAR,Ornamental,category,medium
 Hearty Niffen Grub,Accents,192564,GO_SLAD_RAN_STATUE,Ornamental,category,medium
+High-Backed Orgrimmar Chair,Seating,269779,GO_ELUNES_THRONE,Seating,family:CHAIR,high
 Highlighting High Light,Lighting,208906,GO_FIRE_WALL_FENDRAL,Walls and Columns,family:LIGHT,high
 Hilltop Boulder,Nature,196485,GO_SARONITE_ROCK,db,family:BOULDER,high
 Homestone Doormat,Rugs,221853,GO_STOUT_CRATE_OF_MANTID_7,Storage,fallback,low
 Horned Banded Barrel,Storage,170607,GO_BAR_KEG_SHOT,Food and Drink,family:BARREL,high
+Horned Hanging Sconce,Lighting,176093,GO_BEACON_TORCH,Small Lights,category,medium
 Horrific Head of the Horseman,Holiday,195396,GO_ALLIANCE_BANNER,Ornamental,category,medium
 Hot Kobold Treasure,Accents,288639,GO_TREASURE_RICH_FLOTSAM,db,keyword,medium
 Ineffective Mechanical Privacy Screen,Accents,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
+Iron Chain Chandelier,Lighting,201775,GO_BALL_AND_CHAIN,db,keyword,medium
 Iron-Reinforced Crate,Storage,221908,GO_LIGHTWEIGHT_CRATE_OF_MOGU_34,Storage,family:CRATE,high
 Iron-Reinforced Cupboard,Accents,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
+Iron-Reinforced Door,Structural,201385,GO_ICE_WALL,Walls and Columns,category,medium
 Iron-Reinforced Standing Mirror,Accents,191745,GO_UTGARDE_MIRROR,db,keyword,medium
+Iron-Reinforced Wooden Rack,Accents,195403,GO_BRAZIER_2,Small Lights,category,medium
+Iron-Studded Wooden Window,Structural,184069,GO_TEMPEST_BRIDDGE_WINDOW,Windows,family:WINDOW,high
 "Isolation"" Unframed Painting",Wall Art,194962,GO_WINTERGRASP_FACTORY_BANNER_SW,Ornamental,category,medium
 Jagged Orgrimmar Trellis,Nature,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
 Jansen Farm Floral Basket,Storage,221807,GO_LIGHTWEIGHT_CRATE_OF_MOGU_1,Storage,family:BASKET,high
@@ -238,6 +256,7 @@ Kobold Sit-Thing,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Large Covered Wooden Table,Tables,185119,GO_DUST_COVERED_CHEST,Storage,keyword,medium
 Large Dangling Cobweb,Accents,151951,GO_IDOL_OVEN_FIRE,Utility,category,medium
 Large Founder's Point Gravestone,Accents,205068,GO_CAPTURE_POINT_NORTH_A_DEFENDING,db,keyword,medium
+Large Orgrimmar Bookcase,Books,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
 Large Ornate Khanam's Rug,Rugs,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Large Razorwind Farmer's Hay Pile,Nature,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Large Razorwind Gazebo,Nature,203037,GO_BURNING_TREE_4,Large Foliage,category,medium
@@ -250,6 +269,7 @@ Large Warrens Candle,Lighting,176093,GO_BEACON_TORCH,Small Lights,family:CANDLE,
 Large White Winter Veil Gift,Holiday,190357,GO_WINTERGRASP_WINTER_S_EDGE_TOWER,Large Structures,keyword,medium
 Large Wooden Floor Tile,Structural,191527,GO_TRIBUNAL_SKY_FLOOR,db,keyword,medium
 Large Wooden Wall Tile,Structural,246435,GO_WALL_OF_SOULS_3,Walls and Columns,family:WALL,high
+Leather Valance,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
 Leather-Banded Wooden Bench,Seating,186896,GO_BENCH_1,Seating,family:BENCH,high
 Legerdemain Lounge Sign Board,Wall Art,195132,GO_ALLIANCE_BANNER_HANGAR,Ornamental,family:SIGN,high
 Lively Pistons,Accents,195403,GO_BRAZIER_2,Small Lights,category,medium
@@ -258,8 +278,10 @@ Loamm Bartering Stall,Accents,195424,GO_BRAZIER_4,Small Lights,category,medium
 Loamm Wheelpot,Accents,192564,GO_SLAD_RAN_STATUE,Ornamental,category,medium
 Loammy Soil,Accents,188165,GO_KAEL_STATUE_1,Ornamental,category,medium
 Logger's Picnic Table,Tables,170574,GO_GOLEM_ROOM_S,db,keyword,medium
+Long Durable Table,Tables,170575,GO_THRONE_ROOM,Seating,fallback,low
 Long Founder's Point Fence,Structural,205068,GO_CAPTURE_POINT_NORTH_A_DEFENDING,db,keyword,medium
 Long Hanging Tavern Lantern,Lighting,195402,GO_BRAZIER_1,Small Lights,family:LANTERN,high
+Long Leather-Clad Table,Tables,221901,GO_LIGHTWEIGHT_CRATE_OF_MOGU_27,Storage,fallback,low
 Long Old Founder's Point Fence,Structural,205068,GO_CAPTURE_POINT_NORTH_A_DEFENDING,db,keyword,medium
 Long Orgrimmar Bench,Seating,186896,GO_BENCH_1,Seating,family:BENCH,high
 Long Strand of Winter Veil Lights,Lighting,202313,GO_VAULT_OF_LIGHTS_ENTRANCE,db,keyword,medium
@@ -285,6 +307,7 @@ Mounted Founder's Point Lantern,Lighting,152097,GO_BELNISTRASZS_BRAZIER,Small Li
 Mounted Tavern Lantern,Lighting,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,family:LANTERN,high
 Nagrand Blueberry Bush,Nature,203035,GO_BURNING_TREE_2,Large Foliage,category,medium
 Oath Scale,Wall Art,195155,GO_HORDE_BANNER_DOCK,Large Structures,category,medium
+Obsidian Warder Pennant,Accents,209037,GO_OBSIDIAN_FLECKED_CHITIN,db,keyword,medium
 Old Broken Founder's Point Fence,Structural,205068,GO_CAPTURE_POINT_NORTH_A_DEFENDING,db,keyword,medium
 Old Founder's Point Fence,Structural,205068,GO_CAPTURE_POINT_NORTH_A_DEFENDING,db,keyword,medium
 Old Founder's Point Fencepost,Structural,205068,GO_CAPTURE_POINT_NORTH_A_DEFENDING,db,keyword,medium
@@ -305,6 +328,21 @@ Open Spiky Banded Barrel,Storage,170607,GO_BAR_KEG_SHOT,Food and Drink,family:BA
 Open Sturdy Wooden Crate,Storage,185168,GO_FEL_IRON_CHEST_NORMAL,Storage,family:CRATE,high
 Open Wooden Coffin,Accents,289642,GO_COFFIN,db,keyword,medium
 Open-Air Sturdy Tent,Accents,151952,GO_IDOL_CUP_FIRE,db,category,medium
+Orgrimmar Angled Platform,Structural,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Beam Platform,Structural,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Bureaucrat's Desk,Tables,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Chair,Seating,195418,GO_CHAIR_4,Seating,family:CHAIR,high
+Orgrimmar Interior Doorway,Structural,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Interior Narrow Wall,Structural,184635,GO_MAGTHERIDON_COLUMN_2,Walls and Columns,family:WALL,high
+Orgrimmar Interior Wall,Structural,278820,GO_COLLISION_WALL,Walls and Columns,family:WALL,high
+Orgrimmar Large Platform,Structural,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Nightstand,Accents,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Open Dresser,Accents,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Round Interior Pillar,Structural,184638,GO_MAGTHERIDON_COLUMN_0,Walls and Columns,family:PILLAR,high
+Orgrimmar Round Platform,Structural,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Small Platform,Structural,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Orgrimmar Square Interior Pillar,Structural,184634,GO_MAGTHERIDON_COLUMN_3,Walls and Columns,family:PILLAR,high
+Orgrimmar Tusked Bed,Beds,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
 Ornate Elven Stove,Accents,160411,GO_STOVE_2,db,keyword,medium
 Ornate Khanam's Rug,Rugs,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Ornate Stonework Fireplace,Lighting,207408,GO_MAGIC_BRAZIER,Small Lights,category,medium
@@ -329,6 +367,8 @@ Protected Tortollan Scroll Case,Books,221887,GO_STOUT_CRATE_OF_MOGU_7,Storage,fa
 Purple Gift Bow,Holiday,245698,GO_VALARJAR_RUNE_PURPLE,db,keyword,medium
 Razorwind Acacia Tree,Nature,203037,GO_BURNING_TREE_4,Large Foliage,family:TREE,high
 Razorwind Banded Planter,Nature,203036,GO_BURNING_TREE_3,Large Foliage,category,medium
+Razorwind Banner Pelt,Wall Art,195130,GO_HORDE_BANNER_HANGAR,Ornamental,family:BANNER,high
+Razorwind Bar Table,Tables,170607,GO_BAR_KEG_SHOT,Food and Drink,keyword,medium
 Razorwind Blooms Large Garden Cluster,Nature,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Razorwind Cactus Large Garden Cluster,Nature,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Razorwind Campfire Grill,Lighting,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
@@ -348,8 +388,11 @@ Razorwind River Paddle,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,categ
 Razorwind Roofer's Shingle,Structural,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Razorwind Roofer's Shingle Pile,Structural,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Razorwind Shores Canoe,Storage,222694,GO_CRATE_OF_PANDAREN_RELICS_8,Storage,category,medium
+Razorwind Standing Mirror,Accents,191745,GO_UTGARDE_MIRROR,db,keyword,medium
+Razorwind Storage Table,Tables,221852,GO_LIGHTWEIGHT_CRATE_OF_MOGU_18,Storage,fallback,low
 Razorwind Succulent Palm,Accents,188166,GO_KAEL_STATUE_2,Ornamental,category,medium
 Razorwind Tumbleweed,Accents,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,category,medium
+Razorwind Wall Mirror,Structural,209596,GO_INNER_WALL,Walls and Columns,family:WALL,high
 Razorwind Wheelbarrow,Storage,221835,GO_LIGHTWEIGHT_CRATE_OF_MOGU_4,Storage,category,medium
 Reaching Violet Bellflowers,Nature,203037,GO_BURNING_TREE_4,Large Foliage,category,medium
 "Reclamation"" Unframed Painting",Rugs,221825,GO_MASSIVE_CRATE_OF_MANTID_2,Storage,fallback,low
@@ -360,8 +403,11 @@ Red Razorwind Paintbrush,Accents,7366,GO_RED_CLUSTER_DISPLAY_LARGE,db,keyword,me
 Refined Wooden Bed,Beds,221903,GO_LIGHTWEIGHT_CRATE_OF_MOGU_29,Storage,fallback,low
 Reinforced Wooden Barrel,Storage,170607,GO_BAR_KEG_SHOT,Food and Drink,family:BARREL,high
 Reinforced Wooden Chest,Storage,221832,GO_LIGHTWEIGHT_CRATE_OF_MOGU_2,Storage,family:CHEST,high
+Replica Grathardormu's Hammer,Accents,201581,GO_ORGRIMS_HAMMER_A,db,keyword,medium
 Restful Wooden Bench,Seating,186896,GO_BENCH_1,Seating,family:BENCH,high
 "River's Protectors"" Unframed Painting",Wall Art,170574,GO_GOLEM_ROOM_S,db,keyword,medium
+Roasted Ram Leg,Accents,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
+Round Stitched Cushion,Accents,151952,GO_IDOL_CUP_FIRE,db,category,medium
 Round-Top Boulder,Nature,204381,GAMEOBJECT_SLABHIDE_ROCK_WALL,db,family:BOULDER,high
 Rugged Brazier,Rugs,195424,GO_BRAZIER_4,Small Lights,family:BRAZIER,high
 Rugged Stool,Seating,195416,GO_CHAIR_5,Seating,family:STOOL,high
@@ -378,8 +424,10 @@ Sealed Sack of Roasted Kafa,Storage,190094,GO_SUSPICIOUS_CRATE,Storage,family:SA
 Secretive Bookcase Wall,Structural,209066,GO_FIRE_WALL_BALEROC,Walls and Columns,family:WALL,high
 Sentinel Hill Picnic Table,Tables,221865,GO_LIGHTWEIGHT_CRATE_OF_MANTID_25,Storage,fallback,low
 Sentinel Hill Rocking Chair,Seating,160418,GO_CHAIR_7,Seating,family:CHAIR,high
+Sethraliss Priest's Pillow,Accents,288640,GO_SETHRALISS_TREASURE,db,keyword,medium
 Short Hanging Tavern Lantern,Lighting,195403,GO_BRAZIER_2,Small Lights,family:LANTERN,high
 Short Orgrimmar Bench,Seating,186904,GO_BENCH_4,Seating,family:BENCH,high
+Short Orgrimmar Bookcase,Books,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
 Short Round Wooden Column,Structural,184636,GO_MAGTHERIDON_COLUMN_4,Walls and Columns,family:COLUMN,high
 Short Square Wooden Column,Structural,184634,GO_MAGTHERIDON_COLUMN_3,Walls and Columns,family:COLUMN,high
 Short Wooden Cabinet,Accents,188165,GO_KAEL_STATUE_1,Ornamental,category,medium
@@ -417,7 +465,10 @@ Small Fruit Platter,Accents,148836,GO_ATALAI_IDOL,db,category,medium
 Small Green Winter Veil Gift,Holiday,190357,GO_WINTERGRASP_WINTER_S_EDGE_TOWER,Large Structures,keyword,medium
 Small Green Wrapped Gift,Holiday,7365,GO_GREEN_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Small Jagged Orgrimmar Trellis,Nature,220364,GO_ORGRIMMAR_ELEVATOR,db,keyword,medium
+Small Leather Rug,Rugs,330208,GO_ORGOZOA_ENCOUNTER_FINAL,Tables and Desks,fallback,low
+Small Orgrimmar Chair,Seating,160410,GO_CHAIR_6,Seating,family:CHAIR,high
 Small Poppy Cluster,Accents,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
+Small Razorwind Bar Table,Tables,170607,GO_BAR_KEG_SHOT,Food and Drink,keyword,medium
 Small Razorwind Farmer's Hay Pile,Nature,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Small Red Winter Veil Gift,Holiday,7366,GO_RED_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Small Stonework Fountain,Nature,207406,GO_STRANGE_FOUNTAIN,Large Structures,family:FOUNTAIN,high
@@ -441,6 +492,8 @@ Standing Ornate Weapon Rack,Accents,151952,GO_IDOL_CUP_FIRE,db,category,medium
 Star-Touched Winter Veil Pine Tree,Nature,203035,GO_BURNING_TREE_2,Large Foliage,family:TREE,high
 Steamy Romance Tablet,Tables,202337,GO_THE_CAPTAIN_CHEST_HORDE_HEROIC,Storage,fallback,low
 Sticky Lever,Accents,208877,GO_STICKY_WEB,db,keyword,medium
+Stitched Leather Rug,Rugs,221822,GO_LIGHTWEIGHT_CRATE_OF_MANTID_11,Storage,fallback,low
+Stitched Pillow Roll,Accents,207408,GO_MAGIC_BRAZIER,Small Lights,category,medium
 Stitched Winter Veil Stocking,Holiday,190357,GO_WINTERGRASP_WINTER_S_EDGE_TOWER,Large Structures,keyword,medium
 Stoneveil Ridge Large Garden Cluster,Nature,7364,GO_BLUE_CLUSTER_DISPLAY_LARGE,db,keyword,medium
 Stonework Fountain,Nature,207406,GO_STRANGE_FOUNTAIN,Large Structures,family:FOUNTAIN,high
@@ -502,6 +555,7 @@ Thalassian Chest,Storage,193597,GO_MALGANIS_CHEST_H,Storage,family:CHEST,high
 "The Light Blooms"" Unframed Painting",Lighting,195402,GO_BRAZIER_1,Small Lights,family:LIGHT,high
 The Ornament of Midnight,Accents,195403,GO_BRAZIER_2,Small Lights,category,medium
 Three-Candle Wrought Iron Chandelier,Lighting,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,family:CANDLE,high
+Tied-Left Leather Curtains,Accents,146085,GO_CAVE_IN_LEFT,db,keyword,medium
 Tied-Open Folk Curtains,Accents,151973,GO_IDOL_MOUTH_FIRE,db,category,medium
 Tiny Clump of Hay,Nature,203036,GO_BURNING_TREE_3,Large Foliage,category,medium
 Torquewrench Tractor,Accents,151951,GO_IDOL_OVEN_FIRE,Utility,category,medium
@@ -511,13 +565,19 @@ Tortollan Traveler's Tincture,Accents,170574,GO_GOLEM_ROOM_S,db,keyword,medium
 Traditional Brewfest Stein,Accents,148836,GO_ATALAI_IDOL,db,category,medium
 Trampled Wisps of Hay,Nature,191144,GO_INCONSPICUOUS_TREE,Large Foliage,category,medium
 Triple-Tested Steam Valve,Accents,195424,GO_BRAZIER_4,Small Lights,category,medium
+Tusked Candleholder,Lighting,207408,GO_MAGIC_BRAZIER,Small Lights,category,medium
+Tusked Fireplace,Lighting,195402,GO_BRAZIER_1,Small Lights,category,medium
 Tusked Gazebo,Nature,203037,GO_BURNING_TREE_4,Large Foliage,category,medium
+Tusked Hanging Sconce,Lighting,175564,GO_BRAZIER_OF_THE_HERALD,Small Lights,category,medium
+Tusked Leather Tapestry,Wall Art,195343,GO_REFINERY_BANNER,Ornamental,category,medium
+Tusked Weapon Rack,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Tusked Weapon Stand,Accents,184596,GO_KAEL_STATUE_RIGHT,Ornamental,category,medium
 Twisted Rope Coil,Accents,208844,GO_VENOXIS_COIL,db,keyword,medium
 Underdecorated Underground Table,Tables,160416,GO_CHAIR_8,Seating,fallback,low
 Unlit Ogre Jack-o'-Lantern,Lighting,178247,GO_NAGA_BRAZIER,Small Lights,family:LANTERN,high
 Unlit Shrieking Jack-o'-Lantern,Lighting,195402,GO_BRAZIER_1,Small Lights,family:LANTERN,high
 Unlit Smiling Jack-o'-Lantern,Lighting,152097,GO_BELNISTRASZS_BRAZIER,Small Lights,family:LANTERN,high
+War Creche Teaching Crystal,Accents,180619,GO_OSSIRIAN_CRYSTAL,db,keyword,medium
 Warrens Candlecooker,Lighting,195425,GO_BRAZIER_3,Small Lights,category,medium
 Weather-Treated Wooden Table,Tables,192654,GO_LOKEN_THRONE,Seating,fallback,low
 Well-Built Well,Nature,191144,GO_INCONSPICUOUS_TREE,Large Foliage,category,medium

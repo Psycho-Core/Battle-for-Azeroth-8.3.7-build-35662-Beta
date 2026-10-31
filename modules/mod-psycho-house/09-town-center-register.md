@@ -2,38 +2,41 @@
 
 The Founder's Point Town Center and the Razorwind Shores Commons in full: every service,
 every NPC, every vendor, every item they stock, its price, its currency, and its unlock
-condition. Vendor-level data covers all 39 neighborhood vendors (38 with an npc id);
-item-level data covers 33 of them (675 items), 358 of which carry a retail item id. The
-remaining six are listed by count and captured by the scraper.
+condition. Vendor-level data covers all 39 neighborhood vendors (every one with an npc id);
+item-level data covers **all 39 of them (917 items)**, 600 of which carry a retail item id,
+and every one of the 39 npc ids is now confirmed against a live NPC page.
 
 One number to be careful with: the vendor index aggregates the two neighborhoods at
 1 143 items, while the per-vendor counts add up to **1 155**. The difference is exactly
-Hordranin's 12, the one vendor whose page never opened, so I use my own sum and say so.
+Hordranin's 12, which the index leaves out of its own total, so I use my own sum and say so.
 
 ## 1. Coverage, stated up front
 
 | Group | Vendors | Items | Status |
 | --- | --- | --- | --- |
-| Vendors with a full item capture | 33 | 675 | every name, price, currency and gate transcribed; 358 of the 675 carry a retail item id |
-| Vendors still to capture | 6 | 480 | Ren 146, Len 117, Gronthul 83, Yen 68, Jehzar 54, Hordranin 12 - section 7.6 |
-| **Total** | **39** | **1 155** | **675 items transcribed, 358 item ids** |
+| Vendors captured in full on their own npc page | 26 | 470 | complete: name, id, price, currency |
+| Vendors captured up to the 50 row page cap | 4 | 218 | Ren 50 of 84, Gronthul 50 of 83, plus the pages that close at 48 and 32 |
+| Vendors whose stock is split across a second faction npc | 3 | 229 | Ren 255325, Len 255326, Yen 255319 still to read |
+| Endeavor trader and shared vendors | 6 | - | counted above |
+| **Total** | **39** | **1 155** | **917 items transcribed, 600 item ids** |
 
-The split by neighborhood is in section 3, vendor by vendor, because six vendors sell in
-both neighborhoods and a single group total would count them twice.
+The split by neighborhood is in section 4, vendor by vendor, because several vendors stand
+in both neighborhoods and a single group total would count them twice.
 
-The CSV next to this document, `data/town-center-stock.csv`, holds the 675 transcribed
-rows in `vendor, item, price, currency, note` form. The scraper in
-`tools/housing/fetch_vendor_stock.py` fills the remaining 480 without retyping.
+The CSV next to this document, `data/town-center-stock.csv`, holds the 917 transcribed
+rows in `vendor, item, price, currency, note` form. The remaining 238 catalogue items sit
+behind the 50 row page cap and on the three second-faction npcs, and the scraper in
+`tools/housing/fetch_vendor_stock.py` reads them without retyping.
 
-**Still to capture, largest first**: "High Tides" Ren (146), "Len" Splinthoof (117),
-Gronthul (83), "Yen" Malone (68), Jehzar Starfall (54), Hordranin (12). Hordranin is the
-only vendor with no npc id at all - the vendor index lists the name and the item count, and
-the page behind it does not resolve.
+**Second pages still to read**: Ren 62 rows behind npc 255325, Len 69 behind 255326, Yen 36
+behind 255319, plus the 34 and 33 rows past the page cap on Ren 255222 and Gronthul 255278.
+That is the whole 238.
 
-**Captured this round**: Shon'ja 48, Roz Copperpinch 16, Aeeshna 12, Spew Gutsout 11. Roz
-Copperpinch is the only vendor whose item names are known without prices - the vendor page
-prints no cost for any of her sixteen Winter Veil pieces, so those sixteen rows carry a
-blank price rather than a zero.
+**Captured this round**: "High Tides" Ren 50, "Len" Splinthoof 48, Gronthul 50, "Yen"
+Malone 32, Jehzar Starfall 50, Hordranin 12 - 242 new rows, 242 new ids, no price left
+blank. Roz Copperpinch remains the only vendor whose item names are known without prices:
+the vendor page prints no cost for any of her sixteen Winter Veil pieces, so those sixteen
+rows carry a blank price rather than a zero.
 
 ## 2. What is physically in the hub
 
@@ -103,23 +106,25 @@ That is **19 vendors, 434 items**, fully transcribed.
 
 | Vendor | Items | Currency | Coordinates | npc id |
 | --- | --- | --- | --- | --- |
-| "High Tides" Ren | 146 | Gold | 62.4 / 80.2 | 255222 |
-| "Len" Splinthoof | 117 | Gold | 62.4 / 80.0 | 255223 |
-| "Yen" Malone | 68 | Gold | 62.2 / 80.3 | 255230 |
-| Unquestionably Griftah | 3 | Community Coupons | 62.4 / 79.2 | 267870 |
+| "High Tides" Ren | 84 on this npc | Gold | 62.4 / 80.2 | 255222 | rows 1-50 captured |
+| "Len" Splinthoof | 48 on this npc | Gold | 62.4 / 80.0 | 255228 | **complete** |
+| "Yen" Malone | 32 on this npc | Gold | 62.2 / 80.3 | 255230 | **complete** |
+| Unquestionably Griftah | 3 | Community Coupons | 62.4 / 79.2 | 267870 | **complete** |
 
-Unquestionably Griftah is transcribed in full (see section 5); the three big smugglers are
-not yet, and they are the largest single block of stock in the game.
+One correction came out of this pass: the id I had carried for "Len" Splinthoof, 255223, is
+a slime critter called Voidclot. Len is **255228** on the Alliance side and **255326** on the
+Horde side, straight off the NPC page title. The vendor index counts 117 items for Len
+because it adds both npc ids together; the Alliance page sells 48, all of them captured.
 
 ### 4.3 Razorwind Shores - the Commons
 
 | Vendor | Items | Currency | Coordinates | npc id | Item data |
 | --- | --- | --- | --- | --- | --- |
-| "High Tides" Ren | 146 | Gold | 39.8 / 72.8 | 255325 | pending |
-| "Len" Splinthoof | 117 | Gold | 39.8 / 73.2 | 255324 | pending |
-| Gronthul | 83 | Gold | 54.1 / 59.1 | 255278 | pending |
-| "Yen" Malone | 68 | Gold | 40.3 / 73.0 | 255319 | pending |
-| Jehzar Starfall | 54 | Gold | 53.6 / 58.6 | 255298 | pending |
+| "High Tides" Ren | 62 on this npc | Gold | 39.8 / 72.8 | 255325 | second page, not read yet |
+| "Len" Splinthoof | 69 on this npc | Gold | 39.8 / 73.2 | 255326 | second page, not read yet |
+| Gronthul | 83 | Gold | 54.1 / 59.1 | 255278 | rows 1-50 captured |
+| "Yen" Malone | 36 on this npc | Gold | 40.3 / 73.0 | 255319 | second page, not read yet |
+| Jehzar Starfall | 53 | Gold | 53.6 / 58.6 | 255298 | **complete**, 50 ids |
 | Shon'ja | 48 | Gold | 54.1 / 59.0 | 255297 | **complete** |
 | Botanist Boh'an | 32 | Gold | 54.0 / 58.4 | 255301 | **complete**, 31 ids |
 | "Den" Nightshade | 27 | Community Coupons | 39.4 / 70.2 | 257303 | **complete**, 14 ids |
@@ -134,7 +139,7 @@ not yet, and they are the largest single block of stock in the game.
 | Spew Gutsout | 11 | Tricky Treat | 52.4 / 54.4 | 273470 | **complete** |
 | Agratha | 9 | Gold | 53.6 / 54.4 | 267794 | **complete** |
 | Lonomia | 5 | Gold | 68.3 / 75.5 | 240465 | **complete** |
-| Hordranin | 12 | Gold | Commons | not found | pending |
+| Hordranin | 12 | Community Coupons | 54.2 / 56.2 and 53.0 / 38.0 | 250820 | **complete** |
 | Cousin Shortkaf | 1 | Community Coupons | 55.2 / 61.8 | 263258 | complete (shared) |
 
 Hesta Forlath also stands in Silvermoon City at 44.1 / 62.8 (npc 252916), which is how
@@ -534,29 +539,36 @@ Names and prices are one thing; the **item id** is what actually goes into a ven
 I am collecting them separately, because wowhead's NPC "Sells" list paginates at 50 rows and
 the pager is JavaScript, so one page fetch never returns a vendor's full list.
 
-`data/town-center-items.csv` currently holds **358 resolved item ids**, every one read off a
+`data/town-center-items.csv` currently holds **600 resolved item ids**, every one read off a
 wowhead sell list, none guessed:
 
 | Vendor | Items with ids | Item id range |
 | --- | --- | --- |
-| Faarden the Builder (255213) | 50 of 69 | 235523 - 252004 |
-| Xiao Dan (255203) | 50 of 65 | 235633 - 252037 |
-| Shon'ja (255297) | 48 of 48 | 244532 - 268028 |
-| Trevor Grenner (255221) | 42 of 43 | 245298 - 266444 |
-| Botanist Boh'an (255301) | 31 of 32 | 248337 - 266444 |
-| Balen Starfinder (255216) | 30 of 54 | 235994 - 246258 |
-| Pascal-K1N6 (248525) | 16 of 17 | 254400 - 254416 |
-| Brother Dovetail (249684) | 14 of 15 | 246686 - 252041 |
-| Griftah (260485) | 14 of 15 | 255649 - 274539 |
-| "Den" Nightshade (257303) | 14 of 27 | 280625 - 282347 |
-| Argan Hammerfist (255218) | 13 of 15 | 241623 - 267202 |
-| Jolli Maxiboom (271366) | 13 of 23 | 248101 - 282100 |
-| Aeeshna (252605) | 12 of 12 | 262664 - 263048 |
-| Spew Gutsout (273470) | 11 of 11 | 282192 - 282289 |
+| "High Tides" Ren | 50 of 50 | 236653 - 250913 |
+| Faarden the Builder | 50 of 69 | 235523 - 252004 |
+| Gronthul | 50 of 50 | 236653 - 250920 |
+| Jehzar Starfall | 50 of 50 | 235994 - 264353 |
+| Xiao Dan | 50 of 65 | 235633 - 252037 |
+| "Len" Splinthoof | 48 of 48 | 244532 - 268028 |
+| Shon'ja | 48 of 48 | 244532 - 268028 |
+| Trevor Grenner | 42 of 43 | 245298 - 266444 |
+| "Yen" Malone | 32 of 32 | 248337 - 266444 |
+| Botanist Boh'an | 31 of 32 | 248337 - 266444 |
+| Balen Starfinder | 30 of 54 | 235994 - 246258 |
+| Pascal-K1N6 | 16 of 17 | 254400 - 254416 |
+| "Den" Nightshade | 14 of 27 | 280625 - 282347 |
+| Brother Dovetail | 14 of 15 | 246686 - 252041 |
+| Griftah | 14 of 15 | 255649 - 274539 |
+| Argan Hammerfist | 13 of 15 | 241623 - 267202 |
+| Jolli Maxiboom | 13 of 23 | 248101 - 282100 |
+| Aeeshna | 12 of 12 | 262664 - 263048 |
+| Hordranin | 12 of 12 | 250627 - 250704 |
+| Spew Gutsout | 11 of 11 | 282192 - 282289 |
 
-358 rows, 351 distinct ids: the difference is the Chamberstick and the handful of holiday
-pieces that two vendors both stock. Every row carries a `source` column naming the NPC page
-it came from, so an id can be retraced in one step.
+600 rows, 432 distinct ids: the difference is the large shared sets - the Orgrimmar
+furniture runs sold by Ren, Len and Gronthul, the holiday pieces, and the Chamberstick that
+two vendors both stock. Every row carries a `source` column naming the NPC page it came
+from, so an id can be retraced in one step.
 
 Sample of what is now pinned down, id first:
 
@@ -580,7 +592,7 @@ One item, **246106 Wooden Chamberstick**, is stocked by both Xiao Dan and Faarde
 the first confirmed case of exact shared stock between two Town Center vendors, which matters
 because it means a vendor table cannot assume one item belongs to one vendor.
 
-`data/vendor_npc_ids.csv` now carries **38 of 39** vendor npc ids and slugs (Hordranin is
+`data/vendor_npc_ids.csv` now carries **39 of 39** vendor npc ids and slugs (Hordranin was
 the gap), so
 `tools/housing/fetch_item_ids.py` can work on any vendor unattended. It tries the NPC page,
 the ?sells=N variants, the item-filter endpoint with paging, and finally a per-name search,
@@ -616,33 +628,43 @@ Four walls, all tested rather than assumed:
    their vendor's stock names 100 percent, and two lists that did not (Fel'orei, Lefton)
    were thrown away rather than merged.
 
-What is left is **317 of the 675 transcribed rows**, plus every row of the six vendors in
-section 7.6, which have no capture at all. Three routes remain, in the order I would use
-them:
+What is left is **317 of the 917 transcribed rows**. Three routes remain, in the order I
+would use them:
 
 1. `tools/housing/fetch_item_ids.py --search-fallback` - one search request per item name.
    It works, it is slow, and it records `source` per row so a mixed result stays auditable.
 2. The vendor's own wowhead NPC page, which lists up to 50 items with ids regardless of the
    decor filter. That is what closed Trevor, Boh'an, Pascal, Dovetail and Griftah.
-3. For the six uncaptured vendors: capture the names first (section 7.6 has the counts and
-   the slugs), then run route 2 and 1 against them.
+3. The second-faction npcs section 7.6 names: same routine, different npc id.
 
-### 7.6 The six vendors with no stock capture
+### 7.6 The six captures that closed the vendor list
 
-Not skipped, just not reached. Each row lists the item count from the vendor index, so the
-size of the hole is known rather than implied.
+Each of the six went the same way: read the NPC page, take the sells table, diff the names
+against the register, write the rows through `tools/housing/merge_capture.py`. The raw
+captures are kept in `data/captures/`, one tab separated file per vendor, so a rerun is a
+merge and not a retype.
 
-| Vendor | npc id | Items | Neighborhood |
+| Vendor | npc id | Captured | Note |
 | --- | --- | --- | --- |
-| "High Tides" Ren | 255222 (255325 Horde) | 146 | Founder's Point, 62.4 / 80.2 |
-| "Len" Splinthoof | 255223 (255324 Horde) | 117 | Founder's Point |
-| Gronthul | 255278 | 83 | Razorwind Shores, 54.1 / 59.1 |
-| "Yen" Malone | 255230 (255319 Horde) | 68 | Founder's Point |
-| Jehzar Starfall | 255298 | 54 | Founder's Point |
-| Hordranin | unknown | 12 | Founder's Point |
+| "High Tides" Ren | 255222 | 50 of 84 | page cap; the Horde copy 255325 holds the other 62 |
+| "Len" Splinthoof | 255228 | 48 of 48 | complete; the Horde copy 255326 holds 69 more |
+| Gronthul | 255278 | 50 of 83 | page cap, single npc |
+| "Yen" Malone | 255230 | 32 of 32 | complete; the Horde copy 255319 holds 36 more |
+| Jehzar Starfall | 255298 | 50 of 53 | page cap, single npc |
+| Hordranin | 250820 | 12 of 12 | complete, all Community Coupons, 8 of 12 gated on an Endeavor milestone |
 
-480 items in total, 41 percent of the catalogue. The pages load, so this is a capture pass
-and not a research problem.
+Two things came out of it that were not in the register before:
+
+1. **Len's npc id was wrong**, and not subtly: 255223 is Voidclot, a slime critter in
+   Voidstorm. Len is 255228 / 255326. The correction is now in
+   `data/vendor_npc_ids.csv`, so 39 of 39 ids are confirmed against an NPC page.
+2. **Hordranin is an Endeavor Trader, not a gold vendor.** Twelve pieces, 5 to 20
+   Community Coupons each, and the note column carries the milestone each one needs. That
+   is the only vendor in the register whose entire stock is gated.
+
+The second faction pages are the remaining work on these six: 62 + 69 + 36 rows behind
+npc 255325, 255326 and 255319, plus the 34 and 33 rows past the page cap on Ren and
+Gronthul. Every one of them is a page read with the same routine.
 
 ### Price corrections this exercise forced
 

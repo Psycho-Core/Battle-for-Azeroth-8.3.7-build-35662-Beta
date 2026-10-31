@@ -199,10 +199,10 @@ def check_counts(findings):
 
     blanks = sum(1 for row in stock if not row["price"].strip())
     facts = {
-        "item-id rows": (len(items), {r"358 resolved item ids"}),
-        "stock rows": (len(stock), {r"675 (?:stock )?rows", r"675 items"}),
+        "item-id rows": (len(items), {r"600 resolved item ids"}),
+        "stock rows": (len(stock), {r"917 (?:stock )?rows", r"917 items"}),
         "blank prices": (blanks, {r"87 (?:blank|left)"}),
-        "mapped names": (len(mapping), {r"550 (?:decor |retail )?names", r"550 pieces"}),
+        "mapped names": (len(mapping), {r"610 (?:decor |retail )?names", r"610 pieces"}),
     }
 
     readme = read(os.path.join(ROOT, "README.md")).decode("ascii", "replace")

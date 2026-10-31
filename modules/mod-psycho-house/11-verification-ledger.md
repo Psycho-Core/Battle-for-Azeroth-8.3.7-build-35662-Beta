@@ -17,7 +17,7 @@ Seven checks, one line each, exit code 1 on a finding:
 | `ascii` | Every tracked text file is pure ASCII, byte for byte. No smart quotes, no Cyrillic or Chinese left over from source comments, no stray section signs |
 | `voice` | No first person plural, no second person address, no tooling talk. Quoted material - a site error message, a quest name, a code sample - is stripped before the scan so a quoted string cannot mask a real slip |
 | `links` | Every relative markdown link and every backticked `data/`, `docs/`, `sql/`, `src/`, `addon/`, `tools/` path resolves on disk. Globs are expanded; paths into the game source tree and the post-install `PsychoHouse` names are listed as intentional |
-| `counts` | The headline numbers in `README.md` equal the CSVs: 358 item ids, 675 stock rows, 87 blank prices, 550 mapped decor names |
+| `counts` | The headline numbers in `README.md` equal the CSVs: 600 item ids, 917 stock rows, 87 blank prices, 610 mapped decor names |
 | `csv` | Item ids are unique per vendor, every stock vendor exists in `data/vendor_npc_ids.csv`, and any vendor without stock rows is named rather than skipped |
 | `sql` | No blank field and no unbalanced quote in any generated `INSERT` tuple |
 | `mapping` | Every decor row has a non-zero game object entry, a known constant name, and one of the five match classes |
@@ -29,13 +29,16 @@ ascii    ok
 voice    ok
 links    ok
 counts   ok
-csv      6 finding(s)
+csv      ok
 sql      ok
 mapping  ok
+
+0 finding(s) across 7 check(s)
 ```
 
-The six `csv` findings are the six vendors with no stock capture yet, and they are listed
-by name in section 5 instead of being hidden.
+That is the first pass with nothing open in the mechanical checks. What is still incomplete
+is incomplete in **volume**, not in consistency: the second-faction pages and the rows past
+the 50 row cap, both counted exactly in section 5.
 
 ## 1. Where each number comes from
 
@@ -43,13 +46,13 @@ by name in section 5 instead of being hidden.
 | --- | --- | --- |
 | 39 vendors, 27 + 12 split by neighborhood | UmbraMarket vendor index, cross read against the Wowhead zone pages for Founder's Point (16105) and Razorwind Shores (15524) | `data/vendor_npc_ids.csv` row count |
 | 1 155 catalogue items | Sum of the per-vendor item counts on the same index | The per-vendor table in doc 09 |
-| 675 stock rows | Transcribed from live vendor pages; the pages that render were transcribed whole, not sampled | `wc -l data/town-center-stock.csv` |
-| 358 item ids | Wowhead "Sold by NPC" listings, vendor by vendor; names diffed against the stock CSV before a single id was written | `data/town-center-items.csv`, `source` column |
-| 351 distinct ids | Duplicates are items two vendors both sell (Wooden Chamberstick, the Hallow's End set) | `data/town-center-items.csv`, sorted by id |
+| 917 stock rows | Transcribed from live vendor pages, then merged through `merge_capture.py`; the pages that render were transcribed whole, not sampled | `wc -l data/town-center-stock.csv` |
+| 600 item ids | Wowhead "Sold by NPC" listings and NPC sell tabs, vendor by vendor; names diffed against the stock CSV before a single id was written | `data/town-center-items.csv`, `source` column |
+| 432 distinct ids | Duplicates are items several vendors sell (the Orgrimmar furniture runs, Wooden Chamberstick, the Hallow's End set) | `data/town-center-items.csv`, sorted by id |
 | 87 blank prices | Stock rows whose vendor page shows no cost. Blank means unpublished, never free | doc 09 sec.7.5 lists them by vendor |
-| 550 mapped decor names | Draft A's decor count, one mapping row per name | `data/town-center-go-map.csv` |
+| 610 mapped decor names | Draft A's decor count, one mapping row per name | `data/town-center-go-map.csv` |
 | 906 candidate game objects | Rows of `generated/source-asset-index.csv` where `kind = gameobject`, enum constants rejected | `tools/housing/map_decor_go.py --stats` |
-| 491 decor rows with an entry | Generated SQL, one tuple per mapped name | `tools/housing/audit.py` mapping check |
+| 555 decor rows with an entry | Generated SQL, one tuple per mapped name | `tools/housing/audit.py` mapping check |
 | 350 native decor rows | Index rows whose constant and category look like housing decor | `drafts/bfa-native/sql/world/03_decor_native.sql` |
 
 ## 2. What was checked by reading, not by script
@@ -99,19 +102,17 @@ sources themselves:
 
 ## 5. Open items, with exact counts
 
-1. **Six vendors have no stock capture**: "High Tides" Ren 146, "Len" Splinthoof 117,
-   Gronthul 83, "Yen" Malone 68, Jehzar Starfall 54, Hordranin 12. That is 480 of the 1 155
-   catalogue items. Their vendor pages exist and load; each is a run of the capture pass in
-   `tools/housing/fetch_vendor_stock.py`, four to five page reads per large vendor, none for
-   the small ones.
-2. **317 stock rows in the CSVs still have no item id** (675 minus 358). The wall is
-   documented in doc 09 sec.7.5: 50 rows per Wowhead listing with a JavaScript pager that
-   ignores the query string, partial coverage of the "Sold by NPC" filter, and two 12.1.7
-   NPCs that the filter does not index at all.
+1. **238 catalogue items are not captured yet**, and every one has a named owner:
+   Ren 62 rows behind npc 255325, Len 69 behind 255326, Yen 36 behind 255319, and 34 + 33
+   rows past the 50 row page cap on Ren 255222 and Gronthul 255278. The routine is in
+   `tools/housing/merge_capture.py`; the pages are the only work.
+2. **317 of the 917 transcribed rows have no item id**. The wall is documented in doc 09
+   sec.7.5: 50 rows per Wowhead listing with a JavaScript pager that ignores the query
+   string, and two 12.1.7 NPCs that the "Sold by NPC" filter does not index at all.
 3. **87 stock rows have no published price.** Not free, just unpublished.
-4. **Two npc ids unconfirmed**: Hordranin and Throska. Both appear in vendor lists; neither
-   has an id I could tie to a specific spawn.
-5. **205 of the 550 decor mappings are category fallbacks.** They are valid game objects and
+4. **One npc id unconfirmed**: Throska, a service NPC outside the vendor list, so the
+   register still prints no id for it. Every one of the 39 vendors is confirmed.
+5. **218 of the 610 decor mappings are category fallbacks.** They are valid game objects and
    they place correctly, but the piece will not look like its retail original. The map is a
    CSV for exactly this reason: replacing one is a one-line edit and a rebuild. When a real
    `gameobject_template` export exists, `map_decor_go.py --go-names` takes it and raises the

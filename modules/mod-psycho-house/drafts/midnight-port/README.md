@@ -9,9 +9,9 @@ retail vendor pages, and the numbers are the retail numbers.
 | Piece | Count | Where |
 | --- | --- | --- |
 | Vendors | 39, all with name, npc id, faction and stock count | `sql/world/03_vendors_retail.sql` |
-| Decor rows | 491, every one with a real 8.3.7 game object | `sql/world/04_decor_retail.sql` |
-| Vendor stock rows | 588 | `sql/world/05_stock_retail.sql` |
-| Retail decor item ids carried on those rows | 351 | same file, `item_entry` column |
+| Decor rows | 555, every one with a real 8.3.7 game object | `sql/world/04_decor_retail.sql` |
+| Vendor stock rows | 830 | `sql/world/05_stock_retail.sql` |
+| Retail decor item ids carried on those rows | 434 | same file, `item_entry` column |
 | House levels, budgets, rooms, exteriors | retail values, 1 to 12 | `../../01-retail-housing-reference.md` |
 | Endeavor milestones | 4, with 82 stock rows on vendors that gate pieces behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
 | Currency | Community Coupons 3363, plus Tricky Treat item 33226 for the Hallow's End stall | `04_decor_retail.sql`, `currency` column |
