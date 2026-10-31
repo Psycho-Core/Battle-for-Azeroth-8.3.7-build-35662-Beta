@@ -1,0 +1,52 @@
+# wowhead npc 255298, sells tab, 50 of 53 rows. Row 31 and rows 51-53 are behind
+# the 50 row cap and the one chunk boundary, so they are not in this file.
+235994	Ornate Stonework Fireplace	100	Gold
+241617	Elegant Padded Chair	50	Gold
+241618	Elegant Padded Footstool	10	Gold
+241620	Elegant Wooden Dresser	100	Gold
+241621	Small Elegant End Table	25	Gold
+241622	Ornate Weapon Rack	75	Gold
+243242	Circular Elven Floor Rug	50	Gold
+243243	Rectangular Elven Floor Rug	75	Gold
+243337	Bound-Left Silvermoon Drapes	50	Gold
+243338	Bound-Right Silvermoon Drapes	50	Gold
+243495	Elegant Padded Divan	100	Gold
+244781	Elegant Wall Drape	50	Gold
+245575	Bel'ameth Interior Wall	100	Gold
+245576	Bel'ameth Round Interior Pillar	50	Gold
+245578	Bel'ameth Interior Doorway	100	Gold
+245579	Bel'ameth Interior Narrow Wall	75	Gold
+245581	Silvermoon Round Interior Pillar	50	Gold
+245582	Silvermoon Interior Narrow Wall	75	Gold
+245583	Silvermoon Interior Wall	100	Gold
+245649	Silvermoon Interior Doorway	100	Gold
+246249	Silvermoon Beam Platform	50	Gold
+246250	Silvermoon Large Platform	125	Gold
+246251	Silvermoon Small Platform	75	Gold
+246252	Silvermoon Angled Platform	50	Gold
+246253	Silvermoon Round Platform	100	Gold
+246254	Bel'ameth Beam Platform	50	Gold
+246255	Bel'ameth Large Platform	125	Gold
+246256	Bel'ameth Small Platform	75	Gold
+246257	Bel'ameth Angled Platform	50	Gold
+246258	Bel'ameth Round Platform	100	Gold
+246431	Elegant Tied Curtain	50	Gold
+246691	Grand Elven Wall Curtain	50	Gold
+246711	Elegant Pillow Roll	10	Gold
+246961	Elegant Seat Cushion	10	Gold
+247501	Elegant Carved Door	75	Gold
+248760	Lovely Elven Shelf	50	Gold
+249558	Elven Standing Mirror	100	Gold
+251981	Elegant Elven Chandelier	50	Gold
+251982	Gilded Silvermoon Candelabra	75	Gold
+253180	Elegant Elven Canopy Bed	100	Gold
+253181	Gemmed Elven Chest	50	Gold
+253441	Grand Elven Bookcase	100	Gold
+253479	Small Elegant Padded Chair	50	Gold
+253490	Elegant Elven Desk	75	Gold
+253493	Carved Elven Bookcase	100	Gold
+255650	Elegant Table Lamp	25	Gold
+257690	Elegant Padded Chaise	100	Gold
+264169	Homestone Doormat	25	Gold
+264352	Elegant Elven Bathtub	125	Gold
+264353	Empty Elegant Elven Bathtub	125	Gold
