@@ -241,11 +241,25 @@ def build_midnight():
                 "budget": budget(price),
                 "category": category(row["item"]),
                 "source": vendor_ids[vendor],
+                # The two neighbourhoods are faction hubs: Razorwind Shores is Horde,
+                # Founder's Point is Alliance. A piece both hubs sell is two rows at two
+                # prices, and the mask is what keeps the cheaper one out of the other
+                # faction's shop - HousingMgr::BuyDecor refuses a piece whose mask does not
+                # carry the buyer's bit, and the shop listing filters the same way.
+                "faction": 2 if vendor in HORDE_VENDORS else 1,
                 "price": price,
                 "currency": currency,
                 "note": row["note"],
             })
         stock_rows.append((vendor_ids[vendor], decor_key[key], price))
+
+    # The vendor comment states how many stock lines the file actually inserts, not how many
+    # the vendor page listed. Four comments used to promise a line that was not there - one
+    # vendor promised sixteen and shipped none - because the count was taken before the
+    # unpriced rows were dropped.
+    priced = {}
+    for row in stock_rows:
+        priced[row[0]] = priced.get(row[0], 0) + 1
 
     vendors_sql = ["DELETE FROM `housing_vendor` WHERE `id` BETWEEN 101 AND 199;",
                    "INSERT INTO `housing_vendor` (`id`, `name`, `biome_id`, `role`, `creature_entry`, `retail_name`, `comment`) VALUES"]
@@ -254,20 +268,26 @@ def build_midnight():
         role = 4 if vendor in PET_VENDORS else (5 if vendor in HOLIDAY_VENDORS else 0)
         faction = "Horde, Razorwind Shores" if vendor in HORDE_VENDORS else "Alliance, Founder's Point"
         npc = ids.get(vendor, "0")
-        count = sum(1 for r in stock if r["vendor"] == vendor)
+        captured = sum(1 for r in stock if r["vendor"] == vendor)
+        shipped = priced.get(vendor_ids[vendor], 0)
+        if shipped == captured:
+            comment = "npc {}, {}, {} stock lines".format(npc, faction, shipped)
+        else:
+            comment = "npc {}, {}, {} of {} stock lines priced".format(
+                npc, faction, shipped, captured)
         vlines.append("({}, '{}', 0, {}, 0, '{}', '{}')".format(
             vendor_ids[vendor], sql_escape(vendor), role, sql_escape(vendor),
-            sql_escape("npc {}, {}, {} stock lines".format(npc, faction, count))))
+            sql_escape(comment)))
     vendors_sql.append(",\n".join(vlines) + ";")
 
     decor_sql = ["DELETE FROM `housing_decor` WHERE `id` BETWEEN 1000 AND 1999;",
                  "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
     dlines = []
     for d in decor_rows:
-        dlines.append("({}, '{}', {}, {}, {}, {}, 2, '{}', 0, {}, {}, {}, 3, 0.5, 3, 0)".format(
+        dlines.append("({}, '{}', {}, {}, {}, {}, 2, '{}', 0, {}, {}, {}, {}, 0.5, 3, 0)".format(
             d["id"], sql_escape(d["name"]), d["go"], d["item"], d["budget"],
             surface_band(d["category"]), d["category"],
-            d["source"], d["price"], d["currency"]))
+            d["source"], d["price"], d["currency"], d["faction"]))
     decor_sql.append(",\n".join(dlines) + ";")
     decor_sql.append("\n-- gameobject_entry is a real 8.3.7 game object chosen by tools/housing/map_decor_go.py.")
     decor_sql.append("-- Provenance per piece is in data/town-center-go-map.csv; a 0 here means no")
