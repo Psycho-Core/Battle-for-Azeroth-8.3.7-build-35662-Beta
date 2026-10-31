@@ -19,20 +19,33 @@ retail vendor pages, and the numbers are the retail numbers.
 Every vendor row keeps the retail npc id in the table comment, so the mapping between a
 Midnight npc and whichever 8.3.7 creature I end up using for the model is never lost.
 
-## Why `gameobject_entry` is 0
+## How the retail items got an 8.3.7 game object
 
-A retail decor item id is not a game object entry. Midnight stores decor in its own DB2
-table; 8.3.7 has no such table, and no 8.3.7 client contains Midnight models. So each
-decor row carries the retail item id in `item_entry` and leaves `gameobject_entry` at 0
-until the piece is mapped to a spawn that exists in the 8.3.7 client. A row with a 0
-gameobject entry is collectable and visible in the catalogue but cannot be placed; the
-core logs it once and skips it. That is deliberate - a guessed game object entry spawns
-nothing and logs an error on every load.
+A retail decor item id is not a game object entry. Midnight keeps decor in its own DB2
+table, 8.3.7 has no such table, and no 8.3.7 client contains the Midnight model. So every
+row carries two ids: `item_entry` is the retail item id, and `gameobject_entry` is the
+8.3.7 game object I chose to stand in for it.
 
-How to fill it: pick the closest existing game object from
-`../../generated/source-asset-index.csv`, put its entry in `gameobject_entry`, and the row
-becomes placeable with retail art substituted by the nearest 8.3.7 model. Doc 03 lists
-the families worth starting with.
+All 571 rows already carry one, so the file imports cleanly and every row is placeable the
+moment it loads. The 571 pieces land on 187 distinct game objects, which is the honest part of the
+substitution: a lamp, a lantern and a chandelier often share the nearest thing 8.3.7 has.
+`tools/housing/map_decor_go.py` produced those choices and records its reason in the
+`match` column of `data/town-center-go-map.csv`:
+
+| Reason | Names | What it means |
+| --- | --- | --- |
+| category | 223 | no name match, so the piece took the default stand-in for its category |
+| keyword | 189 | the decor name and the game object name share a distinctive word |
+| family | 171 | the names share a family stem, such as `WALL` (18) or `CRATE` (15) |
+| fallback | 35 | nothing matched, not even a family stem; last resort default |
+
+`category` and `fallback` are the two buckets I would revisit first, and both are cheap to
+fix: change `gameobject_entry` on that row, or give the map tool another keyword. A row
+whose entry is not in `gameobject_template` fails cleanly at placement instead of spawning
+nothing, which is why I would rather ship a rough stand-in than a zero.
+
+The retail item id is still there in `item_entry`, so when a piece is later given a proper
+8.3.7 model nothing else in the row has to change.
 
 ## Prices
 
@@ -49,11 +62,19 @@ Prices are gold unless `currency` says otherwise:
 
 ## What is not complete
 
+- 317 of the 1 056 captured stock lines still have no retail item id, and 19 vendors have
+  none at all. The reason is the same for all of them: a Wowhead vendor page prints 50
+  rows and no more, and the vendors under 50 are the ones that resolved. The rows are
+  still in the file with their names and prices, so an id can be filled in later without
+  touching anything else.
 - 87 stock lines have no published price. They are listed as comments at the end of
   `05_stock_retail.sql` and are not inserted, so they cannot come out free.
-- 13 vendors have a name, an npc id and an item count but no item names yet: "High Tides"
-  Ren 146, "Len" Splinthoof 117, Gronthul 83, "Yen" Malone 68, Jehzar Starfall 54. Those
-  five are the last ones; the rest of the 39 are captured.
+- `creature_entry` is 0 on all 39 vendor rows. The retail npc id is in each row's comment,
+  but a retail npc id is not an 8.3.7 creature entry, so the spawn has to come from a
+  creature that exists in this tree. Until then the vendors exist as data and the addon
+  lists them, but nothing stands in the town centre to talk to.
+- The four story quests in doc 04 are specified, not scripted. They need the steward
+  creature entries from the point above before a `quest_template` row can point at one.
 - Retail exterior shells (house skins) have no 8.3.7 equivalent. The draft uses the shell
   rooms from doc 06.
 

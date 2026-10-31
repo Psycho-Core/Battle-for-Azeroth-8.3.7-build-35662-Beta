@@ -38,18 +38,18 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | Vendors | 39, each with the retail npc id, faction and stock count in its row comment |
 | Decor rows | 571, every one carrying a real 8.3.7 game object |
 | Stock lines | 969 |
-| Retail item ids on those rows | 450 rows carry one (739 ids in total) |
+| Retail item ids on those rows | 450 rows carry one; between them they cover all 439 distinct ids in the catalogue |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
 | Gated stock | 90 stock rows sit on six vendors that lock pieces behind Endeavor milestones: Den, Pascal, Griftah, Harlowe, Aeeshna and Hordranin. Hordranin's eight gates are recorded per item in the CSV note column; the other five carry a vendor-level count. The draft does not enforce gating yet - that is phase 3 |
-| Unpriced lines | 92, listed as comments and deliberately not inserted |
+| Unpriced lines | 87, listed as comments at the end of the stock file and deliberately not inserted |
 | Unmapped pieces | none: `tools/housing/map_decor_go.py` maps every piece to a real entry and records how sure the match is |
 
 Design rule: the spawn is a separate decision from the catalogue, which is why the mapping
 lives in its own CSV with a confidence column instead of being baked into the SQL. A row
 can be listed, priced and owned while its stand-in is still the third-best chair in the
 game; the moment a better candidate exists, `data/town-center-go-map.csv` is edited and
-the draft regenerated. 156 of the 550 are family hits (chair to chair), 365 are keyword
-hits, 29 are category fallbacks.
+the draft regenerated. Of the 618 mapped names, 189 are keyword hits, 171 are family hits
+(chair to chair), 223 are category defaults and 35 are last-resort fallbacks.
 
 ## 3. Draft B - `bfa-native`
 
@@ -61,7 +61,7 @@ The from-scratch build. No retail ids at all.
 | Vendors | 8 stalls of my own design |
 | Stock lines | 350, every piece sold somewhere |
 | Currency | gold only |
-| Names | the constant name in SQL, replaced at load from `gameobject_template.name` |
+| Names | the constant in the SQL, replaced at load from `gameobject_template.name` |
 | Vendor models | bound from `creature_template` by subname, never by a guessed npc id |
 
 The 350 are what is left of the 767 decor-shaped game object constants after dropping
@@ -75,10 +75,10 @@ decision I can change and re-generate in seconds.
 | --- | --- | --- |
 | Needs retail data | yes, by definition | no |
 | Needs client patches | for art, yes | no |
-| Runs on a clean 8.3.7 install | with an empty catalogue until pieces are mapped | yes, immediately |
+| Runs on a clean 8.3.7 install | yes, every row already has an 8.3.7 stand-in game object | yes, immediately |
 | Number of decor pieces | 571 | 350 |
 | Number of vendors | 39 | 8 |
-| Item ids referenced | 739 retail ids | 0 |
+| Item ids referenced | 439 distinct retail ids on 450 rows | 0 |
 | Currency | gold + 3363 + item 33226 | gold |
 | Endeavor gating | yes, 4 milestones | no |
 | House levels | 12, retail budgets | 6, my budgets |

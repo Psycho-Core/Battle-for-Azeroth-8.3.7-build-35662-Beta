@@ -1,4 +1,4 @@
-# 11. Verification ledger
+# 11 - Verification ledger
 
 Every number in this folder had to come from somewhere, and this is the page that says
 where. It is also the page that says what I could not check, because a document that only
@@ -36,9 +36,7 @@ mapping  ok
 0 finding(s) across 7 check(s)
 ```
 
-That is the first pass with nothing open in the mechanical checks. What is still incomplete
-is incomplete in **volume**, not in consistency: the second-faction pages and the rows past
-the 50 row cap, both counted exactly in section 5.
+This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
 
 ## 1. Where each number comes from
 
@@ -49,7 +47,7 @@ the 50 row cap, both counted exactly in section 5.
 | 1 056 stock rows | Transcribed from live vendor pages, then merged through `merge_capture.py`; the pages that render were transcribed whole, not sampled | `wc -l data/town-center-stock.csv` |
 | 739 item ids | Wowhead "Sold by NPC" listings and NPC sell tabs, vendor by vendor; names diffed against the stock CSV before a single id was written | `data/town-center-items.csv`, `source` column |
 | 439 distinct ids | Duplicates are items several vendors sell (the Orgrimmar and Stormwind furniture runs, Wooden Chamberstick, the Hallow's End set) | `data/town-center-items.csv`, sorted by id |
-| 87 blank prices | Stock rows whose vendor page shows no cost. Blank means unpublished, never free | doc 09 sec.7.5 lists them by vendor |
+| 87 blank prices | Stock rows whose vendor page shows no cost. Blank means unpublished, never free | doc 09 sec.7.6 lists every one by vendor |
 | 618 mapped decor names | Draft A's decor count, one mapping row per name | `data/town-center-go-map.csv` |
 | 906 candidate game objects | Rows of `generated/source-asset-index.csv` where `kind = gameobject`, enum constants rejected | `tools/housing/map_decor_go.py --stats` |
 | 571 decor rows with an entry | Generated SQL, one tuple per mapped name | `tools/housing/audit.py` mapping check |
@@ -57,8 +55,7 @@ the 50 row cap, both counted exactly in section 5.
 
 ## 2. What was checked by reading, not by script
 
-The mechanical checks catch format and arithmetic. These were checked by re-reading the
-sources themselves:
+The mechanical checks catch format and arithmetic. They cannot catch a wrong claim, so I re-read the sources myself for these:
 
 - Phase numbering and cross references across docs 02 to 09: every "doc N sec M" points at
   a section that exists, with the claimed content.
@@ -95,18 +92,18 @@ sources themselves:
 | 05 build plan | Phase 0 to phase 6, file lists per phase | Complete; the file lists match the shipped `src/` tree |
 | 06 blueprint, dye, pet bed | `PCH1` payload format, checksum, dye channels | Complete; the checksum is defined and a Lua implementation is in the addon |
 | 07 client patching | `.toc`, `## Interface: 80300`, message prefix, DB2 notes | Complete; the addon ships as `addon/HousingUI/` and is renamed on install |
-| 08 source appendix | Pointer to the generated index | Regenerated this round |
-| 09 town centre register | 39 vendors, 675 rows, 358 ids, 87 blanks | Updated this round. Six vendors still have no stock capture - section 5 below |
-| 10 draft modules | What each draft contains, how to install and switch | Updated this round with the CMake patch step and the real row counts |
+| 08 source appendix | Pointer to the generated index | Regenerated from `build_appendix.py`; header, 14 sections and the per-section totals agree with the CSV |
+| 09 town centre register | 39 vendors, 1 056 rows, 739 ids, 87 blanks | Current. The 99 rows still behind the page cap are named in doc 09 sec.7.4 |
+| 10 draft modules | What each draft contains, how to install and switch | Row counts re-read from the generated SQL this round; the mapping split was wrong before (156/365/29) and now reads 223/189/171/35 |
 | 11 this ledger | Where every number comes from | Written this round |
 
 ## 5. Open items, with exact counts
 
 1. **99 catalogue items are not captured yet**, every one behind the 50 row window and
-   named in doc 09 sec.7.7: Ren 34 + 16, Len 19, Gronthul 26. The second window trick
+   named in doc 09 sec.7.4: Ren 34 + 16, Len 19, Gronthul 26, Jehzar 3. The second window trick
    (`items?filter=129;0;<npc>` orders the same set differently) bought seven of Gronthul's.
 2. **317 of the 1 056 transcribed rows have no item id** - the same 317 as before, all on
-   the vendors captured in earlier rounds. The wall is documented in doc 09 sec.7.5: 50
+   the vendors captured in earlier rounds. The wall is documented in doc 09 sec.7.2: 50
    rows per Wowhead listing with a JavaScript pager that ignores the query string, and two
    12.1.7 NPCs that the "Sold by NPC" filter does not index at all.
 3. **87 stock rows have no published price.** Not free, just unpublished.
@@ -119,3 +116,51 @@ sources themselves:
    family match count.
 6. **Compile, SQL parse and client test** are listed in section 3 and are the reason the
    drafts are called drafts.
+
+## 6. The two drafts, checked as SQL
+
+`python3 tools/housing/verify_drafts.py` reads both `drafts/` trees the way the server
+would: it parses every `INSERT`, matches each column list against `01_schema.sql`, counts
+the values in every row, and checks the foreign keys inside each file set. It needs no
+MySQL, so it catches drift and typos, not whether the server would accept a statement.
+
+```
+drafts/midnight-port/sql/world/03_vendors_retail.sql     39 rows
+drafts/midnight-port/sql/world/04_decor_retail.sql      571 rows
+drafts/midnight-port/sql/world/05_stock_retail.sql      969 rows
+drafts/bfa-native/sql/world/03_decor_native.sql         350 rows
+drafts/bfa-native/sql/world/04_vendors_native.sql       358 rows
+0 finding(s)
+```
+
+What that proves, in the order the script checks it:
+
+- every `INSERT` names a table and columns that exist in the schema for that draft;
+- no row has a value count that disagrees with its column list;
+- every `housing_decor` row has a positive `gameobject_entry`, a name, and an entry that
+  appears in `generated/source-asset-index.csv` - so no row points at a game object the
+  source tree does not declare;
+- every `housing_vendor_stock` row has a price above zero and points at a vendor and a
+  decor row that the same draft inserts;
+- all 439 distinct item ids in `data/town-center-items.csv` reach `housing_decor` in draft
+  A, so nothing captured in the register is missing from the module;
+- both drafts carry an identical `src/game/Housing` tree, which is what makes the side by
+  side in doc 10 fair.
+
+Two real defects came out of this pass, and both were in the drafts rather than the docs:
+
+1. **Every native decor row was named `GO_WALL_OF_ICE_2`.** The generator reused a loop
+   variable from the filtering pass, so all 350 rows took the last constant it had seen,
+   and the category, price band and surface of that one piece. The rows had 350 different
+   game objects and 350 identical names. Fixed in `build_drafts.py`; the names are now the
+   humanised constant (`Atalai Statue 3`) and the categories are spread across structural,
+   storage, lighting, wall art and the rest.
+2. **The draft A readme still said `gameobject_entry` was 0.** It described the state
+   before the mapping pass; all 571 rows have carried a real entry since that pass, on 187
+   distinct game objects. The section now describes the mapping, its four match reasons and
+   the counts, instead of describing a file that no longer looks like that.
+
+What the script cannot settle: whether MySQL accepts the statements (no server here),
+whether the C++ compiles (no boost or MySQL headers here), and whether a mapped game
+object looks right in the game (needs the client). Those three stay open, and section 3
+says why rather than hiding them.

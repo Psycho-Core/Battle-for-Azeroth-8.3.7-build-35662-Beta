@@ -2,7 +2,8 @@
 
 The Founder's Point Town Center and the Razorwind Shores Commons in full: every service,
 every NPC, every vendor, every item they stock, its price, its currency, and its unlock
-condition. Vendor-level data covers all 39 neighborhood vendors (every one with an npc id);
+condition. I built it from the vendor pages directly rather than from a guide, because the
+guides do not print item ids and I needed the ids. Vendor-level data covers all 39 neighborhood vendors (every one with an npc id);
 item-level data covers **all 39 of them (1 056 items)**, 739 of which carry a retail item id,
 and every one of the 39 npc ids is confirmed against a live NPC page.
 
@@ -24,10 +25,10 @@ in both neighborhoods and a single group total would count them twice.
 
 The CSV next to this document, `data/town-center-stock.csv`, holds the 1 056 transcribed
 rows in `vendor, item, price, currency, note` form. The remaining 99 catalogue items sit
-behind the 50 row page cap, and section 7.7 has the exact split.
+behind the 50 row page cap, and section 7.4 has the exact split.
 
 **Second pages read this round**: npc 255325 for Ren (50 rows), 255326 for Len (50), 255319
-for Yen (36). What is left is 99 rows that only exist past the page cap - section 7.7.
+for Yen (36). What is left is 99 rows that only exist past the page cap - section 7.4.
 
 **Captured this round**: Ren 50 + 50, Len 48 + 50, Yen 32 + 36, Gronthul 57, Jehzar 50,
 Hordranin 12 - 385 rows, 385 ids, no price left blank. Roz Copperpinch remains the only
@@ -143,6 +144,13 @@ Hesta Forlath also stands in Silvermoon City at 44.1 / 62.8 (npc 252916), which 
 players buy her stock without owning a house.
 
 ## 5. Complete stock, vendor by vendor
+
+Every captured line is in `generated/town-center-full-stock.md`: 39 vendors, 1 056 stock
+lines, one table each, with the price, the currency and the retail id - or a dash where the
+id is still open. That file is generated from the CSVs by
+`tools/housing/build_register_appendix.py`, so it cannot drift from the data. The sections
+below are the ones worth reading rather than scanning: the big architecture vendors, the
+Coupon stalls, the seasonal stalls and the gated ones.
 
 Prices are gold unless marked. A blank price means the vendor sells the piece for a
 currency or condition the mirror does not print.
@@ -510,14 +518,20 @@ like on a map pin.
 
 ## 7. Loading this into the module
 
-```bash
-# 1. capture the remaining 13 vendors
-python3 tools/housing/fetch_vendor_stock.py \
-    --vendors vendor-slugs.txt \
-    --out sql/generated/vendor_stock_rest.csv
+Three steps, in this order. I do not hand-edit the CSVs any more; every row comes from a
+capture file, so a rerun replaces a vendor instead of double counting it.
 
-# 2. merge with the transcribed 543 rows in data/town-center-stock.csv
-# 3. load
+```bash
+# 1. one vendor at a time, from a capture in data/captures/
+python3 tools/housing/merge_capture.py \
+    --vendor "Gronthul" \
+    --file data/captures/gronthul.tsv \
+    --source "wowhead npc 255278"
+
+# 2. turn the CSVs into the two drafts
+python3 tools/housing/build_drafts.py
+
+# 3. or load the CSV straight into a world database
 mysql world -e "LOAD DATA LOCAL INFILE 'data/town-center-stock.csv' \
   INTO TABLE psycho_house_vendor_stock \
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' \
@@ -525,12 +539,15 @@ mysql world -e "LOAD DATA LOCAL INFILE 'data/town-center-stock.csv' \
   (vendor, item, price, currency, note);"
 ```
 
-Then the mapping pass: for each retail item, choose the 8.3.7 game object that stands in for
+`--append` is the flag for a vendor that stands as two npcs: without it the merge replaces
+that vendor's rows, with it the second page adds to the first.
+
+Then the mapping pass: for each retail item I pick the 8.3.7 game object that stands in for
 it. Fences, crates, barrels, chairs, tables, lanterns, cobwebs, trees, boulders, tiles and
 staircases all have direct 8.3.7 equivalents. Stormwind and Bel'ameth *architecture* does
 not, which is exactly why the shell system in doc 06 exists.
 
-## 7.5 Item ids
+### 7.1 Item ids
 
 Names and prices are one thing; the **item id** is what actually goes into a vendor table.
 I am collecting them separately, because wowhead's NPC "Sells" list paginates at 50 rows and
@@ -602,7 +619,7 @@ than in a guide - Aeeshna is an *Endeavor Trader*, Spew Gutsout a *Hallow's End 
 Specialist* - which is also why their stock is paid in Community Coupons and Tricky Treats
 instead of gold.
 
-### Why 317 stock rows still have no item id
+### 7.2 Why 317 stock rows still have no item id
 
 Four walls, all tested rather than assumed:
 
@@ -632,9 +649,9 @@ would use them:
    It works, it is slow, and it records `source` per row so a mixed result stays auditable.
 2. The vendor's own wowhead NPC page, which lists up to 50 items with ids regardless of the
    decor filter. That is what closed Trevor, Boh'an, Pascal, Dovetail and Griftah.
-3. The second-faction npcs section 7.6 names: same routine, different npc id.
+3. The second-faction npcs section 7.3 names: same routine, different npc id.
 
-### 7.6 The six captures that closed the vendor list
+### 7.3 The six captures that closed the vendor list
 
 Each of the six went the same way: read the NPC page, take the sells table, diff the names
 against the register, write the rows through `tools/housing/merge_capture.py`. The raw
@@ -663,7 +680,7 @@ The second faction pages are the remaining work on these six: 62 + 69 + 36 rows 
 npc 255325, 255326 and 255319, plus the 34 and 33 rows past the page cap on Ren and
 Gronthul. Every one of them is a page read with the same routine.
 
-### 7.7 What the 99 missing rows actually are
+### 7.4 What the 99 missing rows actually are
 
 All 39 vendors are captured; what is left is 99 rows that only exist on the wrong side of
 the 50 row window, and every one of them is counted here:
@@ -688,7 +705,7 @@ trick bought 7 of the 26 rows still missing on Gronthul and would buy a few on e
 other three if the rest of each window could be read; the window is still fifty rows, so
 the union is the ceiling.
 
-### Price corrections this exercise forced
+### 7.5 Price corrections this exercise forced
 
 Syncing wowhead against the mirror I first transcribed from changed **30 prices**: 7 were
 wrong and 23 were blanks that wowhead fills. The wrong ones:
@@ -707,12 +724,36 @@ Rule from here on: **wowhead is the price authority, the mirror is only a stub t
 vendor.** Every price in `data/town-center-stock.csv` that wowhead has confirmed is now
 wowhead's number.
 
+### 7.6 The 87 rows with no published price
+
+Blank is not free. Every one of these rows is a real item with a real vendor; the page just
+does not print a cost, usually because the price depends on a condition the page does not
+render. I left the price column empty and listed them all here rather than guessing a
+number.
+
+| Vendor | Rows with no published price | Items |
+| --- | --- | --- |
+| Faarden the Builder | 17 | Broken Founder's Point Fence; Empty Reinforced Wooden Barrel; Founder's Point Fence; Founder's Point Fencepost; Founder's Point Framed Torch; Founder's Point Hay Bale; Founder's Point Standing Torch; Long Founder's Point Fence; Long Old Founder's Point Fence; Old Broken Founder's Point Fence; Old Founder's Point Fence; Old Founder's Point Fencepost; Open Sturdy Wooden Crate; Padded Wooden Bench; Reinforced Wooden Barrel; Sturdy Wooden Crate; Wooden Planter Row |
+| Burlee Jinglepocket | 16 | Candy Cane Rope Line; Candy Cane Rope Pole; Gilded Black Gift Box; Gilded Black Wrapped Gift; Large Red Winter Veil Gift; Long Strand of Winter Veil Lights; Ornate Winter Sled; Pristine Winter Veil Pine Tree; Purple Gift Bow; Small Candy Cane; Small Green Winter Veil Gift; Small Red Winter Veil Gift; Star-Touched Winter Veil Pine Tree; Striped Winter Veil Stocking; Winter Veil Mistletoe; Winter Veil Wreath |
+| Roz Copperpinch | 16 | Candy Cane Rope Line; Candy Cane Rope Pole; Gilded Black Gift Box; Gilded Black Wrapped Gift; Large Red Winter Veil Gift; Long Strand of Winter Veil Lights; Ornate Winter Sled; Pristine Winter Veil Pine Tree; Purple Gift Bow; Small Candy Cane; Small Green Winter Veil Gift; Small Red Winter Veil Gift; Star-Touched Winter Veil Pine Tree; Striped Winter Veil Stocking; Winter Veil Mistletoe; Winter Veil Wreath |
+| Holly Twinklebright | 9 | Festive Red Candle; Gilded Red Wrapped Gift; Large White Winter Veil Gift; Red Gift Bow; Small Green Wrapped Gift; Sparsely Decorated Winter Veil Pine Tree; Stitched Winter Veil Stocking; Strand of Winter Veil Lights; The Ornament of Midnight |
+| Jolli Maxiboom | 9 | Festive Red Candle; Gilded Red Wrapped Gift; Large White Winter Veil Gift; Red Gift Bow; Small Green Wrapped Gift; Sparsely Decorated Winter Veil Pine Tree; Stitched Winter Veil Stocking; Strand of Winter Veil Lights; The Ornament of Midnight |
+| Xiao Dan | 9 | Carved Wooden Chair; Hanging Tavern Lantern; Long Hanging Tavern Lantern; Mounted Founder's Point Lantern; Mounted Tavern Lantern; Refined Wooden Bed; Short Hanging Tavern Lantern; Square Woolen Rug; Sturdy Wooden Desk |
+| Balen Starfinder | 6 | Elegant Elven Bathtub; Elegant Elven Washbasin; Elegant Storage Table; Elegant Tied-Left Curtain; Empty Elegant Elven Bathtub; Ornate Elven Stove |
+| Agratha | 1 | Pepe |
+| Devin Slatesmith | 1 | Counterspiral Wooden Stairs |
+| Lefton Farrer | 1 | Elegant Elven Water Well |
+| Merki | 1 | Counterspiral Wooden Stairs |
+| Perry Winkles | 1 | Pepe |
+
 ## 8. Acceptance checks
 
 | Check | Rule | Result |
 | --- | --- | --- |
 | Roster | Every vendor stocking decor inside either neighborhood appears once | 39/39 |
-| Counts | Transcribed item count equals published count | 29/29 vendors match exactly |
+| Counts | Transcribed item count equals published count | 35 of 39 exact; Ren, Len, Gronthul and Jehzar are short by the page cap only |
+| Rows | Transcribed rows against the 1 155 catalogue | 1 056, the 99 remainder named in section 7.4 |
+| Item ids | Every id read off a vendor page, none inferred | 739 ids on 1 056 rows |
 | Currency | Gold, Community Coupons, Tricky Treat, Deed of Patronage kept distinct | verified |
 | Ids | Printed only when confirmed against an NPC page | 18 confirmed, 9 not |
 | Coordinates | Every coordinate carries its `/way` map id | verified, #2351 vs #2352 |

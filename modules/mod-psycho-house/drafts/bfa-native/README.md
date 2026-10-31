@@ -25,8 +25,9 @@ yard without looking wrong. The list is in `../../generated/source-asset-index.c
 filter is the `reject` tuple in `tools/housing/build_drafts.py`, so changing my mind about
 what counts as decor is a one-line edit and a re-run.
 
-Names in the SQL are the constant names, because that is what the source gives me. The
-last statement in `03_decor_native.sql` fixes that the moment the world database is
+Names in the SQL are the constant names with the `GO_` prefix stripped and the words
+title-cased, because the constant is all the source gives me. The last statement in
+`03_decor_native.sql` replaces them with the real name the moment the world database is
 present:
 
 ```sql
@@ -57,8 +58,8 @@ Gold only, and the ladder is mine:
 
 | Price | Pieces |
 | --- | --- |
-| 10g | lighting, storage, books, nature, accents |
-| 25g | seating, rugs, wall art, holiday |
+| 10g | lighting, storage, books, accents |
+| 25g | seating, rugs, wall art, nature, holiday |
 | 50g | structural, beds, pets |
 | 75g | tables |
 

@@ -1,8 +1,6 @@
 # 07 - Client patching and assets
 
-The client is unlocked, so this is permitted territory. This document is about what is
-*worth* doing, in what order, and where the real limits are - because "unlocked client" is
-not the same as "anything is possible".
+My client is unlocked, so this is permitted territory. What follows is what I think is *worth* doing, in what order, and where the real limits are, because "unlocked client" is not the same thing as "anything is possible".
 
 ## 1. What an unlocked 8.3.7 client can do
 
@@ -34,8 +32,7 @@ custom content servers add maps. Steps 1 and 5 still need real assets and the ex
 
 ## 3. Anchor mode: shipping without any art
 
-This is the important operational point. The module is designed so the **map is a config
-value**, not an assumption:
+This is the operational point I care most about. I designed the module so the **map is a config value** rather than an assumption:
 
 ```
 PsychoHouse.Enable          = 1
@@ -70,8 +67,7 @@ Practical plan:
 | Icons | 20-30 | Low, very high visual value |
 | **Total new models** | **~30-40** | The entire art risk sits here |
 
-Everything else - decor, trees, tents, carts, braziers, fences - comes from the harvested
-8.3.7 game object catalogue, which is the whole point of doc 03.
+Everything else - decor, trees, tents, carts, braziers, fences - comes from the harvested 8.3.7 game object catalogue, which is the whole reason doc 03 exists.
 
 ## 5. Addon packaging
 

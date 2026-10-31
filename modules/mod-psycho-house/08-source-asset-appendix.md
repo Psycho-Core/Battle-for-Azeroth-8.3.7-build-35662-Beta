@@ -1,6 +1,7 @@
-# Appendix - decor candidates that already have ids in the source tree
+# 08 - Source asset appendix
 
-Extracted from `src/` by `tools/housing/index_source_assets.py`; every id below appears
+Every decor candidate that already has an id in my source tree. Extracted from `src/` by
+`tools/housing/index_source_assets.py`; every id below appears
 in the tree as a named constant. Machine-readable: `generated/source-asset-index.csv`.
 Regenerate this file with `tools/housing/build_appendix.py`.
 

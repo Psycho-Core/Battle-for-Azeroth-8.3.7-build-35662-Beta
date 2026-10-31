@@ -1,7 +1,6 @@
 # 06 - Blueprints, dyes, pet beds and room shells
 
-The four systems that need real design rather than a table of numbers. All four are
-verified against the tree: every API named here exists in this 8.3.7 source.
+These are the four systems I have to design properly rather than tabulate. I checked all four against the tree: every API named here exists in this 8.3.7 source, and I have not named one that does not.
 
 ## 1. Rooms as shells
 
@@ -33,9 +32,7 @@ psycho_house_room
 5. Every room must remain reachable from the anchor (flood fill over the adjacency graph).
 6. Rooms can be removed only if removal does not orphan another room.
 
-That is roughly the retail floorplan rule set as described publicly ("what rooms fit and
-ensure each room can be accessed"), expressed as a graph problem on a small grid - cheap
-and deterministic.
+That is the published retail floorplan rule ("what rooms fit and ensure each room can be accessed") rewritten as a graph problem on a small grid. I chose that shape because it is cheap to validate and deterministic, so two servers given the same blueprint build the same house.
 
 ### 1.3 What the player experiences
 
@@ -65,7 +62,7 @@ runtime. What it **can** do is change which display the object uses:
 void SetDisplayId(uint32 displayid);
 ```
 
-So a dye is only real where a **recoloured display already exists** in the client. Lots of
+So I only sell a dye where a **recoloured display already exists** in the client. Lots of
 furniture does: same model, several ID variants (wood tones, cloth colours, metal tints).
 My catalogue can therefore expose dyes on exactly those families, and honestly refuse them
 elsewhere - which is also retail's behaviour ("not all decor can be dyed").
@@ -80,8 +77,7 @@ psycho_house_dye_color       -- 77 colours across the 9 groups
   id, dye_id, name, display_ids   -- comma list of GO displays this colour can switch to
 ```
 
-`display_ids` is the honest mechanism: a colour is only offered for a decor piece if the
-piece's family has a display for it. Where no display exists, the colour is greyed out with
+I use `display_ids` as the honest mechanism: a colour is offered for a piece only when that piece's family has a display for it. Where no display exists, the colour is greyed out with
 "not available for this piece" rather than silently doing nothing.
 
 ### 2.3 Applying

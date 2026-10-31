@@ -264,6 +264,33 @@ def build_midnight():
     copy_core(draft)
 
 
+SMALL_WORDS = {"of", "the", "and", "for", "in", "on", "with", "to"}
+
+
+def humanise(constant):
+    """Turn GO_SOME_NAME_2 into a readable placeholder name.
+
+    The runtime UPDATE copies the real name out of gameobject_template, so this is only
+    what the SQL reads like before the module has loaded once.
+    """
+    words = constant
+    for prefix in ("GO_", "OBJECT_", "GAMEOBJECT_"):
+        if words.startswith(prefix):
+            words = words[len(prefix):]
+    words = re.sub(r"([A-Za-z])(\d+)$", r"\1_\2", words)
+    parts = [w for w in words.split("_") if w]
+    out = []
+    for i, word in enumerate(parts):
+        low = word.lower()
+        if low.isdigit():
+            out.append(low)
+        elif i and low in SMALL_WORDS:
+            out.append(low)
+        else:
+            out.append(low.capitalize())
+    return " ".join(out) or constant
+
+
 def build_native():
     draft = "bfa-native"
     schema, world = read_schema_parts()
@@ -314,7 +341,9 @@ def build_native():
              "Accents": 2}
     for i, row in enumerate(rows):
         entry = int(row["entry"])
+        label = row["constant"] or row["name"]
         cat = category(label.replace("_", " ").lower())
+        label = humanise(label)
         price = NATIVE_PRICE.get(cat, 10)
         vendor = 201 + (entry % len(vendors))
         dlines.append("({}, '{}', {}, {}, {}, 2, '{}', 0, {}, {}, 0, 3, 0.5, 3, 0)".format(

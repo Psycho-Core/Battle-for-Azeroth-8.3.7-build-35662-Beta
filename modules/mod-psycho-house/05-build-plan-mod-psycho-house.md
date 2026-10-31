@@ -1,6 +1,6 @@
 # 05 - Build plan: from prototype to mod-psycho-house
 
-The engineering plan. Inputs: the prototype that already compiles and runs
+My engineering plan. Inputs: the prototype that already compiles and runs
 (`src/game/Housing`, `src/scripts/Housing`, `addon/HousingUI`), the retail
 spec in doc 01, and the port decisions in doc 02.
 
@@ -35,9 +35,7 @@ SQL applied and no GM intervention**:
 | P5 | Dye system (limited), blueprint codes | Dyes work on variant-authored pieces; export/import round-trips | 3-4 weeks |
 | P6 | Art pass: custom housing map, exteriors, rooms art | Founder's Point geometry shipped in a client patch | art-bound |
 
-Total code effort to P5: **14-18 weeks of evenings**, assuming one developer and no art
-dependency. P6 overlaps and is the only phase that cannot be compressed by working harder
-at code.
+I put the total at **14-18 weeks of evenings** for one developer with no art dependency. P6 overlaps and it is the only phase I cannot compress by working harder at the code.
 
 ## 3. Phase 0 - the rename and the skeleton
 
@@ -92,7 +90,7 @@ Table renames are painful on a live realm. Two options, both fine:
 - Server-authoritative placement validation.
 - Deferred writes.
 
-Those five decisions are the reason the prototype works; the port is additive.
+I built the prototype on those five decisions and it still runs on them; the port is additive to that shape, not a replacement for it.
 
 ## 4. Phase 1 - ownership parity and the catalogue
 
@@ -201,13 +199,11 @@ Engine first, content second:
 
 ## 8. Phase 5 - dyes and blueprints
 
-Both are specified in doc 06. Both are "nice to have" in retail terms; neither blocks v1.0
-if the priority table in doc 02 is honest about P3.
+I specified both in doc 06. In retail terms they are both "nice to have", and I am not pretending otherwise: neither blocks v1.0, which is why doc 02 files them at P3.
 
 ## 9. Phase 6 - art
 
-Doc 07. The module runs (in `anchor` mode) without any of it; art converts the system from
-"works" to "shippable".
+Doc 07. I run the module in `anchor` mode without any of it, so art is what turns the system from "works" into "shippable" rather than what makes it work at all.
 
 ## 10. Test gates
 
