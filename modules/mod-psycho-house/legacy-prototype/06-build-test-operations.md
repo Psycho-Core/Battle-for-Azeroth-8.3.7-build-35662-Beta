@@ -272,7 +272,7 @@ the hard cap `kMaxPlacedDecor` is 400.
 | Symptom | Likely cause |
 | --- | --- |
 | Addon never receives `S:HELLO` | Patch 0001 not applied, or `CONFIG_ADDON_CHANNEL = 0` |
-| Addon receives replies but buying does nothing | `Housing.Enable = 0`; check for `S:RESULT|MODULE|1` |
+| Addon receives replies but buying does nothing | `Housing.Enable = 0`; check for `S:RESULT\|MODULE\|1` |
 | `.housing list` shows every plot as available after a restart | `character_housing` rows missing (character DB not updated) |
 | Decor spawns but is invisible | Plot phase not applied to the player, or `Housing.Phasing.PlotScoped` on with the player outside the yard radius |
 | Players see furniture from another neighbourhood | Slot collision - `character_housing_neighborhood.slot` must be unique |

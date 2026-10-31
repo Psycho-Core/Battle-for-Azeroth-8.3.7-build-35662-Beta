@@ -66,8 +66,8 @@ to handle both cases for the same opcode.
 
 | Client | Server | Notes |
 | --- | --- | --- |
-| `C:HELLO|<proto>` | `S:HELLO|<proto>|<moduleVersion>|<enabled>|<hasHouse>` | `enabled` is 0 when the custom map is missing or the module is switched off; the addon then hides the whole UI. `hasHouse` lets the addon show "buy" vs "manage" on login. |
-| `C:PING` | `S:PONG|<secondsSinceStartup>` | Liveness and clock check. |
+| `C:HELLO\|<proto>` | `S:HELLO\|<proto>\|<moduleVersion>\|<enabled>\|<hasHouse>` | `enabled` is 0 when the custom map is missing or the module is switched off; the addon then hides the whole UI. `hasHouse` lets the addon show "buy" vs "manage" on login. |
+| `C:PING` | `S:PONG\|<secondsSinceStartup>` | Liveness and clock check. |
 
 Protocol version is currently **3**. The client refuses to talk if the major version it
 receives is lower than it expects, and shows a "housing addon out of date" line instead of
@@ -77,30 +77,30 @@ failing silently.
 
 | Client | Server | Notes |
 | --- | --- | --- |
-| `C:NEIGHBORHOOD` | `S:NBR|<id>|<type>|<name>|<slot>|<owned>|<total>|<faction>` | Summary of the neighbourhood the player is currently in. |
-| `C:PLOTS` | `S:PLOT|<index>|<biome>|<state>|<tier>|<owner>` x55 | Chunked. `state`: 0 available, 1 owned, 2 locked, 3 mine. |
-| `C:PLOT|<index>` | `S:PLOTINFO|<index>|<biome>|<price>|<size>|<state>|<tier>|<owner>|<name>|<locked>|<budgetIn>|<budgetOut>|<usedIn>|<usedOut>` | |
-| `C:BUY|<index>` | `S:RESULT|BUY|<code>` | |
-| `C:SELL` | `S:RESULT|SELL|<code>` | |
-| `C:TIER|<tier>` | `S:RESULT|TIER|<code>` | Upgrade request, priced server-side. |
-| `C:NAME|<text>` | `S:RESULT|NAME|<code>` | Truncated to 64 bytes server-side, escaped for SQL. |
-| `C:LOCK|<0|1>` | `S:RESULT|LOCK|<code>` | |
-| `C:ENTER|<index>` | `S:ENTER|<code>` | Server teleports to the plot's yard; the client never moves the player itself. |
-| `C:INTERIOR|<0\|1>` | `S:INTERIOR|<code>` | Enter (1) or leave (0) the house interior of the plot the player is standing in. |
-| `C:HOME` | `S:HOME|<code>|<cooldownRemaining>` | The Homestone. `cooldownRemaining` in seconds when `code == 23` (on cooldown). |
-| `C:LEAVE` | `S:LEAVE|<code>` | Return to the Town Center. |
-| `C:DIR|<page>` | `S:DIRENTRY|<plot>|<owner>|<tier>|<locked>` xN, then `S:DIREND|<page>|<more>` | Bulletin board / neighbourhood directory. 20 entries per page. |
+| `C:NEIGHBORHOOD` | `S:NBR\|<id>\|<type>\|<name>\|<slot>\|<owned>\|<total>\|<faction>` | Summary of the neighbourhood the player is currently in. |
+| `C:PLOTS` | `S:PLOT\|<index>\|<biome>\|<state>\|<tier>\|<owner>` x55 | Chunked. `state`: 0 available, 1 owned, 2 locked, 3 mine. |
+| `C:PLOT\|<index>` | `S:PLOTINFO\|<index>\|<biome>\|<price>\|<size>\|<state>\|<tier>\|<owner>\|<name>\|<locked>\|<budgetIn>\|<budgetOut>\|<usedIn>\|<usedOut>` | |
+| `C:BUY\|<index>` | `S:RESULT\|BUY\|<code>` | |
+| `C:SELL` | `S:RESULT\|SELL\|<code>` | |
+| `C:TIER\|<tier>` | `S:RESULT\|TIER\|<code>` | Upgrade request, priced server-side. |
+| `C:NAME\|<text>` | `S:RESULT\|NAME\|<code>` | Truncated to 64 bytes server-side, escaped for SQL. |
+| `C:LOCK\|<0\|1>` | `S:RESULT\|LOCK\|<code>` | |
+| `C:ENTER\|<index>` | `S:ENTER\|<code>` | Server teleports to the plot's yard; the client never moves the player itself. |
+| `C:INTERIOR\|<0\\|1>` | `S:INTERIOR\|<code>` | Enter (1) or leave (0) the house interior of the plot the player is standing in. |
+| `C:HOME` | `S:HOME\|<code>\|<cooldownRemaining>` | The Homestone. `cooldownRemaining` in seconds when `code == 23` (on cooldown). |
+| `C:LEAVE` | `S:LEAVE\|<code>` | Return to the Town Center. |
+| `C:DIR\|<page>` | `S:DIRENTRY\|<plot>\|<owner>\|<tier>\|<locked>` xN, then `S:DIREND\|<page>\|<more>` | Bulletin board / neighbourhood directory. 20 entries per page. |
 
 ### 4.3 Decor
 
 | Client | Server | Notes |
 | --- | --- | --- |
-| `C:DECOR|<category>|<page>` | `S:DECORENTRY|<id>|<name>|<cost>|<placement>|<surface>|<unlocked>|<price>|<currency>` xN, then `S:DECOREND|<page>|<more>` | Catalogue slice, already filtered to what the account can use and buy. |
-| `C:PLACED` | `S:PLACEDENTRY|<placementId>|<decorId>|<x>|<y>|<z>|<o>|<scale>|<indoor>` xN, then `S:PLACEDEND` | Everything currently in the player's house. |
-| `C:PLACE|<decorId>|<x>|<y>|<z>|<o>|<scale>|<indoor>` | `S:RESULT|PLACE|<code>|<placementId>` | |
-| `C:MOVE|<placementId>|<x>|<y>|<z>|<o>|<scale>` | `S:RESULT|MOVE|<code>` | |
-| `C:REMOVE|<placementId>` | `S:RESULT|REMOVE|<code>` | |
-| `C:BUYDECOR|<decorId>` | `S:BUYRESULT|<code>|<decorId>` | Spends gold, unlocks in the collection. |
+| `C:DECOR\|<category>\|<page>` | `S:DECORENTRY\|<id>\|<name>\|<cost>\|<placement>\|<surface>\|<unlocked>\|<price>\|<currency>` xN, then `S:DECOREND\|<page>\|<more>` | Catalogue slice, already filtered to what the account can use and buy. |
+| `C:PLACED` | `S:PLACEDENTRY\|<placementId>\|<decorId>\|<x>\|<y>\|<z>\|<o>\|<scale>\|<indoor>` xN, then `S:PLACEDEND` | Everything currently in the player's house. |
+| `C:PLACE\|<decorId>\|<x>\|<y>\|<z>\|<o>\|<scale>\|<indoor>` | `S:RESULT\|PLACE\|<code>\|<placementId>` | |
+| `C:MOVE\|<placementId>\|<x>\|<y>\|<z>\|<o>\|<scale>` | `S:RESULT\|MOVE\|<code>` | |
+| `C:REMOVE\|<placementId>` | `S:RESULT\|REMOVE\|<code>` | |
+| `C:BUYDECOR\|<decorId>` | `S:BUYRESULT\|<code>\|<decorId>` | Spends gold, unlocks in the collection. |
 
 Placement coordinates are **world** coordinates on the housing map, not plot-relative.
 I chose world coordinates because it keeps the server validation trivial (one bounding
@@ -111,10 +111,10 @@ without a coordinate transform the server would have to mirror.
 
 | Client | Server | Notes |
 | --- | --- | --- |
-| `C:GUESTLIST` | `S:GUEST|<name>|<flags>` xN, then `S:GUESTEND` | Character names, not account ids - accounts are never exposed on the wire. |
-| `C:GUESTADD|<name>|<flags>` | `S:RESULT|GUESTADD|<code>` | Flags: bit 0 enter, bit 1 edit, bit 2 manage guests. |
-| `C:GUESTDEL|<name>` | `S:RESULT|GUESTDEL|<code>` | |
-| `C:VAREA` | `S:VAREA|<type>|<name>|<x>|<y>|<biome>` xN, then `S:VAREAEND` | Amenity pins for the map view. |
+| `C:GUESTLIST` | `S:GUEST\|<name>\|<flags>` xN, then `S:GUESTEND` | Character names, not account ids - accounts are never exposed on the wire. |
+| `C:GUESTADD\|<name>\|<flags>` | `S:RESULT\|GUESTADD\|<code>` | Flags: bit 0 enter, bit 1 edit, bit 2 manage guests. |
+| `C:GUESTDEL\|<name>` | `S:RESULT\|GUESTDEL\|<code>` | |
+| `C:VAREA` | `S:VAREA\|<type>\|<name>\|<x>\|<y>\|<biome>` xN, then `S:VAREAEND` | Amenity pins for the map view. |
 
 ## 5. Result codes
 
