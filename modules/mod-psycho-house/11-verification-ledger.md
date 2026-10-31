@@ -356,3 +356,29 @@ Execution is still absent: there is no MariaDB server here and no compiler. As a
 all four files were parsed with a MySQL-dialect parser in one sitting; that proves the
 statements parse, not that they run.
 
+
+### 6.8 The draft, read against the core rather than against the headers
+
+The MariaDB pass matched every call the draft makes against the header that declares it, which
+is enough to know a signature exists and not enough to know what it does. The second read
+opened the implementation of the four calls the draft leans on hardest, and found three
+defects that no column, width or dialect check could see:
+
+| Call | What the implementation says | What the draft now does |
+| --- | --- | --- |
+| `DatabaseWorkerPool::PExecute` | enqueues the statement on a worker thread and returns; `PQuery` runs on the calling thread (`DatabaseWorkerPool.h`) | every write to a table this module owns is `DirectPExecute`, because the insert into `psychohouse_owner` is followed by a read of that row on the same tick |
+| `Map::SummonCreature` | creates the `TempSummon`, copies the summoner's phase shift, calls `InitStats`, and **adds it to the map** before returning (`Object.cpp`) | `PhasingHandler::AddPhase(creature, phase, true)`: `false` suppresses `UpdateVisibilityIfNeeded`, and the NPC would never reach the client |
+| `TempSummon::InitStats` | `TEMPSUMMON_MANUAL_DESPAWN` with a duration of 0 becomes `TEMPSUMMON_DEAD_DESPAWN` (`TemporarySummon.cpp`) | NPCs are flagged `UNIT_FLAG_IMMUNE_TO_PC`, and a five-second world tick re-spawns anything the map no longer has |
+| `PhasingHandler::UpdateVisibilityIfNeeded` | acts only when `changed && object->IsInWorld()` (`PhasingHandler.cpp`) | the same distinction, stated in doc 13 sec.4 rather than implied |
+
+The arithmetic was read too: the refund multiplied a `uint32` price by a `uint8` percentage
+before dividing, which is safe at the 1 000 gold default and wraps past 8 589 gold at a 50
+percent rate. It is `uint64` now.
+
+Two rules joined `check_psychohouse.py` and were mutation-tested: `PExecute` on a table the
+module owns, and `AddPhase(x, ..., false)` without a following `AddToMap(x)`. Five injected
+`PExecute` calls and one injected `false` were all reported; the clean draft reports nothing.
+
+What this section still cannot say: that the module builds or runs. There is no compiler and
+no server here. The repair pass in particular has never executed, and its worst case - a
+creature that dies between two ticks - is a five-second gap, not a guarantee.

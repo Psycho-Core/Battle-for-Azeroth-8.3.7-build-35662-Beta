@@ -48,10 +48,29 @@ public:
         sPsychoHouse->LoadFacilities();
     }
 
+    void OnUpdate(uint32 diff) override
+    {
+        if (!sPsychoHouse->Enabled())
+            return;
+
+        // Five seconds is the slowest that still looks instant to a player: a facility that
+        // died or failed to load is back before anyone notices it was gone. The pass itself
+        // only touches houses with an owner standing inside them.
+        _repairTimer += diff;
+        if (_repairTimer < 5000)
+            return;
+
+        _repairTimer = 0;
+        sPsychoHouse->RepairSpawns();
+    }
+
     void OnShutdown() override
     {
         sPsychoHouse->Unload();
     }
+
+private:
+    uint32 _repairTimer = 0;
 };
 
 class PsychoHousePlayerScript : public PlayerScript

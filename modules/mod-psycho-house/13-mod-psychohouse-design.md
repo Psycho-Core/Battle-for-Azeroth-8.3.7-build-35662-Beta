@@ -58,21 +58,38 @@ Nothing this module spawns is written to `creature` or `gameobject`. Both are cr
 templates at run time, phased, and added to the map:
 
 ```
-creature:  map->SummonCreature(entry, pos, ...)   then PhasingHandler::AddPhase(...)
 object:    GameObject::CreateGameObject(entry, map, pos, quat, 255, GO_STATE_READY)
-           then PhasingHandler::AddPhase(...) then map->AddToMap(...)
+           then PhasingHandler::AddPhase(object, phase, false) then map->AddToMap(object)
+creature:  map->SummonCreature(entry, pos, ...)
+           then PhasingHandler::AddPhase(creature, phase, true)
 ```
+
+The two paths are not symmetric, and the asymmetry is in the third argument of `AddPhase`.
+`CreateGameObject` hands back an object that is not in the world yet, so the phase goes on
+first and the visibility update is pointless - hence `false`, followed by `AddToMap`.
+`Map::SummonCreature` puts the creature in the world itself, before returning, so the phase
+goes on afterwards and the visibility update is the only thing that makes the NPC appear -
+hence `true`. Getting it the other way round is invisible in review and produces an NPC that
+exists, answers gossip when its guid is known, and is not on screen.
 
 Three consequences, all of them the reason for the choice:
 
 - **there is nothing to orphan.** A persistent spawn needs a row, a guid, and a delete path
   that finds the row even when its grid is unloaded. That is a whole class of bug, and this
   draft has none of it.
-- **the phase cannot be wrong for a frame.** The phase is applied before the object reaches
-  the map, so no other player ever sees a service that is not theirs.
+- **no other player ever sees a service that is not theirs.** The phase is set before the
+  object reaches the map, and before the summon's visibility update goes out.
 - **the cost is respawning.** Each entry into the area rebuilds the house, which is at most
   fifteen spawns. That is cheaper than a save-on-every-purchase path and infinitely cheaper
   than debugging a stale grid.
+
+A temporary summon is also a creature that can die. `TempSummon::InitStats` turns
+`TEMPSUMMON_MANUAL_DESPAWN` with a duration of 0 into `TEMPSUMMON_DEAD_DESPAWN`, which means
+the corpse is removed and nothing brings the NPC back - a vendor lost to a stray area effect
+would stay lost until the character left the area and came back. Two answers, both cheap: the
+spawned NPCs are flagged `UNIT_FLAG_IMMUNE_TO_PC` the way a city vendor is, and a world tick
+every five seconds asks the map for each guid a house believes in and re-spawns whatever is
+missing.
 
 What the draft does persist is the decision: one row per purchase in `psychohouse_purchase`.
 Data is durable, objects are not.
@@ -142,6 +159,11 @@ between a module that builds and one that does not.
 | a templated config accessor | **absent** | `GetIntDefault` / `GetFloatDefault` / `GetBoolDefault` |
 | `CreatureScript` gossip, `AddGossipItemFor` with a money popup, `GuildScript` | present; the core checks the price but never takes it | the Steward takes the copper itself, once, after every other check |
 | `TOTAL_LOCALES`, `GetLocaleByName` | present | unused: this draft is English only, by choice |
+| `DatabaseWorkerPool::Execute` / `PExecute` | present, and **asynchronous**: they enqueue on a worker and return | only where nothing reads the row afterwards |
+| `DatabaseWorkerPool::DirectExecute` / `DirectPExecute` | present, and synchronous | every write whose row is read back on the same tick |
+| `WorldScript::OnUpdate(uint32 diff)` | present, called on every world tick | the five-second repair pass for missing spawns |
+| `UNIT_FLAG_IMMUNE_TO_PC` | present (`UnitDefines.h`) | keeps housing NPCs from being killed by players |
+| `TempSummon::InitStats` | `MANUAL_DESPAWN` with duration 0 becomes `DEAD_DESPAWN` | the reason the repair pass exists |
 
 Two of those absences are the reason the draft looks unlike an older house module: the phase
 mask and the per-player data map are gone, and everything that depended on them had to be
@@ -153,7 +175,7 @@ Four tools read the draft, and two of them were written for it.
 
 ```
 check_cpp.py --src drafts/mod-psychohouse/src --sql drafts/mod-psychohouse/sql
-  5 files, 3 classes, 25 declarations with 25 definitions
+  5 files, 3 classes, 28 methods defined on the manager, all declared in the header
   braces, includes, fields[N] against SELECT column counts,
   every table named in a query created by this draft
 
@@ -171,6 +193,11 @@ check_psychohouse.py, added after the MariaDB pass
   `characters` schema; every CREATE TABLE pins ENGINE, CHARSET and COLLATE; no INSERT IGNORE;
   no bare scalar subquery in an UPDATE; the .conf.dist carries no section header
 
+check_psychohouse.py, added after the spawn-and-write pass
+  no `PExecute` on a table this module owns, because a queued write followed by a read on
+  the same tick is a race the read can win; `AddPhase(..., false)` only on an object that is
+  followed by `AddToMap`, because a summon is already in the world and needs `true`
+
 audit.py        ASCII, voice, links, counts over every document in this folder
 verify_drafts.py / check_lua.py / check_protocol.py   unchanged, and still clean
 ```
@@ -185,7 +212,10 @@ Both new checks were mutation-tested rather than trusted:
   longer matches the table: all seven reported;
 - and again with five faults added in the MariaDB pass - a bare scalar subquery, a
   `[psychohouse]` section header, a 32-bit house key, a `{}` placeholder in a live call, and a
-  table with no `COLLATE`: all five reported.
+  table with no `COLLATE`: all five reported;
+- and once more with two faults added in the spawn pass - `DirectPExecute` turned back into
+  `PExecute` at all five write sites, and one summon phased with `false`: five findings and
+  one finding respectively.
 
 ## 9a. MariaDB 11.8.6, and what changed because of it
 
@@ -206,6 +236,29 @@ What was not done, and is not claimed: no statement was executed. There is no Ma
 this workspace. The SQL was checked three ways instead - by the column and width rules above,
 by a MySQL-dialect parser, and by reading. That is enough to believe the statements are
 statements; it is not the same as having run them.
+
+## 9b. Three defects the second read found
+
+The MariaDB pass read the SQL closely and the C++ by signature. Reading the C++ a second
+time, against `DatabaseWorkerPool.h`, `Map::SummonCreature` and `TemporarySummon.cpp` rather
+than against the header, found three things that would have shipped:
+
+| Defect | What it would have done | Fix |
+| --- | --- | --- |
+| the owner row was written with `PExecute` | `Execute`/`PExecute` **enqueue** on a worker thread and return; `PQuery` runs on the calling thread. The write was followed on the next line by a read-back that fetches the allotted phase. When the read won that race the character was charged for a house and given none, and the allocation loop had already burned a second phase id looking for the row | all five writes to the module's own tables are `DirectPExecute` |
+| summons were phased with `AddPhase(..., false)` | `Map::SummonCreature` has already added the creature to the map, and `false` means "do not refresh visibility". The keeper, the steward and every creature facility would exist and be invisible | `true` for every summon; `false` stays on the gameobjects, which are phased before `AddToMap` |
+| nothing replaced a summon that died | a temp summon with duration 0 becomes `TEMPSUMMON_DEAD_DESPAWN`, so one death removes a vendor for the rest of the visit | `UNIT_FLAG_IMMUNE_TO_PC` on every spawned NPC, plus a five-second `WorldScript::OnUpdate` pass that asks the map for each guid and re-spawns what is missing |
+
+Two smaller things came out of the same read. `SpawnKeeper` and `SpawnSteward` are now their
+own methods, because the repair pass needs them separately from the whole house. The refund
+is computed in `uint64`: the expression multiplied a `uint32` price by a `uint8` percentage
+before dividing, which is safe at the 1 000 gold default (10 000 000 copper, so the product
+peaks at 500 million) but wraps at a price past 8 589 gold with a 50 percent rate. A realm
+that reprices should not also have to check the arithmetic.
+
+Both new rules are enforced rather than remembered: `check_psychohouse.py` reports `PExecute`
+on any table the module owns, and reports `AddPhase(x, ..., false)` unless `AddToMap(x)`
+follows it. Both were mutation-tested - see sec. 9.
 
 ## 10. What is still open, in order of how much it could hurt
 
