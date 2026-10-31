@@ -37,6 +37,7 @@
 #include "Map.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
+#include "ObjectAccessor.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "QuaternionData.h"
@@ -276,7 +277,11 @@ uint16 PsychoHouseMgr::AllocatePhase(uint64 guid, uint32 account, uint8 team, st
                 next = highest + 1;
         }
 
-        CharacterDatabase.PExecute(
+        // DirectPExecute, not PExecute: PExecute queues the write on a worker thread, and
+        // the read-back two lines down would then run before the row exists. The loop would
+        // retry, the queued INSERT would land afterwards, and a character could end up with
+        // a house row it was never charged for.
+        CharacterDatabase.DirectPExecute(
             "INSERT INTO `psychohouse_owner` (`guid`, `account`, `team`, `phase`, `name`, `created`) "
             "VALUES (" UI64FMTD ", %u, %u, %u, '%s', UNIX_TIMESTAMP())",
             guid, account, uint32(team), next, escaped.c_str());
@@ -316,7 +321,7 @@ HouseResult PsychoHouseMgr::BuyHouse(Player* player)
     Owner* owner = GetOwner(player);
     if (!owner)
     {
-        CharacterDatabase.PExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
+        CharacterDatabase.DirectPExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
         player->ModifyMoney(int64(_housePrice));
         return Storage;
     }
@@ -342,15 +347,15 @@ HouseResult PsychoHouseMgr::SellHouse(Player* player)
     ClearPhase(player, owner);
     player->GetRestMgr().RemoveRestFlag(REST_FLAG_IN_TAVERN);
 
-    CharacterDatabase.PExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
-    CharacterDatabase.PExecute("DELETE FROM `psychohouse_purchase` WHERE `owner` = " UI64FMTD, guid);
+    CharacterDatabase.DirectPExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
+    CharacterDatabase.DirectPExecute("DELETE FROM `psychohouse_purchase` WHERE `owner` = " UI64FMTD, guid);
 
-    uint32 const refund = _housePrice * _refundPercent / 100;
+    uint64 const refund = uint64(_housePrice) * _refundPercent / 100;
     if (refund)
         player->ModifyMoney(int64(refund));
 
     _owners.erase(guid);
-    TC_LOG_INFO("psychohouse", "character " UI64FMTD " sold a house, refunded %u copper", guid, refund);
+    TC_LOG_INFO("psychohouse", "character " UI64FMTD " sold a house, refunded " UI64FMTD " copper", guid, refund);
     return Ok;
 }
 
@@ -389,7 +394,7 @@ HouseResult PsychoHouseMgr::BuyFacility(Player* player, uint16 facilityId)
         player->ModifyMoney(-int64(facility->Price));
 
     owner->Bought.push_back(facilityId);
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "INSERT INTO `psychohouse_purchase` (`owner`, `facility`, `bought`) "
         "VALUES (" UI64FMTD ", %u, UNIX_TIMESTAMP())", owner->Guid, uint32(facilityId));
 
@@ -482,6 +487,55 @@ void PsychoHouseMgr::OnPlayerLeaveArea(Player* player)
     player->GetRestMgr().RemoveRestFlag(REST_FLAG_IN_TAVERN);
 }
 
+void PsychoHouseMgr::RepairSpawns()
+{
+    if (!_enabled)
+        return;
+
+    for (auto& pair : _owners)
+    {
+        Owner& owner = pair.second;
+        if (!owner.InHouse)
+            continue;
+
+        Player* player = ObjectAccessor::FindPlayerByLowGUID(owner.Guid);
+        if (!player || !player->IsInWorld())
+            continue;
+
+        Map* map = player->GetMap();
+        if (!map || map->GetId() != _mapId)
+            continue;
+
+        if (owner.Keeper.IsEmpty() || !map->GetCreature(owner.Keeper))
+            SpawnKeeper(player, &owner);
+
+        if (owner.Steward.IsEmpty() || !map->GetCreature(owner.Steward))
+            SpawnSteward(player, &owner);
+
+        for (uint16 id : owner.Bought)
+        {
+            Facility const* facility = FindFacility(id);
+            if (!facility)
+                continue;
+
+            auto spawned = owner.Spawned.find(id);
+            if (spawned != owner.Spawned.end() && !spawned->second.IsEmpty() && map->GetCreature(spawned->second))
+                continue;
+
+            if (facility->IsObject)
+            {
+                if (spawned != owner.Spawned.end() && !spawned->second.IsEmpty() &&
+                    map->GetGameObject(spawned->second))
+                    continue;
+            }
+
+            SpawnFacility(player, &owner, *facility);
+            TC_LOG_INFO("psychohouse", "restored facility %u in the house of " UI64FMTD,
+                uint32(id), owner.Guid);
+        }
+    }
+}
+
 void PsychoHouseMgr::ApplyPhase(Player* player, Owner const* owner)
 {
     if (!player || !owner)
@@ -507,34 +561,62 @@ void PsychoHouseMgr::SpawnHouse(Player* player, Owner* owner)
     if (!map || map->GetId() != _mapId)
         return;
 
+    SpawnKeeper(player, owner);
+    SpawnSteward(player, owner);
+
+    for (uint16 id : owner->Bought)
+    {
+        if (Facility const* facility = FindFacility(id))
+            SpawnFacility(player, owner, *facility);
+    }
+}
+
+void PsychoHouseMgr::SpawnKeeper(Player* player, Owner* owner)
+{
+    if (!player || !owner)
+        return;
+
+    Map* map = player->GetMap();
+    if (!map || map->GetId() != _mapId)
+        return;
+
     Position const keeper(_anchor.GetPositionX() + _keeperX, _anchor.GetPositionY() + _keeperY,
         _anchor.GetPositionZ() + _keeperZ, _keeperO);
     if (Creature* creature = map->SummonCreature(kKeeperEntry, keeper, nullptr, 0, nullptr, 0, 0, false))
     {
-        PhasingHandler::AddPhase(creature, owner->Phase, false);
+        // true, not false: Map::SummonCreature has already put the creature on the map, so
+        // the phase change has to send the visibility update or the NPC stays invisible
+        // until something else happens to refresh it.
+        PhasingHandler::AddPhase(creature, owner->Phase, true);
+        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         owner->Keeper = creature->GetGUID();
     }
     else
     {
         TC_LOG_ERROR("psychohouse", "could not summon the keeper for character " UI64FMTD, owner->Guid);
     }
+}
+
+void PsychoHouseMgr::SpawnSteward(Player* player, Owner* owner)
+{
+    if (!player || !owner)
+        return;
+
+    Map* map = player->GetMap();
+    if (!map || map->GetId() != _mapId)
+        return;
 
     Position const steward(_anchor.GetPositionX() + _stewardX, _anchor.GetPositionY() + _stewardY,
         _anchor.GetPositionZ() + _stewardZ, _stewardO);
     if (Creature* creature = map->SummonCreature(kStewardEntry, steward, nullptr, 0, nullptr, 0, 0, false))
     {
-        PhasingHandler::AddPhase(creature, owner->Phase, false);
+        PhasingHandler::AddPhase(creature, owner->Phase, true);
+        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         owner->Steward = creature->GetGUID();
     }
     else
     {
         TC_LOG_ERROR("psychohouse", "could not summon the steward for character " UI64FMTD, owner->Guid);
-    }
-
-    for (uint16 id : owner->Bought)
-    {
-        if (Facility const* facility = FindFacility(id))
-            SpawnFacility(player, owner, *facility);
     }
 }
 
@@ -574,7 +656,10 @@ void PsychoHouseMgr::SpawnFacility(Player* player, Owner* owner, Facility const&
 
     if (Creature* creature = map->SummonCreature(facility.Entry, pos, nullptr, 0, nullptr, 0, 0, false))
     {
-        PhasingHandler::AddPhase(creature, owner->Phase, false);
+        PhasingHandler::AddPhase(creature, owner->Phase, true);
+        // A summoned creature lives with TEMPSUMMON_DEAD_DESPAWN, so one death would remove
+        // a vendor for good. Immune to players is also how a city vendor behaves.
+        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         owner->Spawned[facility.Id] = creature->GetGUID();
     }
     else

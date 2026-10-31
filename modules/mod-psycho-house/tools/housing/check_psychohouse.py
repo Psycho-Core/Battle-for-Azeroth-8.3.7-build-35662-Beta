@@ -34,6 +34,8 @@ import sys
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DRAFT = os.path.join(HERE, "drafts", "mod-psychohouse")
 
+_OWNED_TABLES = ("psychohouse_", "character_psychohouse_", "character_housing_")
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_schema  # noqa: E402  - shares the loader-query parsers with check_sql_columns
 
@@ -557,6 +559,75 @@ def check_sql_style():
                         "missing row aborts the statement on a strict server".format(match.group(1)))
 
 
+def check_write_ordering():
+    """A queued write is not a finished write.
+
+    `PExecute` hands the statement to a worker thread and returns; `PQuery` runs on the
+    calling thread and returns rows. The module writes a house and immediately reads it
+    back (to hand out the phase), so every write to a table this module owns has to be a
+    `Direct*` call - otherwise the read can win the race and a character ends up with a
+    house row nobody was charged for, or with none at all.
+    """
+    cpp = os.path.join(DRAFT, "src")
+    for name in sorted(os.listdir(cpp)) if os.path.isdir(cpp) else []:
+        if not name.endswith(".cpp"):
+            continue
+
+        text = read(os.path.join(cpp, name))
+        for match in re.finditer(r"(?:World|Character)Database\.(DirectPExecute|DirectExecute|PExecute|PQuery|DirectQuery)\s*\(", text):
+            method = match.group(1)
+            args = call_arguments(text, match.end() - 1)
+            if not args:
+                continue
+
+            statement = args[0].upper()
+            if not statement.lstrip("\"' \t").startswith(("INSERT", "UPDATE", "DELETE", "REPLACE")):
+                continue
+
+            if not any(table in args[0].lower() for table in _OWNED_TABLES):
+                continue
+
+            if method in ("PExecute",):
+                line = text.count("\n", 0, match.start()) + 1
+                fail("{}:{}".format(name, line),
+                     "`PExecute` queues the write; use `DirectPExecute` - the module reads "
+                     "its own rows back on the same tick")
+
+
+def check_spawn_phasing():
+    """A summon that is already on the map needs a visibility update, a new object does not.
+
+    `Map::SummonCreature` and `Map::AddToMap` both put the creature in the world, so a
+    subsequent phase change with the default `updateVisibility = false` leaves the NPC
+    invisible until something else refreshes it. A gameobject created with
+    `CreateGameObject` is not in the world yet, so the phase is set first and `false` is
+    correct there - and it must be followed by `AddToMap`.
+    """
+    cpp = os.path.join(DRAFT, "src")
+    for name in sorted(os.listdir(cpp)) if os.path.isdir(cpp) else []:
+        if not name.endswith(".cpp"):
+            continue
+
+        text = read(os.path.join(cpp, name))
+        for match in re.finditer(r"PhasingHandler::AddPhase\s*\(", text):
+            args = call_arguments(text, match.end() - 1)
+            if not args or len(args) < 3:
+                continue
+
+            if args[2].strip() != "false":
+                continue
+
+            line = text.count("\n", 0, match.start()) + 1
+            where = "{}:{}".format(name, line)
+
+            target = args[0].strip()
+            tail = text[match.end():]
+            if not re.search(r"AddToMap\s*\(\s*" + re.escape(target) + r"\s*[,)]", tail):
+                fail(where, "`AddPhase({}, ..., false)` must be followed by "
+                            "`AddToMap({})`; a summon is already in the world and needs "
+                            "`true`".format(target, target))
+
+
 def check_conf():
     dist = os.path.join(DRAFT, "conf", "mod_psychohouse.conf.dist")
     if not os.path.exists(dist):
@@ -617,6 +688,8 @@ def main():
     check_query_dialect()
     check_guid_width(args.repo)
     check_sql_style()
+    check_write_ordering()
+    check_spawn_phasing()
 
     print("{} SQL files, {} tables, {} facilities, {} build tables cross-checked".format(
         len(texts), len(tables), len(rows), len(vocab)))

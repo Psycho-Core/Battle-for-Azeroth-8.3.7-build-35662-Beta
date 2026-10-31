@@ -144,6 +144,26 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
 
+## Audit pass, sixteenth revision
+
+The same draft, read a second time - this time against `DatabaseWorkerPool.h`,
+`Map::SummonCreature`, `TempSummon::InitStats` and `PhasingHandler::UpdateVisibilityIfNeeded`
+rather than against the headers that declare what it calls. Three defects, one of them the
+kind that survives every checker written so far.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 73 | The owner row was written with `PExecute`. In this build `Execute`/`PExecute` **enqueue** the statement on a worker thread and return; only `Query`/`PQuery` run on the calling thread. The insert was followed on the next line by a read-back that fetches the phase, so under load the read could win the race: the character was charged for a house, no row was found, the allocation loop burned a second phase id, and the house arrived late or not at all | Every write to a table this module owns is `DirectPExecute`; `check_psychohouse.py` reports `PExecute` on those tables |
+| 74 | Summons were phased with `PhasingHandler::AddPhase(creature, phase, false)`. `Map::SummonCreature` has already added the creature to the map before it returns, and `false` suppresses the visibility update, so the keeper, the steward and every creature facility would have existed, answered gossip, and been invisible. The gameobject path was correct for the opposite reason: `CreateGameObject` returns an object that is not in the world yet, so the phase goes on first and `AddToMap` follows | `true` for summons, `false` kept for gameobjects, and a check that fails `AddPhase(x, ..., false)` unless `AddToMap(x)` follows |
+| 75 | A temporary summon with duration 0 is converted by `TempSummon::InitStats` from `MANUAL_DESPAWN` to `DEAD_DESPAWN`, so a single death removes the NPC for the rest of the visit - one stray area effect in the yard and the bank is gone until the owner leaves and returns | Every spawned NPC is flagged `UNIT_FLAG_IMMUNE_TO_PC`, the way a city vendor is, and a five-second `WorldScript::OnUpdate` asks the map for each guid the house believes in and re-spawns whatever is missing |
+
+Two smaller ones from the same read: `SpawnKeeper` and `SpawnSteward` are now separate methods
+so the repair pass can call them without rebuilding the house, and the refund is computed in
+`uint64` because the old expression multiplied `uint32` values before dividing.
+
+Docs: doc 13 sec.4 now states the two spawn orders separately and says why they differ;
+sec.8 gained five rows for the calls this pass depended on; sec.9b is the table above.
+
 ## Audit pass, fifteenth revision
 
 The third draft, read against the server it will actually run on - MariaDB 11.8.6. Five

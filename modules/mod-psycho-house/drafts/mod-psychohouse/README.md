@@ -149,6 +149,13 @@ takes a display id from an existing innkeeper and an existing banker on the real
 report at the end of `03_bind_facilities.sql` prints what it found. An NPC with no model row is
 invisible; the resolver statement is one line to repoint if the borrowed look does not suit.
 
+Both are immune to players and both are re-created if the map loses them. That second part is
+not decoration: everything this draft spawns is a temporary summon, and this core turns a
+temporary summon with no duration into one that is removed when it dies. A vendor killed once
+would otherwise stay dead for the rest of the visit. So a world tick every five seconds asks
+the map for the guid of the keeper, the steward and every bought facility, and summons back
+whatever is not there.
+
 ## Commands
 
 | Command | Who |
@@ -178,7 +185,7 @@ Checked here by tools that read the files. None of them needs a database or a co
 
 ```
 python3 tools/housing/check_cpp.py --src drafts/mod-psychohouse/src --sql drafts/mod-psychohouse/sql
-  5 files, 3 classes, 25 methods declared and defined, braces balanced, includes resolved,
+  5 files, 3 classes, 28 methods defined on the manager, braces balanced, includes resolved,
   every table named in a query created by this draft
 
 python3 tools/housing/check_psychohouse.py
@@ -195,13 +202,21 @@ python3 tools/housing/check_psychohouse.py (continued, the MariaDB-facing part)
   every CREATE TABLE pins ENGINE, CHARSET and COLLATE
   no INSERT IGNORE, no bare scalar subquery in an UPDATE
   the .conf.dist carries no section header, because the core reads only the first section
+
+python3 tools/housing/check_psychohouse.py (continued, the spawn-facing part)
+  no PExecute on a table this draft owns, because a queued write followed by a read on the
+  same tick is a race the read can win
+  AddPhase(x, ..., false) only where AddToMap(x) follows, because a summon is already in the
+  world and needs the visibility update that false suppresses
 ```
 
 Mutation-tested: seven deliberate faults - a misspelled build column, an unknown kind, a
 facility with no resolver, a resolver for a facility that does not exist, a colliding phase
 base, a missing config key, and a wrong `is_object` - were all caught, as were five added this
 round: a bare scalar subquery, a `[psychohouse]` header, a 32-bit house key, a `{}` placeholder
-in a live call, and a table with no `COLLATE`.
+in a live call, and a table with no `COLLATE`. Two more were added after them: `PExecute` put
+back at all five write sites, and one summon phased with `false`. Those five and that one were
+reported.
 
 Separately, and once, all four SQL files were parsed with a MySQL-dialect SQL parser
 (sqlglot) to confirm they are statements rather than text that looks like statements. That is

@@ -145,6 +145,10 @@ namespace PsychoHouse
         void OnPlayerEnterArea(Player* player);
         void OnPlayerLeaveArea(Player* player);
 
+        /// Re-creates anything that went missing from a house without printing a message.
+        /// Cheap: it only looks at houses whose owner is standing inside one.
+        void RepairSpawns();
+
         HouseResult BuyHouse(Player* player);
         HouseResult SellHouse(Player* player);
         HouseResult BuyFacility(Player* player, uint16 facilityId);
@@ -156,6 +160,8 @@ namespace PsychoHouse
         void ApplyPhase(Player* player, Owner const* owner);
         void ClearPhase(Player* player, Owner const* owner);
         void SpawnHouse(Player* player, Owner* owner);
+        void SpawnKeeper(Player* player, Owner* owner);
+        void SpawnSteward(Player* player, Owner* owner);
         void DespawnHouse(Owner* owner);
         void SpawnFacility(Player* player, Owner* owner, Facility const& facility);
         bool LoadPurchases(Owner* owner);
