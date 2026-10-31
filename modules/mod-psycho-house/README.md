@@ -131,7 +131,7 @@ game object to spawn, and the item-id wall is mapped street by street rather tha
 
 | # | Finding | Fix |
 | --- | --- | --- |
-| 24 | 486 ported decor rows had **no game object**, so the retail catalogue existed but nothing in it could be placed | `tools/housing/map_decor_go.py` maps all 550 decor names to real entries out of the 906 game object constants in the tree: 156 family hits, 365 keyword hits, 29 category fallbacks. Draft A now ships **491 rows, every one with a live entry**, and no id is invented |
+| 24 | 486 ported decor rows had **no game object**, so the retail catalogue existed but nothing in it could be placed | `tools/housing/map_decor_go.py` maps all 550 decor names to real entries out of the 906 game object candidates in the tree: 155 family hits, 161 keyword hits, 205 category hits, 29 fallbacks. Draft A now ships **491 rows, every one with a live entry**, and no id is invented |
 | 25 | The 50-row cap was assumed to be the only wall on item ids | It is not. The "Sold by NPC" filter also returns **partial** lists (Den 14 of 27, Argan 13 of 15) and returns **nothing** for the 12.1.7 NPCs Burlee and Roz on both live and PTR listings |
 | 26 | Two parallel filter requests quietly returned the same page | Every fetched list is now validated by name against the register. Two lists failed that check (Fel'orei, Lefton) and were discarded instead of merged |
 | 27 | 144 names had ids sitting one request away | **157 ids added** (Trevor 42, Boh'an 31, Pascal 16, Dovetail 14, Griftah 14, Den 14, Argan 13, Jolli 13). Coverage 201 to **358**, every one traced to its NPC page in a new `source` column |
@@ -181,7 +181,7 @@ and fixed:
 | 6 | Endeavor milestone gating of vendor stock was **missing entirely** from docs 01, 02, 04 and 05 | Added: doc 01 sec.7.5, doc 02 schema + matrix rows, doc 04 sec.4.2b, doc 05 phase 3 |
 | 7 | The "Deed of Patronage" entitlement and achievement-gated decor were unknown | Documented in doc 01 sec.7.5 and doc 09 sec.5.13 |
 | 7b | Mirror vendors (Argan/Lefton, Devin/Merki) looked like separate stock | Confirmed identical stock and prices; documented as a design rule in doc 09 sec.5.14 |
-| 8 | Doc 09's coverage was implied complete when only 4 vendors had item data | Now states exact coverage: 29 of 39 vendors, 588 of 1 143 items, with the 9 pending vendors named in size order |
+| 8 | Doc 09's coverage was implied complete when only 4 vendors had item data | Now states exact coverage: 33 of 39 vendors, 675 of 1 155 items, with the 6 pending vendors named in size order (section 7.6) |
 | 9 | All 21 cross-references between documents verified against actual section headings | 0 broken |
 | 10 | Non-ASCII characters (em dashes, arrows, section signs) that render as garbage in some Windows encodings | All files folded to pure ASCII and verified byte by byte |
 

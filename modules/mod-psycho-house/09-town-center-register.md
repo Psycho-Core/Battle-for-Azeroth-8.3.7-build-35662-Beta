@@ -14,15 +14,16 @@ Hordranin's 12, the one vendor whose page never opened, so I use my own sum and 
 
 | Group | Vendors | Items | Status |
 | --- | --- | --- | --- |
-| Founder's Point Town Center + local | 19 | 434 | **complete**, every item, price and gate |
-| Founder's Point Breakwater Bight (smugglers) | 3 | 331 | vendor data complete, item capture pending |
-| Razorwind Shores Commons + local | 11 | 350 | 8 complete, 3 pending |
-| Shared (both neighborhoods) | 6 | - | counted above, not double-counted |
-| **Total** | **39** | **1 155** | **675 items transcribed, 33 of 39 vendors, 358 item ids** |
+| Vendors with a full item capture | 33 | 675 | every name, price, currency and gate transcribed; 358 of the 675 carry a retail item id |
+| Vendors still to capture | 6 | 480 | Ren 146, Len 117, Gronthul 83, Yen 68, Jehzar 54, Hordranin 12 - section 7.6 |
+| **Total** | **39** | **1 155** | **675 items transcribed, 358 item ids** |
+
+The split by neighborhood is in section 3, vendor by vendor, because six vendors sell in
+both neighborhoods and a single group total would count them twice.
 
 The CSV next to this document, `data/town-center-stock.csv`, holds the 675 transcribed
 rows in `vendor, item, price, currency, note` form. The scraper in
-`tools/housing/fetch_vendor_stock.py` fills the remaining 468 without retyping.
+`tools/housing/fetch_vendor_stock.py` fills the remaining 480 without retyping.
 
 **Still to capture, largest first**: "High Tides" Ren (146), "Len" Splinthoof (117),
 Gronthul (83), "Yen" Malone (68), Jehzar Starfall (54), Hordranin (12). Hordranin is the
