@@ -15,6 +15,18 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ * House state, the phase band, and every spawn the module makes.
+ *
+ * Two rules run through the whole file:
+ *
+ *   - the phase is allocated once and then stored. It is never derived from the character
+ *     id, so two characters cannot collide through arithmetic;
+ *   - nothing is written to `creature` or `gameobject`. Every NPC and object in a house is
+ *     transient, created into the owner's phase and despawned when the owner leaves, so a
+ *     house cannot leave an orphan behind and there is no grid bookkeeping to get wrong.
+ */
+
 #include "mod_psychohouse.h"
 
 #include "Chat.h"
@@ -24,11 +36,13 @@
 #include "Log.h"
 #include "Map.h"
 #include "MapManager.h"
+#include "ObjectMgr.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "QuaternionData.h"
 #include "RestMgr.h"
 #include "TemporarySummon.h"
+#include "WorldSession.h"
 
 #include <algorithm>
 #include <string>
@@ -66,12 +80,12 @@ PsychoHouseMgr* PsychoHouseMgr::instance()
 
 void PsychoHouseMgr::LoadConfig()
 {
-    _enabled        = sConfigMgr->GetBoolDefault("PsychoHouse.Enable", true);
-    _mapId          = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Map", 1)));
-    _zoneId         = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Zone", 876)));
-    _areaId         = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Area", 876)));
-    _housePrice     = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Price.House", 10000000)));
-    _refundPercent  = uint8(std::min(100, std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Refund.Percent", 50))));
+    _enabled       = sConfigMgr->GetBoolDefault("PsychoHouse.Enable", true);
+    _mapId         = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Map", 1)));
+    _zoneId        = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Zone", 876)));
+    _areaId        = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Area", 876)));
+    _housePrice    = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Price.House", 10000000)));
+    _refundPercent = uint8(std::min(100, std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Refund.Percent", 50))));
 
     float const x = sConfigMgr->GetFloatDefault("PsychoHouse.Anchor.X", 16222.97f);
     float const y = sConfigMgr->GetFloatDefault("PsychoHouse.Anchor.Y", 16267.80f);
@@ -97,10 +111,12 @@ void PsychoHouseMgr::LoadFacilities()
     if (!_enabled)
         return;
 
-    if (QueryResult result = WorldDatabase.Query(
+    QueryResult result = WorldDatabase.Query(
         "SELECT `id`, `name`, `kind`, `entry`, `is_object`, `faction`, `price`, "
         "`pos_x`, `pos_y`, `pos_z`, `pos_o`, `required_level`, `sort` "
-        "FROM `psychohouse_facility` ORDER BY `sort`, `id`"))
+        "FROM `psychohouse_facility` ORDER BY `sort`, `id`");
+
+    if (result)
     {
         do
         {
@@ -133,11 +149,19 @@ void PsychoHouseMgr::LoadFacilities()
             ++bound;
     }
 
-    TC_LOG_INFO("server.loading", ">> PsychoHouse: loaded %u facilities, %u of them bound to realm content",
+    TC_LOG_INFO("psychohouse", "loaded %u facilities, %u of them bound to realm content",
         uint32(_facilities.size()), bound);
 
     if (bound < uint32(_facilities.size()))
-        TC_LOG_INFO("server.loading", ">> PsychoHouse: run sql/world/03_bind_facilities.sql to bind the rest");
+        TC_LOG_INFO("psychohouse", "run sql/world/03_bind_facilities.sql to bind the rest");
+
+    // A missing template is the one mistake that turns into an empty island rather than a
+    // log line, so it is worth saying out loud at startup.
+    if (!sObjectMgr->GetCreatureTemplate(kKeeperEntry))
+        TC_LOG_ERROR("psychohouse", "creature template %u is missing: run sql/world/02_creatures.sql", kKeeperEntry);
+
+    if (!sObjectMgr->GetCreatureTemplate(kStewardEntry))
+        TC_LOG_ERROR("psychohouse", "creature template %u is missing: run sql/world/02_creatures.sql", kStewardEntry);
 }
 
 void PsychoHouseMgr::Unload()
@@ -169,7 +193,7 @@ bool PsychoHouseMgr::FacilityFitsTeam(Facility const& facility, Owner const* own
     return facility.Faction == FactionBoth || facility.Faction == owner->Team;
 }
 
-Owner* PsychoHouseMgr::FindOwner(uint32 guid)
+Owner* PsychoHouseMgr::FindOwner(uint64 guid)
 {
     auto it = _owners.find(guid);
     return it == _owners.end() ? nullptr : &it->second;
@@ -179,8 +203,8 @@ bool PsychoHouseMgr::LoadPurchases(Owner* owner)
 {
     owner->Bought.clear();
 
-    if (QueryResult result = CharacterDatabase.Query(
-        "SELECT `facility` FROM `psychohouse_purchase` WHERE `owner` = {}", owner->Guid))
+    if (QueryResult result = CharacterDatabase.PQuery(
+        "SELECT `facility` FROM `psychohouse_purchase` WHERE `owner` = " UI64FMTD, owner->Guid))
     {
         do
         {
@@ -196,13 +220,14 @@ Owner* PsychoHouseMgr::GetOwner(Player* player)
     if (!_enabled || !player)
         return nullptr;
 
-    uint32 const guid = player->GetGUID().GetCounter();
+    uint64 const guid = player->GetGUID().GetCounter();
 
     if (Owner* cached = FindOwner(guid))
         return cached;
 
-    if (QueryResult result = CharacterDatabase.Query(
-        "SELECT `account`, `team`, `phase`, `name` FROM `psychohouse_owner` WHERE `guid` = {}", guid))
+    if (QueryResult result = CharacterDatabase.PQuery(
+        "SELECT `account`, `team`, `phase`, `name` FROM `psychohouse_owner` "
+        "WHERE `guid` = " UI64FMTD, guid))
     {
         Field* fields = result->Fetch();
 
@@ -222,14 +247,18 @@ Owner* PsychoHouseMgr::GetOwner(Player* player)
     return nullptr;
 }
 
-uint16 PsychoHouseMgr::AllocatePhase(uint32 guid, uint32 account, uint8 team, std::string const& name)
+uint16 PsychoHouseMgr::AllocatePhase(uint64 guid, uint32 account, uint8 team, std::string const& name)
 {
     std::string escaped = name;
     CharacterDatabase.EscapeString(escaped);
 
     // The phase is allocated rather than derived, so two characters cannot collide by
-    // arithmetic. UNIQUE KEY `phase` is the arbiter: a lost race makes the INSERT a no-op
-    // and the next attempt reads the new maximum.
+    // arithmetic. UNIQUE KEY `phase` is the arbiter: a lost race makes the INSERT fail and
+    // the read-back below miss, and the next attempt takes the new maximum.
+    //
+    // A plain INSERT, not INSERT IGNORE: with IGNORE the duplicate would be swallowed, the
+    // read-back would return the phase somebody else already owns, and two characters would
+    // share a house.
     for (uint8 attempt = 0; attempt < 5; ++attempt)
     {
         uint32 next = kPhaseBase;
@@ -248,12 +277,12 @@ uint16 PsychoHouseMgr::AllocatePhase(uint32 guid, uint32 account, uint8 team, st
         }
 
         CharacterDatabase.PExecute(
-            "INSERT IGNORE INTO `psychohouse_owner` (`guid`, `account`, `team`, `phase`, `name`, `created`) "
-            "VALUES ({}, {}, {}, {}, '{}', UNIX_TIMESTAMP())",
-            guid, account, uint32(team), next, escaped);
+            "INSERT INTO `psychohouse_owner` (`guid`, `account`, `team`, `phase`, `name`, `created`) "
+            "VALUES (" UI64FMTD ", %u, %u, %u, '%s', UNIX_TIMESTAMP())",
+            guid, account, uint32(team), next, escaped.c_str());
 
-        if (QueryResult result = CharacterDatabase.Query(
-            "SELECT `phase` FROM `psychohouse_owner` WHERE `guid` = {}", guid))
+        if (QueryResult result = CharacterDatabase.PQuery(
+            "SELECT `phase` FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid))
         {
             return result->Fetch()[0].GetUInt16();
         }
@@ -270,7 +299,7 @@ HouseResult PsychoHouseMgr::BuyHouse(Player* player)
     if (!player)
         return Failed;
 
-    uint32 const guid = player->GetGUID().GetCounter();
+    uint64 const guid = player->GetGUID().GetCounter();
     if (FindOwner(guid))
         return HasHouse;
 
@@ -287,12 +316,12 @@ HouseResult PsychoHouseMgr::BuyHouse(Player* player)
     Owner* owner = GetOwner(player);
     if (!owner)
     {
-        CharacterDatabase.PExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = {}", guid);
+        CharacterDatabase.PExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
         player->ModifyMoney(int64(_housePrice));
         return Storage;
     }
 
-    TC_LOG_INFO("psychohouse", "character %u bought a house in phase %u", guid, uint32(phase));
+    TC_LOG_INFO("psychohouse", "character " UI64FMTD " bought a house in phase %u", guid, uint32(phase));
     return Ok;
 }
 
@@ -304,7 +333,7 @@ HouseResult PsychoHouseMgr::SellHouse(Player* player)
     if (!player)
         return Failed;
 
-    uint32 const guid = player->GetGUID().GetCounter();
+    uint64 const guid = player->GetGUID().GetCounter();
     Owner* owner = GetOwner(player);
     if (!owner)
         return NoHouse;
@@ -313,15 +342,15 @@ HouseResult PsychoHouseMgr::SellHouse(Player* player)
     ClearPhase(player, owner);
     player->GetRestMgr().RemoveRestFlag(REST_FLAG_IN_TAVERN);
 
-    CharacterDatabase.PExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = {}", guid);
-    CharacterDatabase.PExecute("DELETE FROM `psychohouse_purchase` WHERE `owner` = {}", guid);
+    CharacterDatabase.PExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
+    CharacterDatabase.PExecute("DELETE FROM `psychohouse_purchase` WHERE `owner` = " UI64FMTD, guid);
 
     uint32 const refund = _housePrice * _refundPercent / 100;
     if (refund)
         player->ModifyMoney(int64(refund));
 
     _owners.erase(guid);
-    TC_LOG_INFO("psychohouse", "character %u sold a house, refunded %u copper", guid, refund);
+    TC_LOG_INFO("psychohouse", "character " UI64FMTD " sold a house, refunded %u copper", guid, refund);
     return Ok;
 }
 
@@ -361,8 +390,8 @@ HouseResult PsychoHouseMgr::BuyFacility(Player* player, uint16 facilityId)
 
     owner->Bought.push_back(facilityId);
     CharacterDatabase.PExecute(
-        "INSERT IGNORE INTO `psychohouse_purchase` (`owner`, `facility`, `bought`) "
-        "VALUES ({}, {}, UNIX_TIMESTAMP())", owner->Guid, uint32(facilityId));
+        "INSERT INTO `psychohouse_purchase` (`owner`, `facility`, `bought`) "
+        "VALUES (" UI64FMTD ", %u, UNIX_TIMESTAMP())", owner->Guid, uint32(facilityId));
 
     SpawnFacility(player, owner, *facility);
     return Ok;
@@ -487,7 +516,7 @@ void PsychoHouseMgr::SpawnHouse(Player* player, Owner* owner)
     }
     else
     {
-        TC_LOG_ERROR("psychohouse", "could not summon the keeper for character %u", owner->Guid);
+        TC_LOG_ERROR("psychohouse", "could not summon the keeper for character " UI64FMTD, owner->Guid);
     }
 
     Position const steward(_anchor.GetPositionX() + _stewardX, _anchor.GetPositionY() + _stewardY,
@@ -499,7 +528,7 @@ void PsychoHouseMgr::SpawnHouse(Player* player, Owner* owner)
     }
     else
     {
-        TC_LOG_ERROR("psychohouse", "could not summon the steward for character %u", owner->Guid);
+        TC_LOG_ERROR("psychohouse", "could not summon the steward for character " UI64FMTD, owner->Guid);
     }
 
     for (uint16 id : owner->Bought)
@@ -530,7 +559,7 @@ void PsychoHouseMgr::SpawnFacility(Player* player, Owner* owner, Facility const&
             QuaternionData::fromEulerAnglesZYX(pos.GetOrientation(), 0.0f, 0.0f), 255, GO_STATE_READY);
         if (!object)
         {
-            TC_LOG_ERROR("psychohouse", "could not create object %u for character %u",
+            TC_LOG_ERROR("psychohouse", "could not create object %u for character " UI64FMTD,
                 facility.Entry, owner->Guid);
             return;
         }
@@ -539,18 +568,18 @@ void PsychoHouseMgr::SpawnFacility(Player* player, Owner* owner, Facility const&
         // somebody else can see it.
         PhasingHandler::AddPhase(object, owner->Phase, false);
         map->AddToMap(object);
-        owner->Objects[facility.Id] = object->GetGUID();
+        owner->Spawned[facility.Id] = object->GetGUID();
         return;
     }
 
     if (Creature* creature = map->SummonCreature(facility.Entry, pos, nullptr, 0, nullptr, 0, 0, false))
     {
         PhasingHandler::AddPhase(creature, owner->Phase, false);
-        owner->Creatures[facility.Id] = creature->GetGUID();
+        owner->Spawned[facility.Id] = creature->GetGUID();
     }
     else
     {
-        TC_LOG_ERROR("psychohouse", "could not summon facility %u (entry %u) for character %u",
+        TC_LOG_ERROR("psychohouse", "could not summon facility %u (entry %u) for character " UI64FMTD,
             uint32(facility.Id), facility.Entry, owner->Guid);
     }
 }
@@ -563,14 +592,14 @@ void PsychoHouseMgr::DespawnHouse(Owner* owner)
     Map* map = sMapMgr->FindMap(_mapId, 0);
     if (map)
     {
-        for (auto const& pair : owner->Creatures)
+        for (auto const& pair : owner->Spawned)
         {
             if (Creature* creature = map->GetCreature(pair.second))
+            {
                 creature->DespawnOrUnsummon();
-        }
+                continue;
+            }
 
-        for (auto const& pair : owner->Objects)
-        {
             if (GameObject* object = map->GetGameObject(pair.second))
                 object->Delete();
         }
@@ -582,8 +611,7 @@ void PsychoHouseMgr::DespawnHouse(Owner* owner)
             steward->DespawnOrUnsummon();
     }
 
-    owner->Creatures.clear();
-    owner->Objects.clear();
+    owner->Spawned.clear();
     owner->Keeper.Clear();
     owner->Steward.Clear();
 }

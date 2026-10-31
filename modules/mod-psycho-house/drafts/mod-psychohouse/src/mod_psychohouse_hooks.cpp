@@ -27,6 +27,7 @@
 #include "Player.h"
 #include "RBAC.h"
 #include "ScriptMgr.h"
+#include "WorldSession.h"
 
 #include <string>
 #include <vector>
@@ -100,12 +101,13 @@ public:
     {
         static std::vector<ChatCommand> commandTable =
         {
-            { "psychohouse",   0, false, &HandleInfoCommand,     "Island house: status" },
-            { "psychobuy",     0, false, &HandleBuyCommand,      "Buy the island house" },
-            { "psychosell",    0, false, &HandleSellCommand,     "Sell the island house" },
-            { "psychohome",    0, false, &HandleTeleCommand,     "Travel to the island house" },
-            { "psychodiag",    rbac::RBAC_PERM_COMMAND_GM, false, &HandleDiagCommand,   "Island house: catalogue state" },
-            { "psychoreload",  rbac::RBAC_PERM_COMMAND_GM, false, &HandleReloadCommand, "Island house: reload config and catalogue" },
+            // 0 is every account: these four are the player's own house, not a GM tool.
+            { "psychohouse",  0, false, &HandleInfoCommand, "Island house: status" },
+            { "psychobuy",    0, false, &HandleBuyCommand,  "Island house: buy" },
+            { "psychosell",   0, false, &HandleSellCommand, "Island house: sell" },
+            { "psychohome",   0, false, &HandleTeleCommand, "Island house: travel" },
+            { "psychodiag",   rbac::RBAC_PERM_COMMAND_GM, false, &HandleDiagCommand,   "Island house: catalogue state" },
+            { "psychoreload", rbac::RBAC_PERM_COMMAND_GM, false, &HandleReloadCommand, "Island house: reload" },
         };
 
         return commandTable;
@@ -124,8 +126,9 @@ public:
             return true;
         }
 
-        handler->PSendSysMessage("House phase %u, %u facilities, %u of the catalogue bought.",
-            uint32(owner->Phase), uint32(owner->Bought.size()), uint32(sPsychoHouse->GetFacilities().size()));
+        handler->PSendSysMessage("House phase %u, %u of %u facilities bought.",
+            uint32(owner->Phase), uint32(owner->Bought.size()),
+            uint32(sPsychoHouse->GetFacilities().size()));
         return true;
     }
 

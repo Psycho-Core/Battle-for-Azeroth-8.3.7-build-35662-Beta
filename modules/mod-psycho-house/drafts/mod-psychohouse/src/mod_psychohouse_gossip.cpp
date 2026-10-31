@@ -34,6 +34,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
+#include "WorldSession.h"
 
 #include <string>
 

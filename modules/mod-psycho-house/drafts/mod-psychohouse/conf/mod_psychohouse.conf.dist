@@ -4,11 +4,18 @@
 #  A house per character, on GM Island, in a phase of its own. Nothing here is per
 #  guild and nothing here is per account.
 #
-#  Copy this file to mod_psychohouse.conf next to the worldserver binary and edit that
-#  copy. The module reads it at startup and again on .reload config.
+#  THESE KEYS GO INTO worldserver.conf, NOT INTO A FILE OF THEIR OWN.
+#
+#  This core reads exactly one configuration file and keeps only its first section:
+#  ConfigMgr::LoadInitial() parses the file and assigns _config = fullTree.begin()->second.
+#  A second file is never opened and a second [section] is never read. A key pasted under a
+#  [psychohouse] header would be silently ignored and every value would fall back to the
+#  default in the code.
+#
+#  So: paste the keys below into worldserver.conf, inside [worldserver], anywhere after
+#  [worldserver] and before the end of the file. Do not paste a section header with them.
+#  Every key is optional; the value in the comment is what the code uses when it is absent.
 ####################################################################################
-
-[psychohouse]
 
 # PsychoHouse.Enable
 #   Master switch. 0 hides both NPCs and refuses every purchase; existing houses keep
@@ -24,20 +31,21 @@ PsychoHouse.Enable = 1
 PsychoHouse.Price.House = 10000000
 
 # PsychoHouse.Refund.Percent
-#   Share of the house price returned on sale, 0-100. Facility purchases are not
-#   refunded: they stay in `psychohouse_purchase` history until the house is sold.
+#   Share of the house price returned on sale, 0-100. Facility purchases are not refunded:
+#   they are deleted with the house, and the copper is gone.
 #   Default: 50
 PsychoHouse.Refund.Percent = 50
 
 ####################################################################################
 #  Where the house stands
 #
-#  GM Island, Kalimdor. The anchor is the flat courtyard in the middle of the island;
-#  every facility position in `psychohouse_facility` is an offset from this point, and
-#  the two NPCs have their own offsets below. Moving a whole house is these four numbers.
+#  GM Island, Kalimdor. The anchor is the flat courtyard in the middle of the island; every
+#  facility position in `psychohouse_facility` is an offset from this point, and the two
+#  NPCs have their own offsets below. Moving a whole house is these four numbers.
 #
 #  Zone and area are configuration, not code: they are content, and a realm that has
-#  reassigned either should not need a rebuild.
+#  reassigned either should not need a rebuild. The area is what the module watches - a
+#  character entering area 876 is inside the house area.
 ####################################################################################
 
 # Default: 1 (Kalimdor)
@@ -58,8 +66,9 @@ PsychoHouse.Anchor.O = 1.46
 ####################################################################################
 #  The two NPCs
 #
-#  Offsets from the anchor. The Keeper sells and listens; the Steward sells facilities.
-#  Entries 900200 and 900201 are created by sql/world/02_creatures.sql.
+#  Offsets from the anchor. The Keeper sells the house and travels with its owner; the
+#  Steward sells the facilities. Entries 900200 and 900201 come from
+#  sql/world/02_creatures.sql.
 ####################################################################################
 
 # Default: -1.5 / -2.5 / 0 / 0
