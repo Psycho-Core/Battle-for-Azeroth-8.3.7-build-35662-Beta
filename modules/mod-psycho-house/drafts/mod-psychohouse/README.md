@@ -36,6 +36,8 @@ to orphan and no grid bookkeeping to get wrong.
 2. copy src/ to <source>/src/server/scripts/PsychoHouse
    the folder name matters: the build generates Add<folder>Scripts(), so PsychoHouse
    without a hyphen is the only name that compiles
+   (../../tools/housing/install.py --draft mod-psychohouse --root <source> does 2 and 5 as
+   well, and picks modules/PsychoHouse or src/server/scripts/PsychoHouse by what it finds)
 3. re-run cmake, rebuild, install
 4. paste the keys from conf/mod_psychohouse.conf.dist into <config>/worldserver.conf,
    inside [worldserver], without the section header that file is not carrying anyway
@@ -181,7 +183,8 @@ keyboard path, not a second feature set.
 
 ## Verification
 
-Checked here by tools that read the files. None of them needs a database or a compiler:
+Checked here by tools that read the files. None of them needs a database or a compiler, and
+none of them claims the result was built:
 
 ```
 python3 tools/housing/check_cpp.py --src drafts/mod-psychohouse/src --sql drafts/mod-psychohouse/sql

@@ -10,7 +10,7 @@ system is actually about.
 
 | Piece | Count | Where |
 | --- | --- | --- |
-| Vendors | 39, all with name, npc id, faction and stock count | `sql/world/03_vendors_retail.sql` |
+| Vendors | 39, each with its retail name, npc id, faction and captured stock count in a row comment | `sql/world/03_vendors_retail.sql` |
 | Decor rows | 571, every one with a real 8.3.7 game object | `sql/world/04_decor_retail.sql` |
 | Vendor stock rows | 969 | `sql/world/05_stock_retail.sql` |
 | Retail decor item ids carried on those rows | 450 | same file, `item_entry` column |
@@ -31,8 +31,10 @@ row carries two ids: `item_entry` is the retail item id, and `gameobject_entry` 
 8.3.7 game object I chose to stand in for it.
 
 All 571 rows already carry one, so the file imports cleanly and every row is placeable the
-moment it loads. The 571 pieces land on 187 distinct game objects, which is the honest part of the
-substitution: a lamp, a lantern and a chandelier often share the nearest thing 8.3.7 has.
+moment it loads. The 571 pieces land on 177 distinct game objects, which is the honest part
+of the substitution: a lamp, a lantern and a chandelier often share the nearest thing 8.3.7
+has. The 187 in `data/town-center-go-map.csv` is the same question asked of all 618 mapped
+names, including the ones whose price never resolved and that therefore ship no row.
 `tools/housing/map_decor_go.py` produced those choices and records its reason in the
 `match` column of `data/town-center-go-map.csv`:
 
@@ -72,7 +74,10 @@ Prices are gold unless `currency` says otherwise:
   still in the file with their names and prices, so an id can be filled in later without
   touching anything else.
 - 87 stock lines have no published price. They are listed as comments at the end of
-  `05_stock_retail.sql` and are not inserted, so they cannot come out free.
+  `05_stock_retail.sql` and are not inserted, so they cannot come out free. Sixteen of them
+  are Burlee Jinglepocket's whole stock and sixteen are Roz Copperpinch's, so those two
+  stalls import empty and stay empty until a price is filled in. Ten of the other stalls
+  lose between one and seventeen lines; the rest ship everything their page printed.
 - `creature_entry` is 0 in the SQL on all 39 vendor rows. The retail npc id is in each
   row's comment, but a retail npc id is not an 8.3.7 creature entry. Run
   `tools/sql/bind_town_center_vendors.sql` after the import and it fills the column from

@@ -559,6 +559,123 @@ def check_sql_style():
                         "missing row aborts the statement on a strict server".format(match.group(1)))
 
 
+# Every core call the draft makes, with the exact declaration it relies on. This is the
+# hand audit of round 17 turned into something re-runnable: each tuple is (call, header,
+# fragment that must appear in that header). A signature that changes out from under the
+# draft fails the build here instead of at compile time on a machine that has a compiler.
+CORE_CALLS = (
+    ("Map::SummonCreature", "src/server/game/Maps/Map.h",
+     "SummonCreature(uint32 entry, Position const& pos"),
+    ("Map::GetCreature", "src/server/game/Maps/Map.h",
+     "Creature* GetCreature(ObjectGuid const& guid)"),
+    ("Map::GetGameObject", "src/server/game/Maps/Map.h",
+     "GameObject* GetGameObject(ObjectGuid const& guid)"),
+    ("Map::AddToMap", "src/server/game/Maps/Map.h", "bool AddToMap(T *"),
+    ("PhasingHandler::AddPhase", "src/server/game/Phasing/PhasingHandler.h",
+     "AddPhase(WorldObject"),
+    ("PhasingHandler::RemovePhase", "src/server/game/Phasing/PhasingHandler.h",
+     "RemovePhase(WorldObject"),
+    ("GameObject::CreateGameObject", "src/server/game/Entities/GameObject/GameObject.h",
+     "CreateGameObject(uint32 entry, Map* map, Position const& pos"),
+    ("GameObject::Delete", "src/server/game/Entities/GameObject/GameObject.h", "void Delete()"),
+    ("Creature::DespawnOrUnsummon", "src/server/game/Entities/Creature/Creature.h",
+     "DespawnOrUnsummon("),
+    ("Player::ModifyMoney", "src/server/game/Entities/Player/Player.h", "ModifyMoney(int64"),
+    ("Player::HasEnoughMoney", "src/server/game/Entities/Player/Player.h", "HasEnoughMoney("),
+    ("Player::TeleportTo", "src/server/game/Entities/Player/Player.h", "bool TeleportTo("),
+    ("Player::GetRestMgr", "src/server/game/Entities/Player/Player.h", "GetRestMgr()"),
+    ("Player::GetSession", "src/server/game/Entities/Player/Player.h", "GetSession()"),
+    ("RestMgr::SetRestFlag", "src/server/game/Entities/Player/RestMgr.h", "SetRestFlag("),
+    ("RestMgr::RemoveRestFlag", "src/server/game/Entities/Player/RestMgr.h", "RemoveRestFlag("),
+    ("DatabaseWorkerPool::PQuery", "src/server/database/Database/DatabaseWorkerPool.h",
+     "QueryResult PQuery("),
+    ("DatabaseWorkerPool::PExecute", "src/server/database/Database/DatabaseWorkerPool.h",
+     "void PExecute("),
+    ("DatabaseWorkerPool::DirectPExecute", "src/server/database/Database/DatabaseWorkerPool.h",
+     "void DirectPExecute("),
+    ("DatabaseWorkerPool::EscapeString", "src/server/database/Database/DatabaseWorkerPool.h",
+     "void EscapeString"),
+    ("Field::GetUInt8", "src/server/database/Database/Field.h", "GetUInt8()"),
+    ("Field::GetUInt16", "src/server/database/Database/Field.h", "GetUInt16()"),
+    ("Field::GetUInt32", "src/server/database/Database/Field.h", "GetUInt32()"),
+    ("Field::GetUInt64", "src/server/database/Database/Field.h", "GetUInt64()"),
+    ("Field::GetString", "src/server/database/Database/Field.h", "GetString()"),
+    ("ObjectMgr::GetCreatureTemplate", "src/server/game/Globals/ObjectMgr.h",
+     "GetCreatureTemplate(uint32"),
+    ("ObjectMgr::GetGameObjectTemplate", "src/server/game/Globals/ObjectMgr.h",
+     "GetGameObjectTemplate(uint32"),
+    ("ConfigMgr::GetIntDefault", "src/common/Configuration/Config.h", "GetIntDefault("),
+    ("ConfigMgr::GetFloatDefault", "src/common/Configuration/Config.h", "GetFloatDefault("),
+    ("ConfigMgr::GetBoolDefault", "src/common/Configuration/Config.h", "GetBoolDefault("),
+    ("MapManager::FindMap", "src/server/game/Maps/MapManager.h", "FindMap(uint32"),
+    ("WorldSession::GetAccountId", "src/server/game/Server/WorldSession.h", "GetAccountId()"),
+    ("WorldSession::GetPlayer", "src/server/game/Server/WorldSession.h", "GetPlayer()"),
+    ("ChatHandler::PSendSysMessage", "src/server/game/Chat/Chat.h", "PSendSysMessage("),
+)
+
+# Calls this build does not have. If one appears in the draft, the draft does not compile.
+ABSENT_CALLS = ("SetPhaseMask", "GetPhaseByAuras", "CustomData", "SetRestState",
+                "GetOption<")
+
+
+def check_core_calls(repo):
+    for call, header, needle in CORE_CALLS:
+        path = os.path.join(repo, header)
+        if not os.path.isfile(path):
+            fail("core calls", "{} was not found at {}".format(header, header))
+            continue
+        if needle not in read(path):
+            fail("core calls", "`{}` is used by the draft but `{}` no longer declares "
+                               "`{}`".format(call, header, needle))
+
+    cpp = os.path.join(DRAFT, "src")
+    for name in sorted(os.listdir(cpp)) if os.path.isdir(cpp) else []:
+        if not name.endswith((".cpp", ".h")):
+            continue
+        text = read(os.path.join(cpp, name))
+        for symbol in ABSENT_CALLS:
+            if symbol in text:
+                fail(name, "`{}` does not exist in this build".format(symbol))
+
+
+def check_includes():
+    """A file that calls a symbol has to include the header that declares it.
+
+    Round 16 fixed a missing `WorldSession.h` by hand; this is the same rule, applied to
+    every symbol the draft uses.
+    """
+    required = (
+        ("CharacterDatabase", "DatabaseEnv.h"),
+        ("WorldDatabase", "DatabaseEnv.h"),
+        ("QueryResult", "DatabaseEnv.h"),
+        ("sConfigMgr", "Config.h"),
+        ("sMapMgr", "MapManager.h"),
+        ("sObjectMgr", "ObjectMgr.h"),
+        ("PhasingHandler", "PhasingHandler.h"),
+        ("QuaternionData", "QuaternionData.h"),
+        ("GetRestMgr", "RestMgr.h"),
+        ("REST_FLAG", "RestMgr.h"),
+        ("AddGossipItemFor", "ScriptedGossip.h"),
+        ("GOSSIP_ICON_", "GossipDef.h"),
+        ("PSendSysMessage", "Chat.h"),
+        ("ChatHandler", "Chat.h"),
+        ("RBAC_PERM", "RBAC.h"),
+        ("GetAccountId", "WorldSession.h"),
+        ("GetPlayer()", "WorldSession.h"),
+        ("TC_LOG_", "Log.h"),
+    )
+    cpp = os.path.join(DRAFT, "src")
+    for name in sorted(os.listdir(cpp)) if os.path.isdir(cpp) else []:
+        if not name.endswith(".cpp"):
+            continue
+        text = read(os.path.join(cpp, name))
+        included = set(re.findall(r'#include\s+"([^"]+)"', text))
+        # the module header pulls in the types the bodies use; treat it as one unit
+        for symbol, header in required:
+            if symbol in text and header not in included:
+                fail(name, "uses `{}` without including {}".format(symbol, header))
+
+
 def check_write_ordering():
     """A queued write is not a finished write.
 
@@ -689,6 +806,8 @@ def main():
     check_guid_width(args.repo)
     check_sql_style()
     check_write_ordering()
+    check_core_calls(args.repo)
+    check_includes()
     check_spawn_phasing()
 
     print("{} SQL files, {} tables, {} facilities, {} build tables cross-checked".format(
