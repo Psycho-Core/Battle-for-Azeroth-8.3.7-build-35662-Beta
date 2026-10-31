@@ -17,6 +17,8 @@ modules/mod-psycho-house/
   11-verification-ledger.md  where every number comes from, and what is unchecked
   12-midnight-item-port.md   item by item: extract, convert, write the DB2 rows, package,
                          verify - plus how the housing menus are rebuilt client side
+  13-guildhouse-backup-plan.md  the other guild house module, read line by line, and the
+                         fallback plan if per-player housing has to be cut
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
                          per-vendor captures
@@ -68,6 +70,7 @@ publish entry ids for the interior quests.
 | 10 | [Draft modules](10-draft-modules.md) | The two drafts in `drafts/`: what each one contains, what it deliberately leaves out, how to install it, and how to switch between them. |
 | 11 | [Verification ledger](11-verification-ledger.md) | Where every number comes from, what the audit checks, what could not be checked here, and the exact size of what is still open. |
 | 12 | [Midnight item port](12-midnight-item-port.md) | Item by item: what a decor id has to be for the module to work, keeping the retail ids, the catalogue-only route, the full port with model and texture conversion, the five DB2 tables, icons, packaging, the order to verify in, and how the housing menus are rebuilt client side. |
+| 13 | [Guild house fallback](13-guildhouse-backup-plan.md) | `azerothcore/mod-guildhouse` read line by line: what it does, its two tables, its 3 NPCs and 10 portals, all 55 facilities with prices, the phase primitive that does not exist in this tree, 9 absent core calls with their replacements, 9 bugs in its own code, what is worth taking, and the F0 fallback plan with its decision gate. |
 | - | [Generated index](generated/source-asset-index.md) | Auto-generated inventory (28 314 named id constants) plus the CSV. |
 
 ## Tools that ship with this
@@ -137,6 +140,17 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, fourteenth revision
+
+The backup idea, taken apart, and the two things it found in my own module.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 63 | A guild neighbourhood stores a `guildId` and nothing ever clears it. A guild that disbands leaves a village nobody can administer, with plots stranded behind an access check that can never pass. Found by reading how the guild house module cleans up on `GuildScript::OnDisband`, not by reading my own code | Doc 05 sec.4.3a: a `GuildScript` with `OnDisband` (archive every owned plot, clear its rows, release the neighbourhood) and `OnCreate` (one line of chat). Work item, not code yet, and it is scheduled in P1 |
+| 64 | `AmenityType` has 8 values and not one of them is a service a player would walk to a house for: no bank, mailbox, auctioneer, innkeeper, stable master, trainer, forge, anvil or guild vault. A house with decor and no services is a diorama | Doc 05 sec.4.6 and doc 13 sec.13: thirteen new amenity kinds, six columns on `psycho_house_amenity` (`price`, `currency`, `faction_mask`, `required_level`, `required_rank`, `sold_at`), one purchase path that reuses the existing spawner |
+| 65 | The doc index stopped at 12, so the largest single piece of external research in this folder had nowhere to live | Doc 13 written: 3 076 lines of somebody else's module read, its API surface grepped against this tree row by row, and the fallback plan given a decision gate that can be tested rather than felt |
+| 66 | Ten of the AzerothCore calls that module is built on do not exist in build 35662, or no longer have that shape - `SetPhaseMask`, `CustomData`/`DataMap::Base`, `GlobalScript`, `OnPlayerBeforeTeleport`, `GetPhaseByAuras`, `RemoveRestState`, the three-argument `SaveToDB`, and `sConfigMgr->GetOption` among them - and its removal path queries a `phaseMask` column that the BfA schema replaced with `PhaseId` and `PhaseGroup` | Doc 13 sec.8 is a table of every call it makes with the verdict for each, and sec.15 separates the three things I could not settle from the ones I measured. The conclusion is that it is a port, not a drop-in, and the fallback plan does not depend on it |
 
 ## Audit pass, thirteenth revision
 

@@ -97,6 +97,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | 10 draft modules | What each draft contains, how to install and switch | Row counts re-read from the generated SQL; the mapping split was wrong before (156/365/29) and now reads 223/189/171/35. Quest rows and vendor bindings added this pass |
 | 11 this ledger | Where every number comes from | Written this round |
 | 12 Midnight item port | IDs, extraction, model and texture conversion, the five DB2 tables, icons, packaging, verification order, and how the housing menus are rebuilt | Written this round. The procedure is checked against this folder's own data; the client file formats could not be checked here, and the document says which parts those are. Every path it names was checked to exist this round |
+| 13 guild house fallback | What `azerothcore/mod-guildhouse` does, its tables, its 55 facilities and prices, and which of the 22 core calls it makes exist in this tree | Read line by line from the repository at `0b3cc14`, and every API name in sec.8 grepped in this tree rather than remembered. Ten calls are absent or have a changed signature, and the document names each replacement. The three things it could not settle are listed in its sec.15, including the `Phase.db2` range question, which is an inference rather than a measurement |
 
 ## 5. Open items, with exact counts
 
@@ -292,3 +293,27 @@ What the scripts cannot settle: whether MySQL accepts the statements (no server 
 whether the C++ compiles (no boost or MySQL headers here), and whether a mapped game
 object looks right in the game (needs the client). Those three stay open, and section 3
 says why rather than hiding them.
+
+### 6.6 The guild house module, read rather than trusted
+
+`13-guildhouse-backup-plan.md` is the one document here whose subject is somebody else's code,
+so the standard has to be higher, not lower.
+
+What was done: the repository cloned at `0b3cc14` and every one of its 3 076 lines read -
+three C++ sources, the header, the loader, six SQL files, the config, the README. Then every
+AzerothCore symbol it calls was grepped in **this** tree, one name at a time, and the result
+written into the document as a table of 22 rows.
+
+The result is not a summary. Ten of those symbols do not exist in build 35662, or no longer look the same - the phase
+mask primitive, the per-player `CustomData` map, `GlobalScript`, `OnPlayerBeforeTeleport`,
+`GetPhaseByAuras`, `RemoveRestState`, and the three-argument `SaveToDB` overload among them -
+and the document names the replacement for each instead of saying "needs porting". That is
+the check that turns "it looks like it would work" into "it cannot be dropped in".
+
+What that method can catch: a missing API, a signature that changed, a column that no longer
+exists (`phaseMask`), a price the config and the code disagree on.
+
+What it cannot catch, and the document says so in sec.15: whether the thing compiles, whether
+the bug in its issue 85 is phase or faction, and whether the low phase ids are actually
+occupied in this build's `Phase.db2`. The last one is written as an inference with its
+reasoning attached, not as a count.
