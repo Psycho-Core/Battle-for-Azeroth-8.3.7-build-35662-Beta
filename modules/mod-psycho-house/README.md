@@ -97,7 +97,7 @@ publish entry ids for the interior quests.
 | `tools/housing/verify_drafts.py` | Reads the three `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
 | `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. `--src` and `--sql` point it at any tree, which is how the third draft is checked. |
 | `tools/housing/build_schema.py` | Reads the column lists of `creature_template`, `gameobject_template` and `creature_template_model` out of the build's own loader queries. Shared by the two checkers so they cannot disagree about what a column is. |
-| `tools/housing/check_psychohouse.py` | The third draft's checker: SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, and fourteen statements this document makes about build 35662 checked against the source tree itself. |
+| `tools/housing/check_psychohouse.py` | The third draft's checker: SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, fourteen statements this document makes about build 35662 checked against the source tree, and the MariaDB rules: printf dialect and argument counts, a 64-bit house key on both sides, `COLLATE` on every table, no `INSERT IGNORE`, no bare scalar subquery, no config section header. |
 | `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
 | `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
@@ -143,6 +143,29 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, fifteenth revision
+
+The third draft, read against the server it will actually run on - MariaDB 11.8.6. Five
+defects, four of them fatal, none of them visible to a column-and-width checker.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 68 | Every parameterised database call used `{}` placeholders, and half of them were written against `Query`/`Execute`, which take no arguments in this build. `StringFormat` here is `fmt::sprintf`, so the braces are never substituted | All of them are `PQuery`/`PExecute` with `%u`, `%s` and `UI64FMTD`; `check_psychohouse.py` counts conversions against arguments and refuses a brace |
+| 69 | The house key was `int unsigned` in SQL and `uint32` in C++ while `characters.guid` is `bigint(20) unsigned` and `ObjectGuid::LowType` is `uint64` | `bigint unsigned` and `uint64` throughout, cross-checked against the build's own base schema and against the header |
+| 70 | The config file carried a `[psychohouse]` header and the install step said to drop it next to the binary. `ConfigMgr::LoadInitial` reads one file and keeps only its first section, so every key would have been ignored and every value would have silently fallen back to its default | The keys are pasted into `worldserver.conf` with no header, the draft says so in capitals, and the checker fails the build if a header comes back |
+| 71 | The resolvers assigned a bare scalar subquery to a `NOT NULL` column. On MariaDB with the default `sql_mode` a subquery that matches nothing yields NULL and the statement dies with error 1048 - the whole bind file would stop on the first service a realm happens to lack | Every subquery wrapped in `COALESCE(..., 0)`; the row stays at 0 and the report says which one |
+| 72 | `INSERT IGNORE` on the phase allocation could swallow the duplicate-key error and hand two characters the same phase; and a character that logged out inside the house came back believing it was still furnished | Plain `INSERT` plus the read-back retry, and a logout hook that clears the flag and despawns |
+
+Two smaller ones in the same pass: `WorldSession.h` was missing in the two files that call
+`GetSession()->GetAccountId()` and `GetSession()->GetPlayer()`, neither of which compiles
+without it; and the four commands meant for a house owner were registered against a GM
+permission, so only a GM could use them.
+
+Docs: the draft README said twelve services where the table has thirteen rows (eleven services
+and two portals), and it has a section now on what MariaDB 11.8.6 means for this module - the
+collation, the strict-mode `COALESCE`, the absence of `ADD COLUMN IF NOT EXISTS`, and what was
+verified statically because there is no server here to execute against.
 
 ## Audit pass, fourteenth revision
 

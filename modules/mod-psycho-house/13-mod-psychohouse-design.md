@@ -164,6 +164,13 @@ check_psychohouse.py
   the phase range against uint16 and against the neighbourhood range, config keys in both
   directions, and the two arithmetic claims in the draft README against the catalogue
 
+check_psychohouse.py, added after the MariaDB pass
+  the printf dialect of this build: every database call that carries arguments goes through
+  PQuery/PExecute, contains no `{}` placeholder, and has as many conversions as arguments;
+  the house key is 64-bit in the header, in the character table, and in the build's own
+  `characters` schema; every CREATE TABLE pins ENGINE, CHARSET and COLLATE; no INSERT IGNORE;
+  no bare scalar subquery in an UPDATE; the .conf.dist carries no section header
+
 audit.py        ASCII, voice, links, counts over every document in this folder
 verify_drafts.py / check_lua.py / check_protocol.py   unchanged, and still clean
 ```
@@ -175,15 +182,38 @@ Both new checks were mutation-tested rather than trusted:
   unknown facility kind, an `is_object` that disagrees with its kind, a facility with no
   resolver, a resolver for a facility that does not exist, a phase base inside the
   neighbourhood range, a config key removed from the `.conf.dist`, and a README total that no
-  longer matches the table: all seven reported.
+  longer matches the table: all seven reported;
+- and again with five faults added in the MariaDB pass - a bare scalar subquery, a
+  `[psychohouse]` section header, a 32-bit house key, a `{}` placeholder in a live call, and a
+  table with no `COLLATE`: all five reported.
+
+## 9a. MariaDB 11.8.6, and what changed because of it
+
+The realm runs MariaDB, not MySQL, and the two differ in exactly the places a house module
+touches. Six decisions were taken because of that, and every one of them is enforced by a
+check rather than by memory:
+
+| Decision | What breaks without it |
+| --- | --- |
+| `COLLATE=utf8mb4_general_ci` written on both new tables | the server default differs between MariaDB and MySQL, so a table created today can behave differently after a server move |
+| `COALESCE((SELECT ...), 0)` around every resolver subquery | with the default `sql_mode` (`STRICT_TRANS_TABLES`), a subquery that matches nothing yields NULL, `entry` is `NOT NULL`, and the statement stops with error 1048 |
+| no `INSERT IGNORE` | it demotes the duplicate-key error the phase allocation depends on to a warning, and two characters could end up sharing a phase |
+| `bigint unsigned` for the character key | `characters.guid` is `bigint(20) unsigned` and `ObjectGuid::LowType` is `uint64`; a 32-bit key is correct until it silently is not |
+| no `ADD COLUMN IF NOT EXISTS`, no stored routines, no events | `ADD COLUMN IF NOT EXISTS` is MariaDB-only; the other two make an install unrepeatable |
+| every file run twice without damage | `IF NOT EXISTS`, `DELETE` before `INSERT` on the catalogue and on the model rows, resolvers that only fire on `entry = 0` |
+
+What was not done, and is not claimed: no statement was executed. There is no MariaDB server in
+this workspace. The SQL was checked three ways instead - by the column and width rules above,
+by a MySQL-dialect parser, and by reading. That is enough to believe the statements are
+statements; it is not the same as having run them.
 
 ## 10. What is still open, in order of how much it could hurt
 
-1. **The SQL has never been applied to a MySQL server.** There is none in this workspace. What
-   is checked is that every column exists in this build's own loader or schema; what is not
-   checked is that MySQL parses it, and one statement - the two `REPLACE INTO
-   creature_template_model` copies - depends on that table's primary key accepting a
-   five-column insert.
+1. **The SQL has never been applied to a server.** There is none in this workspace. What is
+   checked is that every column exists in this build's own loader or schema and that a
+   MySQL-dialect parser accepts every statement; what is not checked is execution, and two
+   statements - the model rows for 900200 and 900201 - depend on `creature_template_model`
+   accepting a five-column insert with `Idx` 0.
 2. **The C++ has never been compiled.** No compiler, no boost, no MySQL client here. What is
    claimed is narrower: every core call was read out of this tree and its signature matched,
    and the calls this build does not have are absent from the code. `check_cpp.py` covers the

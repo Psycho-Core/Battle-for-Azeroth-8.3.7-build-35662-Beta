@@ -24,13 +24,17 @@ CREATE TABLE IF NOT EXISTS `psychohouse_facility` (
   `required_level` tinyint unsigned NOT NULL DEFAULT 0,
   `sort`           tinyint unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  COMMENT='Island house facilities and their prices';
 
 -- kind: 1 bank, 2 auctioneer, 3 mailbox, 4 innkeeper, 5 stable master, 6 spirit healer,
 --       7 forge, 8 anvil, 9 barber chair, 10 guild vault, 11 portal, 12 repair
 --
 -- prices are copper: 10000 copper = 1 gold. The house itself is priced in the config file,
 -- not here, because it is not a facility.
+--
+-- The collation is written out because the server default is not portable: MariaDB 11.8
+-- defaults utf8mb4 to utf8mb4_general_ci, MySQL 8 to utf8mb4_0900_ai_ci.
 DELETE FROM `psychohouse_facility`;
 
 INSERT INTO `psychohouse_facility`

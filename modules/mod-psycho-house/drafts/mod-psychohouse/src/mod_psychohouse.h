@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MOD_PSYCHOHOUSE_H
-#define MOD_PSYCHOHOUSE_H
+#ifndef MOD_PSYCHO_HOUSE_H
+#define MOD_PSYCHO_HOUSE_H
 
 #include "Define.h"
 #include "ObjectGuid.h"
@@ -27,19 +27,19 @@
 #include <unordered_map>
 #include <vector>
 
+class Creature;
+class GameObject;
 class Player;
 
 namespace PsychoHouse
 {
-    // Phase range owned by this module. 50000-64999 is 15 000 houses, inside the uint16
-    // phase space, above every retail phase id this build ships, and clear of the
-    // neighbourhood module's 10000-46374.
-    constexpr uint16 kPhaseBase = 50000;
-    constexpr uint16 kPhaseLast = 64999;
+    // Phase band reserved for this module: 50000-64999, 15 000 houses. Inside the uint16
+    // phase space this build uses and clear of the neighbourhood module's 10000-46374.
+    constexpr uint32 kPhaseBase = 50000;
+    constexpr uint32 kPhaseLast = 64999;
 
-    // The only creature entries this module invents, and it invents them because they are
-    // its own NPCs. Everything else it spawns is an entry that already exists in the
-    // realm's world database.
+    // The only creature entries this module invents. Everything else it spawns is an entry
+    // the realm already has, resolved by sql/world/03_bind_facilities.sql.
     constexpr uint32 kKeeperEntry  = 900200;
     constexpr uint32 kStewardEntry = 900201;
 
@@ -66,8 +66,7 @@ namespace PsychoHouse
         FactionBoth     = 2
     };
 
-    /// Result codes. Appended only, because the command output and the gossip text both
-    /// switch on them.
+    /// Appended only: the gossip text and the command output both switch on these.
     enum HouseResult : uint8
     {
         Ok = 0,
@@ -104,11 +103,10 @@ namespace PsychoHouse
         uint8       Sort = 0;
     };
 
-    /// One character's house. Everything here is per character, never per guild: two
-    /// characters in the same guild own two houses in two phases.
+    /// One character's house, cached while the character is in the world.
     struct Owner
     {
-        uint32      Guid = 0;
+        uint64      Guid = 0;
         uint32      Account = 0;
         uint8       Team = 0;
         uint16      Phase = 0;
@@ -116,9 +114,8 @@ namespace PsychoHouse
         bool        InHouse = false;
         ObjectGuid  Keeper;
         ObjectGuid  Steward;
-        std::vector<uint16>                      Bought;
-        std::unordered_map<uint16, ObjectGuid>   Creatures;
-        std::unordered_map<uint16, ObjectGuid>   Objects;
+        std::vector<uint16>                    Bought;
+        std::unordered_map<uint16, ObjectGuid> Spawned;
     };
 
     class PsychoHouseMgr
@@ -141,7 +138,7 @@ namespace PsychoHouse
         bool HasFacility(Owner const* owner, uint16 id) const;
 
         Owner* GetOwner(Player* player);
-        Owner* FindOwner(uint32 guid);
+        Owner* FindOwner(uint64 guid);
 
         void OnPlayerLogin(Player* player);
         void OnPlayerLogout(Player* player);
@@ -163,7 +160,7 @@ namespace PsychoHouse
         void SpawnFacility(Player* player, Owner* owner, Facility const& facility);
         bool LoadPurchases(Owner* owner);
         bool FacilityFitsTeam(Facility const& facility, Owner const* owner) const;
-        uint16 AllocatePhase(uint32 guid, uint32 account, uint8 team, std::string const& name);
+        uint16 AllocatePhase(uint64 guid, uint32 account, uint8 team, std::string const& name);
 
         bool                        _enabled = false;
         uint32                      _mapId = 1;
@@ -183,10 +180,10 @@ namespace PsychoHouse
 
         std::vector<Facility>              _facilities;
         std::map<uint16, Facility>         _facilityById;
-        std::map<uint32, Owner>            _owners;
+        std::map<uint64, Owner>            _owners;
     };
 }
 
 #define sPsychoHouse PsychoHouse::PsychoHouseMgr::instance()
 
-#endif // MOD_PSYCHOHOUSE_H
+#endif // MOD_PSYCHO_HOUSE_H

@@ -353,6 +353,210 @@ def check_build_claims(repo):
                 label, "present" if found else "absent", "present" if expected else "absent"))
 
 
+def check_query_dialect():
+    """This build's database calls take printf formats, and only the P* forms take args.
+
+    DatabaseWorkerPool exposes Query(char const*) / Execute(char const*) and the variadic
+    PQuery/PExecute, and Trinity::StringFormat is fmt::sprintf - so `{}` placeholders are
+    never substituted. A call written as Query("... {}", x) does not compile; one written as
+    PQuery("... {}", x) compiles and then sends the braces to the server as SQL. Both are
+    caught here: the P* rule by the method name, the dialect rule by counting conversions.
+    """
+    cpp = os.path.join(DRAFT, "src")
+    for name in sorted(os.listdir(cpp)) if os.path.isdir(cpp) else []:
+        if not name.endswith(".cpp"):
+            continue
+
+        text = read(os.path.join(cpp, name))
+        for match in re.finditer(r"(?:World|Character|Login)Database\.(Query|PQuery|Execute|PExecute)\s*\(", text):
+            method = match.group(1)
+            args = call_arguments(text, match.end() - 1)
+            if args is None:
+                continue
+
+            line = text.count("\n", 0, match.start()) + 1
+            where = "{}:{}".format(name, line)
+
+            if "{}" in args[0]:
+                fail(where, "`{}` uses `{{}}` placeholders; this build formats with printf "
+                            "(`%u`, `%s`, " "UI64FMTD)".format(method))
+
+            if len(args) == 1:
+                continue
+
+            if method in ("Query", "Execute"):
+                fail(where, "`{}` is called with {} arguments; only PQuery/PExecute take "
+                            "arguments in this build".format(method, len(args)))
+                continue
+
+            conversions = format_conversions(args[0])
+            supplied = len(args) - 1
+            if conversions != supplied:
+                fail(where, "`{}` has {} conversion(s) but {} argument(s)".format(
+                    method, conversions, supplied))
+
+
+def call_arguments(text, open_paren):
+    """Split one call's argument list, ignoring commas inside strings. None if unbalanced."""
+    depth = 0
+    parts = []
+    current = []
+    index = open_paren
+    in_string = None
+
+    while index < len(text):
+        char = text[index]
+
+        if in_string:
+            current.append(char)
+            if char == "\\":
+                index += 1
+                if index < len(text):
+                    current.append(text[index])
+            elif char == in_string:
+                in_string = None
+            index += 1
+            continue
+
+        if char in "\"'":
+            in_string = char
+            current.append(char)
+        elif char == "(":
+            depth += 1
+            if depth == 1:
+                index += 1
+                continue
+            current.append(char)
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                parts.append("".join(current).strip())
+                return [part for part in parts if part]
+            current.append(char)
+        elif char == "," and depth == 1:
+            parts.append("".join(current).strip())
+            current = []
+            index += 1
+            continue
+        else:
+            current.append(char)
+
+        index += 1
+
+    return None
+
+
+def format_conversions(argument):
+    """Count printf conversions in a C++ format argument, UI64FMTD included.
+
+    The argument is a concatenation of string literals and the UI64FMTD macro, so dropping
+    the quote characters and expanding the macro gives the format string the compiler sees.
+    """
+    joined = argument.replace('"', "").replace("UI64FMTD", "%llu")
+    joined = joined.replace("%%", "")
+    return len(re.findall(r"%[-+ #0]*[0-9.*]*[hljztL]*[diouxXeEfgGsc]", joined))
+
+
+def check_guid_width(repo):
+    """The house key is a character GUID, so it is 64-bit on both sides of the wire."""
+    schema = os.path.join(DRAFT, "sql", "characters", "01_characters_schema.sql")
+    if os.path.exists(schema):
+        text = read(schema)
+        owner_match = re.search(r"CREATE TABLE (?:IF NOT EXISTS )?`psychohouse_owner` \((.*?)\n\)",
+                                text, re.S)
+        purchase_match = re.search(r"CREATE TABLE (?:IF NOT EXISTS )?`psychohouse_purchase` \((.*?)\n\)",
+                                   text, re.S)
+
+        guid_type = ""
+        if owner_match:
+            guid = re.search(r"`guid`\s+([a-z]+\s+unsigned)", owner_match.group(1))
+            guid_type = guid.group(1) if guid else ""
+            if guid_type != "bigint unsigned":
+                fail("sql/characters", "`psychohouse_owner`.`guid` is `{}`, not `bigint unsigned`".format(
+                    guid_type or "untyped"))
+
+        if purchase_match:
+            owner = re.search(r"`owner`\s+([a-z]+\s+unsigned)", purchase_match.group(1))
+            owner_type = owner.group(1) if owner else ""
+            if guid_type and owner_type != guid_type:
+                fail("sql/characters", "`psychohouse_purchase`.`owner` is `{}` but the key it "
+                                       "points at is `{}`".format(owner_type or "untyped", guid_type))
+
+        # The build's own characters table is the authority for the width.
+        base = os.path.join(repo, "sql", "base", "2_characters.sql")
+        if os.path.exists(base):
+            declared = re.search(r"CREATE TABLE `characters` \(\s*`guid`\s+([a-z]+)", read(base))
+            if declared and declared.group(1) != "bigint":
+                fail("sql/characters", "`characters`.`guid` is `{}` in this tree, which is not "
+                                       "what the draft assumes".format(declared.group(1)))
+
+    header = os.path.join(DRAFT, "src", "mod_psychohouse.h")
+    if os.path.exists(header):
+        text = read(header)
+        owner = re.search(r"struct Owner\s*\{(.*?)\n    \};", text, re.S)
+        if owner:
+            guid = re.search(r"uint(16|32|64)\s+Guid", owner.group(1))
+            if not guid:
+                fail("src/mod_psychohouse.h", "Owner has no Guid member")
+            elif guid.group(1) != "64":
+                fail("src/mod_psychohouse.h", "Owner::Guid is uint{}, the character key is 64-bit".format(
+                    guid.group(1)))
+
+        if "std::map<uint32, Owner>" in text:
+            fail("src/mod_psychohouse.h", "the owner cache is keyed by uint32")
+
+    for name in sorted(os.listdir(os.path.join(DRAFT, "src"))):
+        if not name.endswith(".cpp"):
+            continue
+        text = read(os.path.join(DRAFT, "src", name))
+        if re.search(r"uint32 const guid = \w+->GetGUID\(\)\.GetCounter\(\)", text):
+            fail("src/" + name, "the character GUID is read into a uint32 and will truncate")
+
+
+def check_conf_shape():
+    """The keys are pasted into worldserver.conf, so the file must carry no section header.
+
+    ConfigMgr::LoadInitial() keeps only the first section of the one file it is given; a
+    [psychohouse] header pasted into worldserver.conf would start a second section and every
+    key under it would be ignored without a single log line.
+    """
+    dist = os.path.join(DRAFT, "conf", "mod_psychohouse.conf.dist")
+    if not os.path.exists(dist):
+        return
+
+    text = read(dist)
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.strip().startswith("["):
+            fail("conf", "line {}: section header `{}` - the core reads only the first "
+                         "section of worldserver.conf, so this would be ignored".format(
+                             number, line.strip()))
+
+    if "worldserver.conf" not in text:
+        fail("conf", "the file does not say where the keys belong")
+
+
+def check_sql_style():
+    """MariaDB-facing rules that a parser would accept but a careless import would not."""
+    for path in sql_files():
+        label = os.path.relpath(path, DRAFT)
+        text = strip_comments(read(path))
+
+        if "INSERT IGNORE" in text.upper():
+            fail(label, "INSERT IGNORE hides a duplicate-key error instead of reporting it")
+
+        for match in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?`(\w+)` \(.*?\n\)\s*(.*?);",
+                                 text, re.S):
+            tail = match.group(2)
+            for needed in ("ENGINE=", "CHARSET=", "COLLATE="):
+                if needed not in tail:
+                    fail(label, "`{}` does not pin {} - a server default is not portable".format(
+                        match.group(1), needed.rstrip("=")))
+
+        for match in re.finditer(r"SET `(\w+)` = \((?!=)", text):
+            fail(label, "`{}` gets a bare scalar subquery; wrap it in COALESCE(..., 0) or a "
+                        "missing row aborts the statement on a strict server".format(match.group(1)))
+
+
 def check_conf():
     dist = os.path.join(DRAFT, "conf", "mod_psychohouse.conf.dist")
     if not os.path.exists(dist):
@@ -409,6 +613,10 @@ def main():
     check_readme_numbers(rows)
     check_build_claims(args.repo)
     check_conf()
+    check_conf_shape()
+    check_query_dialect()
+    check_guid_width(args.repo)
+    check_sql_style()
 
     print("{} SQL files, {} tables, {} facilities, {} build tables cross-checked".format(
         len(texts), len(tables), len(rows), len(vocab)))

@@ -326,3 +326,33 @@ more added later - seven in total - were each reported, and an unbalanced block 
 
 What neither can settle, and the draft's README says so first: MySQL parsing the SQL, and a
 compiler accepting the C++. Neither exists here.
+
+
+### 6.7 The draft, read against MariaDB 11.8.6
+
+The third draft was written and mechanically checked, and then read line by line against the
+server it will actually run on. Five defects came out of that read, four of them fatal and one
+silent, and none of them would have been found by a column-and-width checker:
+
+| Defect | Why it mattered | Now |
+| --- | --- | --- |
+| `Query("... {}", x)` in three places, and `{}` in every parameterised statement | this build has `Query(char const*)` and the variadic `PQuery`, and `Trinity::StringFormat` is `fmt::sprintf`. Half of them would not compile; the other half would have sent the braces to the server as SQL | `PQuery`/`PExecute` with `%u`/`%s`/`UI64FMTD`, counted by a checker |
+| the house key was `int unsigned` and `uint32` | `characters.guid` is `bigint(20) unsigned` and `ObjectGuid::LowType` is `uint64`, so the key would truncate on an old realm | `bigint unsigned` / `uint64`, cross-checked against the build's own base schema |
+| the `.conf.dist` carried a `[psychohouse]` header and said to put the file next to the binary | `ConfigMgr::LoadInitial` reads one file and keeps `fullTree.begin()->second`; the keys would never have been read and every value would have fallen back to its default without a log line | keys pasted into `worldserver.conf`, no header, and a checker that refuses a header |
+| resolvers assigned a bare scalar subquery | on MariaDB with the default `sql_mode`, a subquery that matches nothing returns NULL and the `NOT NULL` insert aborts with error 1048 on the first missing service | every subquery wrapped in `COALESCE(..., 0)` |
+| `INSERT IGNORE` on the phase allocation, and `InHouse` left set at logout | the first could hand two characters the same phase; the second meant a character that logged out inside the house never had it furnished again | plain `INSERT` with the read-back retry, and a logout hook that clears the flag |
+
+Two smaller ones came out of the same read: `WorldSession.h` was missing in the two files that
+call `GetSession()->GetAccountId()` and `GetSession()->GetPlayer()`, neither of which compiles
+without it; and the four player commands were registered against a GM permission, so only a GM
+could use a command meant for the house owner.
+
+All of it is enforced now, not remembered. `check_psychohouse.py` gained five checks - printf
+dialect and argument counts, the 64-bit key on both sides, `COLLATE` on every table, no
+`INSERT IGNORE`, no bare scalar subquery - plus the rule that the config carries no section
+header. Each was mutation-tested with a deliberate fault and each fault was reported.
+
+Execution is still absent: there is no MariaDB server here and no compiler. As a syntax check,
+all four files were parsed with a MySQL-dialect parser in one sitting; that proves the
+statements parse, not that they run.
+
