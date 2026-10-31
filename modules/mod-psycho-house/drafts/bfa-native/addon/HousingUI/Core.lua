@@ -250,6 +250,94 @@ H.handlers["VAREAEND"] = function()
 end
 
 -- ---------------------------------------------------------------------------
+-- Blueprint codes (doc 06 sec.3)
+--
+--   PCH1-<kind>-<faction>-<payload>-<checksum>
+--
+-- kind is R, B or E; faction is 0, 1 or 2; the payload is base62 text; the checksum is
+-- four base62 characters, the CRC32 of the payload. The payload carries no hyphen, so a
+-- plain split on "-" is safe.
+--
+-- There is no blueprint opcode yet - import and export are phase 4 - so this checks a code
+-- against the format and nothing else. It is here rather than in the menu because the
+-- format is the thing that has to be right before a single code is written.
+-- ---------------------------------------------------------------------------
+
+local CRC_TABLE = nil
+
+local function BuildCrcTable()
+    CRC_TABLE = {}
+    for index = 0, 255 do
+        local value = index
+        for _ = 1, 8 do
+            if bit.band(value, 1) == 1 then
+                value = bit.bxor(bit.rshift(value, 1), 0xEDB88320)
+            else
+                value = bit.rshift(value, 1)
+            end
+        end
+        CRC_TABLE[index] = value
+    end
+end
+
+function H.Crc32(text)
+    if not CRC_TABLE then
+        BuildCrcTable()
+    end
+
+    local crc = 0xFFFFFFFF
+    for index = 1, string.len(text) do
+        local byte = string.byte(text, index)
+        crc = bit.bxor(bit.rshift(crc, 8), CRC_TABLE[bit.band(bit.bxor(crc, byte), 0xFF)])
+    end
+
+    crc = bit.bxor(crc, 0xFFFFFFFF)
+    return crc % 4294967296
+end
+
+local BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+function H.Base62(value, width)
+    local out = ""
+    repeat
+        local digit = value % 62
+        out = string.sub(BASE62, digit + 1, digit + 1) .. out
+        value = math.floor(value / 62)
+    until value == 0
+
+    while string.len(out) < (width or 0) do
+        out = "0" .. out
+    end
+    return out
+end
+
+function H.Checksum(payload)
+    return H.Base62(H.Crc32(payload), 4)
+end
+
+local BLUEPRINT_KINDS = { R = true, B = true, E = true }
+
+function H.ValidateBlueprint(code)
+    local kind, faction, payload, checksum =
+        string.match(code or "", "^PCH1%-(%a)%-(%d)%-(%w+)%-(%w%w%w%w)$")
+
+    if not kind then
+        return false, "not a PCH1 code (PCH1-<kind>-<faction>-<payload>-<checksum>)"
+    end
+    if not BLUEPRINT_KINDS[kind] then
+        return false, "kind '" .. kind .. "' is not R, B or E"
+    end
+    if faction ~= "0" and faction ~= "1" and faction ~= "2" then
+        return false, "faction '" .. faction .. "' is not 0, 1 or 2"
+    end
+    if H.Checksum(payload) ~= checksum then
+        return false, "checksum is " .. H.Checksum(payload) .. ", code says " .. checksum
+    end
+
+    return true, kind, faction, payload
+end
+
+-- ---------------------------------------------------------------------------
 -- Slash commands
 -- ---------------------------------------------------------------------------
 
@@ -259,7 +347,7 @@ local function Usage()
     Print("          /housing place <decorId> <x> <y> <z> <o> <scale> <indoor>")
     Print("          /housing move <placementId> <x> <y> <z> <o> <scale>|remove <id>")
     Print("          /housing guests|guest add <name> <flags>|guest del <name>|amenities")
-    Print("          /housing raw <payload>|log|clear")
+    Print("          /housing bp <code>|crc <text>|raw <payload>|log|clear")
 end
 
 SLASH_HOUSING1 = "/housing"
@@ -333,6 +421,17 @@ SlashCmdList["HOUSING"] = function(input)
         else
             Print("usage: /housing guest add <name> <flags> | /housing guest del <name>")
         end
+    elseif command == "bp" or command == "blueprint" then
+        local ok, reason, faction, payload = H.ValidateBlueprint(rest)
+        if ok then
+            Print("blueprint ok: kind " .. reason .. ", faction " .. faction ..
+                ", payload " .. #payload .. " chars")
+        else
+            Print("|cffff5555" .. reason .. "|r")
+        end
+    elseif command == "crc" then
+        Print("crc32 '" .. rest .. "' = " .. H.Crc32(rest) ..
+            " -> " .. H.Base62(H.Crc32(rest), 4))
     elseif command == "raw" then
         Send(rest)
     elseif command == "log" then

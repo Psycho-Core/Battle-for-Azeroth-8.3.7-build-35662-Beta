@@ -70,7 +70,7 @@ transportation, portal, bulletin board, General Contractor, flight point.
 | Dye Crafter (Alchemy + Inscription) | Helmi Cooper | Haleth Turnwater | 255126 / 255125 |
 | Pet decor vendor | Perry Winkles | Agratha | 267795 / 267794 |
 | Cobwebs (outside the hub) | Klasa, Brumewood Hollow basement | Lonomia, Saltfang Shoals under a dock | 256750 / 240465 |
-| Smugglers (cross-faction decor) | Breakwater Bight: "High Tides" Ren, "Len" Splinthoof, "Yen" Malone, Unquestionably Griftah | Runetotem's Bounty South: the same | 255222/255325, 255223/255324, 255230/255319, 267870 |
+| Smugglers (cross-faction decor) | Breakwater Bight: "High Tides" Ren, "Len" Splinthoof, "Yen" Malone, Unquestionably Griftah | Runetotem's Bounty South: the same | 255222/255325, 255228/255326, 255230/255319, 267870 |
 
 ## 4. Every vendor, with ids and coordinates
 
@@ -755,9 +755,8 @@ number.
 | Rows | Transcribed rows against the 1 155 catalogue | 1 056, the 99 remainder named in section 7.4 |
 | Item ids | Every id read off a vendor page, none inferred | 739 ids on 1 056 rows |
 | Currency | Gold, Community Coupons, Tricky Treat, Deed of Patronage kept distinct | verified |
-| Ids | Printed only when confirmed against an NPC page | 18 confirmed, 9 not |
+| Vendor ids | Printed only when confirmed against an NPC page | 39 of 39 confirmed. Throska, a service NPC outside the vendor list, still prints no id |
 | Coordinates | Every coordinate carries its `/way` map id | verified, #2351 vs #2352 |
-| Prices | Printed only when the source prints them | 30 corrected to wowhead; 85 blanks remain where wowhead has not been read yet |
-| Item ids | Id traced to the item page | 358 resolved, 0 guessed |
-| Decor to game object | Every mapped entry checked against the source index | 550 pieces mapped, 0 invented ids |
-| Vendor npc ids | Id traced to the npc page | 38 of 38 |
+| Prices | Printed only when the source prints them | 30 corrected against wowhead; 87 blanks remain, every one listed in section 7.6 |
+| Item ids | Id traced to the item page, none inferred | 739 ids resolved, 0 guessed; 317 rows still without one, counted in section 7.2 |
+| Decor to game object | Every mapped entry checked against the source index | 618 names mapped onto 187 game objects, 571 decor rows shipped, 0 invented entries |

@@ -121,6 +121,13 @@ PCH1-<kind>-<faction>-<payload>-<checksum>
 | `payload` | base62 of a zlib-packed bitstream |
 | `checksum` | 4 base62 chars, CRC32 of the payload |
 
+That checksum is implemented, not just specified. `H.Crc32`, `H.Base62`, `H.Checksum` and
+`H.ValidateBlueprint` live in `addon/HousingUI/Core.lua`, the Blueprints tab calls them, and
+`/housing bp <code>` and `/housing crc <text>` do the same from the command line. The CRC32
+uses the standard 0xEDB88320 table and matches the usual check value: CRC32 of `123456789`
+is `CBF43926`. Import and export stay phase 4 - what works today is that a code can be told
+apart from a corrupted one before anything is saved.
+
 ### 3.2 Payload layout
 
 ```

@@ -158,6 +158,8 @@ already at the top of each generated file.
 python3 tools/housing/build_drafts.py
 ```
 
-That reads the three CSVs, rewrites six SQL files across the two drafts, and re-copies the
-C++ and the addon. Everything it writes carries a generated-file header, so the rule is
-simple: edit the CSVs or the C++, never the generated SQL.
+That reads the three CSVs, rewrites nine world SQL files across the two drafts (five in the
+port, four in the native build), copies the character schema into both, and re-copies the
+C++ and the addon. `tools/housing/build_quests.py` then writes `06_quests.sql` into both.
+Everything they write carries a generated-file header, so the rule is simple: edit the CSVs
+or the C++, never the generated SQL.

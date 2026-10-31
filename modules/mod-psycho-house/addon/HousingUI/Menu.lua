@@ -654,9 +654,9 @@ blueprintHeader:SetText("Blueprint codes")
 local blueprintIntro = NewLabel(blueprintPane, nil, "TOPLEFT", 0, -26)
 blueprintIntro:SetWidth(540)
 blueprintIntro:SetText("A blueprint is a single line: a header, a kind, a faction, the payload " ..
-    "and a checksum. Paste one below and press Copy to keep it in SavedVariables; the " ..
-    "server side of import and export is phase 4, so the code below is the format, not a " ..
-    "working import yet.")
+    "and a checksum. Paste one below and press Check: the checksum is CRC32 of the payload, " ..
+    "four base62 characters, and it is verified here rather than on the server. Import and " ..
+    "export are phase 4, so a code that checks out is a well-formed code, not a saved house.")
 
 local blueprintSample = NewLabel(blueprintPane, "GameFontHighlightSmall", "TOPLEFT", 0, -92)
 blueprintSample:SetWidth(540)
@@ -668,15 +668,37 @@ blueprintBox:SetPoint("TOPLEFT", blueprintPane, "TOPLEFT", 8, -120)
 blueprintBox:SetAutoFocus(false)
 blueprintBox:SetText("")
 
-NewButton(blueprintPane, "Copy", 80, 0, -150, function()
-    HousingUIDB = HousingUIDB or {}
-    HousingUIDB.blueprint = blueprintBox:GetText()
-    H.Print("blueprint saved to SavedVariables")
+local blueprintResult = NewLabel(blueprintPane, nil, "TOPLEFT", 0, -180)
+blueprintResult:SetWidth(540)
+
+NewButton(blueprintPane, "Check", 80, 0, -150, function()
+    local ok, a, b, c = H.ValidateBlueprint(blueprintBox:GetText())
+    if ok then
+        blueprintResult:SetText(GOOD .. "well formed: kind " .. a .. ", faction " .. b ..
+            ", payload " .. #c .. " characters" .. RESET)
+    else
+        blueprintResult:SetText(BAD .. tostring(a) .. RESET)
+    end
 end)
 
-NewButton(blueprintPane, "Paste", 80, 90, -150, function()
+NewButton(blueprintPane, "Save", 80, 90, -150, function()
+    HousingUIDB = HousingUIDB or {}
+    HousingUIDB.blueprint = blueprintBox:GetText()
+    blueprintResult:SetText(DIM .. "saved to SavedVariables" .. RESET)
+end)
+
+NewButton(blueprintPane, "Load", 80, 180, -150, function()
     HousingUIDB = HousingUIDB or {}
     blueprintBox:SetText(HousingUIDB.blueprint or "")
+end)
+
+NewButton(blueprintPane, "Checksum", 100, 270, -150, function()
+    local payload = string.match(blueprintBox:GetText() or "", "^PCH1%-%a%-%d%-(%w+)%-%w%w%w%w$")
+    if payload then
+        blueprintResult:SetText("checksum for this payload: " .. GOLD .. H.Checksum(payload) .. RESET)
+    else
+        blueprintResult:SetText(BAD .. "paste a full PCH1 code first" .. RESET)
+    end
 end)
 
 -- ---------------------------------------------------------------------------
@@ -700,6 +722,7 @@ local GUIDE_LINES = {
     "|cffffd100Remove|r     C:REMOVE <placementId>",
     "|cffffd100Guests|r     C:GUESTLIST, C:GUESTADD <name> <flags>, C:GUESTDEL <name>",
     "|cffffd100Amenities|r  C:VAREA -> S:VAREA per amenity, S:VAREAEND at the end",
+    "|cffffd100Blueprints|r PCH1 codes: checked and checksummed in the addon, no opcode yet",
 }
 
 for index, line in ipairs(GUIDE_LINES) do

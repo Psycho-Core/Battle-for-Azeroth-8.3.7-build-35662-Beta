@@ -90,7 +90,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | 03 asset catalogue | 28 314 named constants, 1 570 game objects, 988 decor shaped | Recounted from the index this round: 1 570, 460 item, 4 912 creature constants |
 | 04 content spec | Quest ids 900100-900103, Endeavor tables, reward bands | Complete; the four quests are now rows in `06_quests.sql` in both drafts, and the two agree with this spec line for line |
 | 05 build plan | Phase 0 to phase 6, file lists per phase | Complete; the file lists match the shipped `src/` tree |
-| 06 blueprint, dye, pet bed | `PCH1` payload format, checksum, dye channels | Complete; the checksum is defined and a Lua implementation is in the addon |
+| 06 blueprint, dye, pet bed | `PCH1` payload format, checksum, dye channels | Complete. The checksum is no longer only specified: `Crc32`, `Base62`, `Checksum` and `ValidateBlueprint` are in `Core.lua`, called by the Blueprints tab and by `/housing bp`, and the CRC matches the standard check value |
 | 07 client patching | `.toc`, `## Interface: 80300`, message prefix, DB2 notes | Complete; the addon ships as `addon/HousingUI/` and is renamed on install |
 | 08 source appendix | Pointer to the generated index | Regenerated from `build_appendix.py`; header, 14 sections and the per-section totals agree with the CSV |
 | 09 town centre register | 39 vendors, 1 056 rows, 739 ids, 87 blanks | Current. The 99 rows still behind the page cap are named in doc 09 sec.7.4 |
@@ -245,8 +245,14 @@ tree stayed at zero.
 `python3 tools/housing/check_lua.py` does the same job for the addon: block balance with
 the `do` in `for ... do` counted once, unterminated strings, globals assigned without a
 `local` (SavedVariables named in the `.toc` excepted), and a `.toc` whose listed files exist.
-`Core.lua` and `Menu.lua` come to 1 134 lines, 0 findings, and a missing `end` plus a stray
+`Core.lua` and `Menu.lua` come to 1 324 lines, 0 findings, and a missing `end` plus a stray
 global in a copy were both caught.
+
+The blueprint checksum is the one piece of addon code with a number to check, so it was
+checked outside the client: the same 0xEDB88320 table and loop, run in Python, gives
+`CBF43926` for `123456789`, which is the published CRC32 test value. A wrong table constant
+would still produce a stable checksum - and would still reject every code written by a
+correct implementation, which is exactly the failure this check rules out.
 
 `verify_drafts.py` also had a bug worth writing down, because it is the kind that makes a
 clean report worthless: its INSERT pattern required a space before `VALUES`, and it ended
