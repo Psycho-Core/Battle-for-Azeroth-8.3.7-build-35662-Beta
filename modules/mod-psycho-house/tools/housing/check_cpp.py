@@ -31,11 +31,10 @@ import sys
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(HERE, "src")
 
+# Both are overridable so a draft in drafts/ can be checked with the same tool. --src picks
+# the tree to read, --sql picks the directories whose CREATE TABLEs are the vocabulary.
 CPP_FILES = []
-for base, _dirs, files in os.walk(SRC):
-    for name in sorted(files):
-        if name.endswith((".cpp", ".h")):
-            CPP_FILES.append(os.path.join(base, name))
+SCHEMA_ROOTS = []
 
 findings = []
 
@@ -219,14 +218,23 @@ def check_includes(path, text, repo):
         fail(label, "include \"{}\" does not resolve".format(line))
 
 
+def collect_sources():
+    del CPP_FILES[:]
+    for base, _dirs, files in os.walk(SRC):
+        for name in sorted(files):
+            if name.endswith((".cpp", ".h")):
+                CPP_FILES.append(os.path.join(base, name))
+
+
 def module_schema():
     """table -> set of columns, read out of the module's own CREATE TABLE statements."""
     schema = []
-    for base, _dirs, files in os.walk(os.path.join(HERE, "sql")):
-        for name in files:
-            if name.endswith(".sql"):
-                with open(os.path.join(base, name), encoding="utf-8") as handle:
-                    schema.append(handle.read())
+    for root in (SCHEMA_ROOTS or [os.path.join(HERE, "sql")]):
+        for base, _dirs, files in os.walk(root):
+            for name in files:
+                if name.endswith(".sql"):
+                    with open(os.path.join(base, name), encoding="utf-8") as handle:
+                        schema.append(handle.read())
     text = "\n".join(schema)
     tables = {}
     for match in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?`(\w+)` \((.*?)\n\)", text, re.S):
@@ -258,7 +266,20 @@ def main():
     parser.add_argument("--repo", default=find_repo(),
                         help="source checkout to resolve includes against, "
                              "default: the tree this module sits in")
+    parser.add_argument("--src", default=None,
+                        help="directory of .cpp/.h files to check, default: this module's src/")
+    parser.add_argument("--sql", action="append", default=None,
+                        help="directory of CREATE TABLE statements, repeatable, "
+                             "default: this module's sql/")
     args = parser.parse_args()
+
+    global SRC
+    if args.src:
+        SRC = os.path.abspath(args.src)
+    del SCHEMA_ROOTS[:]
+    if args.sql:
+        SCHEMA_ROOTS.extend(os.path.abspath(item) for item in args.sql)
+    collect_sources()
 
     headers, cpp_files = {}, {}
     for path in CPP_FILES:

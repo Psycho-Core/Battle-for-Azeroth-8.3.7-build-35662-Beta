@@ -1,0 +1,75 @@
+####################################################################################
+#  mod-psychohouse - island house
+#
+#  A house per character, on GM Island, in a phase of its own. Nothing here is per
+#  guild and nothing here is per account.
+#
+#  Copy this file to mod_psychohouse.conf next to the worldserver binary and edit that
+#  copy. The module reads it at startup and again on .reload config.
+####################################################################################
+
+[psychohouse]
+
+# PsychoHouse.Enable
+#   Master switch. 0 hides both NPCs and refuses every purchase; existing houses keep
+#   their rows and reappear unchanged when switched back on.
+#   Default: 1
+PsychoHouse.Enable = 1
+
+# PsychoHouse.Price.House
+#   Price of the house itself, in copper. 10000 copper = 1 gold, so 10000000 is 1000 gold.
+#   Facility prices are not here - they are per row in `psychohouse_facility`, so a realm
+#   can reprice one service without touching the rest.
+#   Default: 10000000
+PsychoHouse.Price.House = 10000000
+
+# PsychoHouse.Refund.Percent
+#   Share of the house price returned on sale, 0-100. Facility purchases are not
+#   refunded: they stay in `psychohouse_purchase` history until the house is sold.
+#   Default: 50
+PsychoHouse.Refund.Percent = 50
+
+####################################################################################
+#  Where the house stands
+#
+#  GM Island, Kalimdor. The anchor is the flat courtyard in the middle of the island;
+#  every facility position in `psychohouse_facility` is an offset from this point, and
+#  the two NPCs have their own offsets below. Moving a whole house is these four numbers.
+#
+#  Zone and area are configuration, not code: they are content, and a realm that has
+#  reassigned either should not need a rebuild.
+####################################################################################
+
+# Default: 1 (Kalimdor)
+PsychoHouse.Map = 1
+
+# Default: 876
+PsychoHouse.Zone = 876
+
+# Default: 876
+PsychoHouse.Area = 876
+
+# Default: 16222.97 / 16267.80 / 13.14 / 1.46
+PsychoHouse.Anchor.X = 16222.97
+PsychoHouse.Anchor.Y = 16267.80
+PsychoHouse.Anchor.Z = 13.14
+PsychoHouse.Anchor.O = 1.46
+
+####################################################################################
+#  The two NPCs
+#
+#  Offsets from the anchor. The Keeper sells and listens; the Steward sells facilities.
+#  Entries 900200 and 900201 are created by sql/world/02_creatures.sql.
+####################################################################################
+
+# Default: -1.5 / -2.5 / 0 / 0
+PsychoHouse.Keeper.Offset.X = -1.5
+PsychoHouse.Keeper.Offset.Y = -2.5
+PsychoHouse.Keeper.Offset.Z = 0.0
+PsychoHouse.Keeper.Offset.O = 0.0
+
+# Default: 1.5 / -2.5 / 0 / 0
+PsychoHouse.Steward.Offset.X = 1.5
+PsychoHouse.Steward.Offset.Y = -2.5
+PsychoHouse.Steward.Offset.Z = 0.0
+PsychoHouse.Steward.Offset.O = 0.0

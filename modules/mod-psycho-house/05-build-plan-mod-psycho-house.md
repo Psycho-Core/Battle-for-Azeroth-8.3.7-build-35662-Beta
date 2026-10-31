@@ -184,15 +184,13 @@ map has art). Gossip states:
 ### 4.6 The facility shop
 
 A house with no bank, no mailbox and no auctioneer is a diorama. The facility layer is
-small, it is independent of decor, and doc 13 sec.13 lays out the four steps in order:
-thirteen additions to `AmenityType`, six columns on `psycho_house_amenity`, one purchase path
-that reuses the existing spawner, and the guild hooks from 4.3a.
+small, independent of decor, and already written: `drafts/mod-psychohouse/` sells twelve
+services and two faction portals from a table, and doc 13 is the design.
 
-The facility list I take from the guild house module, corrected from Wrath to 8.3.7: class
-trainers, primary and secondary profession trainers at BfA ranks, bank, mailbox, guild vault,
-auctioneer and neutral auctioneer, stable master, innkeeper, spirit healer, forge, anvil,
-barber chair, and the portal set. Nothing about it is hard; it is the part of housing that
-makes the plot worth visiting twice.
+Bringing it here is four steps: thirteen additions to `AmenityType`, six columns on
+`psycho_house_amenity`, one purchase path that reuses the existing spawner, and the guild
+hooks from 4.3a. Nothing about it is hard; it is the part of housing that makes the plot worth
+visiting twice.
 
 ## 5. Phase 2 - addon UI v1
 

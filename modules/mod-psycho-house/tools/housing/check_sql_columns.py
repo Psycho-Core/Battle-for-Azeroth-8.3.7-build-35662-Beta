@@ -21,9 +21,13 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+sys.path.insert(0, os.path.join(HERE, "tools", "housing"))
+import build_schema  # noqa: E402  - the loader queries, read by check_psychohouse too
 MODULE_SQL = [os.path.join(HERE, "sql"),
               os.path.join(HERE, "drafts", "midnight-port", "sql"),
-              os.path.join(HERE, "drafts", "bfa-native", "sql")]
+              os.path.join(HERE, "drafts", "bfa-native", "sql"),
+              os.path.join(HERE, "drafts", "mod-psychohouse", "sql")]
 
 INSERT = re.compile(r"INSERT\s+INTO\s+`(\w+)`\s*\(([^)]*)\)", re.I)
 UPDATE = re.compile(r"UPDATE\s+`(\w+)`\s+SET\s+(.*?)(?:\bWHERE\b|;)", re.I | re.S)
@@ -139,6 +143,16 @@ def main():
 
     vocab = harvest(sql_root)
     print("harvested {} tables from {}".format(len(vocab), sql_root))
+
+    # The build's own SQL only ever writes a handful of columns per table - an INSERT that
+    # touches twelve of creature_template's seventy-eight is normal. A full-row INSERT would
+    # therefore look wrong here. The loader queries are the complete list, so they are merged
+    # in for the tables a house module writes to.
+    from_loader = build_schema.loader_vocabulary(args.repo)
+    for table, columns in from_loader.items():
+        vocab[table] = sorted(set(vocab.get(table, [])) | set(columns))
+    if from_loader:
+        print("merged loader columns for {}".format(", ".join(sorted(from_loader))))
     for table in ("quest_template", "quest_template_addon", "quest_objectives",
                   "creature_template", "creature", "item_template", "gameobject_template"):
         print("  {:<24} {:>4} columns".format(table, len(vocab.get(table, []))))
