@@ -4323,7 +4323,7 @@ Solocraft.Raid40 = 40
 ###################################################################################################
 #   HOUSING
 #   Player housing module - Founder's Point (alliance neighbourhood).
-#   Reference: docs/player-housing/06-build-test-operations.md
+#   Reference: modules/mod-psycho-house/legacy-prototype/06-build-test-operations.md
 #   Every key is optional; the defaults below keep the module switched off.
 ###################################################################################################
 

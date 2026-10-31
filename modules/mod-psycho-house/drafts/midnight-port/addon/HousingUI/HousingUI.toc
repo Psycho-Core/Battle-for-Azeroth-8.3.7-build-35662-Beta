@@ -1,0 +1,8 @@
+## Interface: 80300
+## Title: Housing UI (protocol harness)
+## Notes: Server-side housing module transport and parser. Development build - no frames.
+## Author: Thordekk
+## Version: 0.3.0
+## SavedVariables: HousingUIDB
+
+Core.lua

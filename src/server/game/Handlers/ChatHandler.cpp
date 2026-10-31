@@ -437,7 +437,7 @@ void WorldSession::HandleChatAddonMessage(ChatMsg type, std::string prefix, std:
         return;
 
     // The housing module owns the BFAH prefix end to end. This is the only place the
-    // core knows the module exists; see docs/player-housing/02-module-architecture.md.
+    // core knows the module exists; see modules/mod-psycho-house/legacy-prototype/02-module-architecture.md.
     if (prefix == Housing::kAddonPrefix)
     {
         sHousingMgr->HandleAddonMessage(sender, text);

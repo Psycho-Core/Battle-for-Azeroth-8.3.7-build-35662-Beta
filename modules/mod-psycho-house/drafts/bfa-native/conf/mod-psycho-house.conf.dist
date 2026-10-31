@@ -1,0 +1,96 @@
+###################################################################################################
+#   mod-psycho-house - draft B, built only from what 8.3.7 build 35662 already has
+#
+#   Copy the keys that matter into worldserver.conf. Every key is optional.
+#
+#   This draft carries no retail ids at all. The decor catalogue is 350 game objects that
+#   already exist in my source tree as named constants, the vendors are my own eight
+#   stalls, and every price is gold. It is the version that runs on a clean 8.3.7 client
+#   with no imported art and no retail item ids.
+###################################################################################################
+
+#   Housing.Enable
+#       Description: Enable the player housing module.
+#       Default:     0 (disabled) - 1 (enabled)
+
+Housing.Enable = 0
+
+#   Housing.Map.Mode
+#       Description: "native" expects the housing map to exist in Map.db2. "anchor" runs on
+#                    an existing map with hand-placed plot anchors. A fresh 8.3.7 install
+#                    has no housing map, so this draft defaults to "anchor".
+#       Default:     "anchor"
+
+Housing.Map.Mode = "anchor"
+
+#   Housing.Map.Id
+#       Description: Map id used by the module. In "anchor" mode this is any existing map
+#                    with room for 55 yard anchors; Elwynn Forest (0) works.
+#       Default:     0
+
+Housing.Map.Id = 0
+
+#   Housing.Interior.Map
+#       Description: Map id used for house interiors. In "anchor" mode leave this at 0 so
+#                    interiors reuse the same map.
+#       Default:     0
+
+Housing.Interior.Map = 0
+
+#   Housing.Interior.X / .Y / .Z / .O
+#       Description: Interior anchor for the shared house shell.
+#       Default:     0.0
+
+Housing.Interior.X = 0.0
+Housing.Interior.Y = 0.0
+Housing.Interior.Z = 0.0
+Housing.Interior.O = 0.0
+
+#   Housing.TownCenter.X / .Y / .Z / .O
+#       Description: Town Center landing point. 0/0 disables the "leave" teleport.
+#       Default:     0.0
+
+Housing.TownCenter.X = 0.0
+Housing.TownCenter.Y = 0.0
+Housing.TownCenter.Z = 0.0
+Housing.TownCenter.O = 0.0
+
+#   Housing.Phasing.PlotScoped
+#       Description: Hide a plot's yard decor unless a player stands in that plot.
+#       Default:     1
+
+Housing.Phasing.PlotScoped = 1
+
+#   Housing.SaveInterval
+#       Description: Seconds between deferred decor and name writes.
+#       Default:     30
+
+Housing.SaveInterval = 30
+
+#   Housing.RateLimit.Messages
+#       Description: Addon messages accepted per ten second window, per player.
+#       Default:     20
+
+Housing.RateLimit.Messages = 20
+
+#   Housing.Homestone.Cooldown
+#       Description: Homestone teleport cooldown in seconds. Retail value is 900.
+#       Default:     900
+
+Housing.Homestone.Cooldown = 900
+
+#   Housing.Sell.RefundPercent
+#       Description: Percentage of the plot price refunded when a plot is sold.
+#       Default:     50
+
+Housing.Sell.RefundPercent = 50
+
+###################################################################################################
+#   Keys this draft is built for but the C++ does not read yet.
+#
+#   Housing.Level.Max          = 6
+#   Housing.Budget.Indoor      = 3000
+#   Housing.Budget.Exterior    = 200
+#   Housing.Dye.Enabled        = 0
+#   Housing.Blueprint.Enabled  = 1
+###################################################################################################
