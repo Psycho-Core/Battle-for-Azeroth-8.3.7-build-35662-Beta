@@ -28,6 +28,7 @@
 #include "Group.h"
 #include "Guild.h"
 #include "GuildMgr.h"
+#include "HousingMgr.h"
 #include "Language.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
@@ -431,6 +432,17 @@ void WorldSession::HandleChatAddonMessage(ChatMsg type, std::string prefix, std:
     // Disabled addon channel?
     if (!sWorld->getBoolConfig(CONFIG_ADDON_CHANNEL))
         return;
+
+    if (!sender)
+        return;
+
+    // The housing module owns the BFAH prefix end to end. This is the only place the
+    // core knows the module exists; see docs/player-housing/02-module-architecture.md.
+    if (prefix == Housing::kAddonPrefix)
+    {
+        sHousingMgr->HandleAddonMessage(sender, text);
+        return;
+    }
 
     switch (type)
     {
