@@ -80,7 +80,7 @@ Everything else - decor, trees, tents, carts, braziers, fences - comes from the 
 | File | Contents |
 | --- | --- |
 | `PsychoHouse.toc` | `## Interface: 80300`, SavedVariables, file list |
-| `Core.lua` | Transport, message dispatch, slash commands. **Ships today** |
+| `Core.lua` | Transport, message dispatch, slash commands, and the `PCH1` checksum. **Ships today** |
 | `Menu.lua` | The housing window: House (with the amenity list), Catalogue, Placed, Neighbours, Endeavors, Blueprints, Guide tabs. **Ships today**, checked against the server with `check_protocol.py` |
 | `Placement.lua` | Placement mode and gizmo - the Placed tab lists and removes, it does not drag pieces yet |
 | `Permissions.lua` | Two matrices |

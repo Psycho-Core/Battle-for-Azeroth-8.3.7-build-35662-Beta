@@ -262,14 +262,21 @@ non-placeable kinds: **767 game objects** and **221 creatures**.
 
 | Category | Game-object candidates |
 | --- | --- |
-| Structural > Windows | 316 |
+| Structural > Doors | 337 |
 | Furnishings > Storage | 157 |
 | Structural > Large Structures | 111 |
 | Accents > Ornamental | 53 |
 | Structural > Walls and Columns | 51 |
 | Furnishings > Seating | 22 |
 | Lighting > Small Lights | 15 |
-| (remaining families) | 42 |
+| Functional > Utility | 7 |
+| Nature > Large Foliage | 6 |
+| Furnishings > Tables and Desks | 4 |
+| (remaining families) | 4 |
+
+Doors are the largest family and the least useful: 337 of the 767 are door and gateway
+constants, which is why the native draft rejects them by name and starts from the 430 that
+are left.
 
 Two files carry the full list:
 

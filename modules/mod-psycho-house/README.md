@@ -67,6 +67,7 @@ publish entry ids for the interior quests.
 | 09 | [Town Center register](09-town-center-register.md) | Every hub service, every service NPC, every one of the 39 neighborhood vendors with currency, coordinates and npc ids, and the **complete item list for all 39 vendors (1 056 items)**, of which **739 carry a retail item id**, with prices and unlock gates. Raw data in `data/town-center-stock.csv`, raw captures in `data/captures/`. |
 | 10 | [Draft modules](10-draft-modules.md) | The two drafts in `drafts/`: what each one contains, what it deliberately leaves out, how to install it, and how to switch between them. |
 | 11 | [Verification ledger](11-verification-ledger.md) | Where every number comes from, what the audit checks, what could not be checked here, and the exact size of what is still open. |
+| 12 | [Midnight item port](12-midnight-item-port.md) | Item by item: what a decor id has to be for the module to work, keeping the retail ids, the catalogue-only route, the full port with model and texture conversion, the five DB2 tables, icons, packaging, the order to verify in, and how the housing menus are rebuilt client side. |
 | - | [Generated index](generated/source-asset-index.md) | Auto-generated inventory (28 314 named id constants) plus the CSV. |
 
 ## Tools that ship with this
@@ -136,6 +137,19 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, thirteenth revision
+
+The final pass, done against the files rather than against my notes.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 57 | Doc 09's acceptance table still carried numbers from before the last three rounds: 18 confirmed ids of 27, 85 blanks, 358 ids, 550 mapped pieces, 38 of 38 vendor ids - and it listed "Item ids" twice | Rewritten against the CSVs: 39 of 39 vendor ids, 87 blanks, 739 ids, 618 names on 187 game objects, one row per claim |
+| 58 | Doc 03's family table was wrong at the top: it said "Structural > Windows 316" when the index has 337 doors and one window | Recounted from `generated/source-asset-index.csv` and corrected, with the door total called out because it is the family the native draft rejects |
+| 59 | The research table still said 90 gated stock rows | 59, matching doc 10 and draft A |
+| 60 | Doc 10 said the builder rewrites "six SQL files" | Nine across the two drafts, plus `build_quests.py` for the sixth file in each |
+| 61 | The `PCH1` checksum was specified in doc 06 and implemented nowhere, while the ledger claimed a Lua implementation existed | Implemented in `Core.lua` (`Crc32`, `Base62`, `Checksum`, `ValidateBlueprint`), wired to the Blueprints tab and to `/housing bp` and `/housing crc`, and checked against the standard CRC32 test value |
+| 62 | Doc 09's smuggler table still printed Len as **255223/255324** - the Voidclot id the document itself corrects further down | Corrected to 255228/255326. Every npc id printed in doc 09 was then re-checked against the vendor CSV: 39 of 39 vendors present, the second-faction pages named, no stale id left |
 
 ## Audit pass, twelfth revision
 
@@ -271,7 +285,7 @@ and fixed:
 | 3 | Doc 09 had a stray table row ("Jolli Maxiboom is Horde; see 3.2") left inside the Alliance table | Removed |
 | 4 | Doc 01 addressed the player in second person, in a document written in my voice | Rewritten |
 | 5 | Doc 01's "300 starting budget" line looked like a contradiction of the level table | Now explicitly flagged as an early guide figure superseded by the shipped table |
-| 6 | Endeavor milestone gating of vendor stock was **missing entirely** from docs 01, 02, 04 and 05 | Added: doc 01 sec.7.5, doc 02 schema + matrix rows, doc 04 sec.4.2b, doc 05 phase 3 |
+| 6 | Endeavor milestone gating of vendor stock was **missing entirely** from docs 01, 02, 04 and 05 | Added: doc 01 sec.7.5, the schema and matrix rows in doc 02, doc 04 sec.4.2b, and phase 3 of doc 05 |
 | 7 | The "Deed of Patronage" entitlement and achievement-gated decor were unknown | Documented in doc 01 sec.7.5 and doc 09 sec.5.13 |
 | 7b | Mirror vendors (Argan/Lefton, Devin/Merki) looked like separate stock | Confirmed identical stock and prices; documented as a design rule in doc 09 sec.5.14 |
 | 8 | Doc 09's coverage was implied complete when only 4 vendors had item data | Stated exact coverage at the time - 33 of 39 vendors, 675 of 1 155 items - and named the 6 pending vendors in size order. Superseded by revision 6 and 7, which closed all six |
@@ -299,7 +313,7 @@ time of writing. Where two sources disagree I record both and say which I use.
 | Neighborhood vendor count | Vendor index | 39 vendors stocking decor inside the two neighborhoods, out of 166 worldwide |
 | Source asset counts | Own index run over `src/` | 28 314 named id constants, 988 decor-shaped |
 | Vendor item counts | Each transcribed vendor compared to its published total | 29/29 exact: Faarden 69, Xiao Dan 65, Balen 54, Trevor 43, Boh'an 32, Den 27, Jolli 23, Holly 21, Hesta 18, Pascal 17, Burlee 16, Timicky 16, Argan 15, Dovetail 15, Fel'orei 15, Griftah 15, Lefton 15, Roshai 15, Taifa 15, Devin 13, Harlowe 13, Merki 13, Cordula 11, Perry 9, Agratha 9, Klasa 5, Lonomia 5, Unquestionably Griftah 3, Cousin Shortkaf 1 |
-| Endeavor milestone gating | Coupon vendors cross-checked for "Reach the Nth milestone" conditions | 90 stock rows sit on 6 gating vendors. Hordranin's 8 are recorded item by item; the other five carry a vendor-level count, because the vendor page prints one line for the whole set |
+| Endeavor milestone gating | Coupon vendors cross-checked for "Reach the Nth milestone" conditions | 59 stock rows sit on 6 gating vendors. Hordranin's 8 are recorded item by item; the other five carry a vendor-level count, because the vendor page prints one line for the whole set |
 | Vendor npc ids | Each printed id traced to an NPC page | 39 of 39 confirmed; the one id that was wrong (Len, 255223 = Voidclot) was caught here |
 | Vendor stock lines | CSV recount per vendor | 1 056 lines, 39 vendors, 87 unpriced lines named in doc 09 |
 | Retail item ids | Counted against the item CSV, duplicates collapsed | 739 ids, 450 distinct decor rows carrying one in draft A |
