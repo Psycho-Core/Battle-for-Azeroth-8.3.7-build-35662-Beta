@@ -3,7 +3,8 @@
 This is the version that needs nothing from retail. No Midnight item ids, no Midnight npc
 ids, no imported art. Every id in the SQL already exists in my source tree or in the
 8.3.7 world database, which is the point: it runs on a clean install the day it is
-compiled.
+compiled. I built this one second and it took far less time than the port, which is the
+argument for starting from what 8.3.7 already has rather than from what Midnight invented.
 
 ## What is in it
 
@@ -73,7 +74,10 @@ That keeps the retail placement budgets in doc 01 usable without translating pri
   behind it there is nothing to earn it from in this draft.
 - No Endeavor milestone gating. Every piece on every stall is buyable from the start.
 - No dyes and no pet beds; those are phase 4 of doc 05.
-- No retail house levels 1 to 12. Six levels, indoor budget 3000, outdoor 200.
+- No retail house levels 1 to 12. The core's five rungs are what ships: indoor budget
+  60, 90, 120, 160, 200 and outdoor 25, 45, 65, 85, 110, unlocked at 0, 5 000, 15 000,
+  40 000 and 100 000 gold. They are compiled into `HousingDefines.h`, not loaded from a
+  table, so a different ladder is a code change and a rebuild.
 
 ## Install
 

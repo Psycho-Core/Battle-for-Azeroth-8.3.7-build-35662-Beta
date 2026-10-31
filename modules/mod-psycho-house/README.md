@@ -86,7 +86,9 @@ publish entry ids for the interior quests.
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
 | `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
-| `tools/housing/verify_drafts.py` | Reads both `drafts/` trees as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
+| `tools/housing/verify_drafts.py` | Reads both `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
+| `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. |
+| `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
 | `vendor-slugs.txt` | The 39 vendor slugs the scraper consumes. |
 | `tools/sql/psycho_house_harvest.sql` | The same harvest as pure SQL for people who do not want to run Python: candidate queries per furniture family, plus the report I use to spot gaps. |
@@ -130,6 +132,19 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, tenth revision
+
+The code gets checked as hard as the data was, without a compiler.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 45 | Nothing read the C++ at all, so a wrong column name in a query string or a `fields[N]` one past the end of a SELECT would only show up on a live server | `check_cpp.py` does both, plus declarations against definitions, table and column names against the module schema, balanced blocks and includes. Three deliberate bugs were injected into a copy and all three were caught |
+| 46 | The addon's Lua was never checked for structure | `check_lua.py` checks block balance, string termination, undeclared globals and the `.toc` file list. An injected missing `end` and a stray global were both caught |
+| 47 | The module's own `sql/` was outside `verify_drafts.py`, which only looked at the two drafts | It now checks `sql/world/` and `sql/characters/` against their own `CREATE TABLE`s as well, and it checks the drafts' `01_schema.sql` and `02_world_content.sql` too: 107 rows, 0 findings |
+| 48 | Three documents claimed a level table that does not exist: doc 04 said the retail 12-level ladder "lives in `housing_house_level`", doc 10 compared "12 levels" against "6", and draft B's readme said six levels with a 3 000 indoor budget | The core ships five rungs in `HousingDefines.h` (indoor 60/90/120/160/200, outdoor 25/45/65/85/110, unlocked at 0/5 000/15 000/40 000/100 000 gold). All four places now say that, and doc 04 marks the retail ladder as phase 1 work |
+| 49 | Doc 10 and draft A's readme said 90 gated stock rows | Recounted from the CSV notes: 59 rows on six vendors (Den 10/27, Pascal 11/17, Griftah 11/15, Harlowe 9/13, Aeeshna 10/12, Hordranin 8/12), plus Hesta Forlath's 14 behind the Deed of Patronage, which is a different gate |
+| 50 | My own verifier had been undercounting: the INSERT pattern needed a space before `VALUES` and the row list ended at the first `;` inside a quoted comment, so the 55 plot rows read as 13 | Both fixed. The parser is now quote aware, and the plot tables, biomes, amenities and name pools are checked in both drafts and in `sql/` |
 
 ## Audit pass, ninth revision
 

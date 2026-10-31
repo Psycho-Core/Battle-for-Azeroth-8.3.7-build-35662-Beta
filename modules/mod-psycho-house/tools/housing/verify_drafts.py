@@ -33,15 +33,44 @@ def read(path):
 
 
 def statements(text):
-    """Return (table, [column...], [tuple...]) for every INSERT in the file."""
+    """Return (table, [column...], [tuple...]) for every INSERT in the file.
+
+    Comment lines are dropped first: several files carry example statements in their
+    header comments, and a parser that reads those as real SQL reports nonsense.
+    """
+    text = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("--"))
     out = []
     for match in re.finditer(
-            r"INSERT INTO `(\w+)` \(([^)]*)\) VALUES\s*(.*?);", text, re.S):
+            r"INSERT\s+INTO\s+`(\w+)`\s*\(([^)]*)\)\s*VALUES\s*", text, re.S):
         table = match.group(1)
         columns = [c.strip().strip("`") for c in match.group(2).split(",")]
-        rows = split_tuples(match.group(3))
+        rows = split_tuples(statement_body(text[match.end():]))
         out.append((table, columns, rows))
     return out
+
+
+def statement_body(tail):
+    """Everything up to the first semicolon that is not inside a string literal.
+
+    A semicolon inside a row's comment text used to cut the statement short, which made the
+    plot table look like it had 13 rows when it has 55.
+    """
+    out = []
+    quote = False
+    for char in tail:
+        if quote:
+            out.append(char)
+            if char == "'":
+                quote = False
+            continue
+        if char == "'":
+            quote = True
+            out.append(char)
+        elif char == ";":
+            break
+        else:
+            out.append(char)
+    return "".join(out)
 
 
 def split_tuples(body):
@@ -176,7 +205,7 @@ def main():
         tables = {"housing_decor": set(), "housing_vendor": set()}
         rows_total = 0
         for name in sorted(os.listdir(base)):
-            if name in ("01_schema.sql", "02_world_content.sql") or not name.endswith(".sql"):
+            if not name.endswith(".sql"):
                 continue
             rows, run = check_file(os.path.join(base, name), schema_columns, go_entries, tables)
             rows_total += rows
@@ -221,6 +250,44 @@ def main():
     if catalogue - carried:
         fail("midnight-port", "{} catalogue item ids never reach housing_decor, e.g. {}".format(
             len(catalogue - carried), sorted(catalogue - carried)[:5]))
+
+    # the module's own SQL (not a draft) against its own CREATE TABLEs
+    module_schema = {}
+    module_files = []
+    for sub in ("world", "characters"):
+        folder = os.path.join(HERE, "sql", sub)
+        if not os.path.isdir(folder):
+            continue
+        for name in sorted(os.listdir(folder)):
+            if not name.endswith(".sql"):
+                continue
+            path = os.path.join(folder, name)
+            module_files.append(path)
+            text = read(path)
+            for match in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?`(\w+)` \((.*?)\n\)",
+                                     text, re.S):
+                module_schema[match.group(1)] = [
+                    l.strip().split()[0].strip("`") for l in match.group(2).splitlines()
+                    if l.strip().startswith("`")]
+    module_rows = 0
+    for path in module_files:
+        label = os.path.relpath(path, HERE)
+        for table, columns, tuples in statements(read(path)):
+            known = module_schema.get(table)
+            if known is None:
+                fail(label, "inserts into " + table + " which no CREATE TABLE in sql/ defines")
+                continue
+            unknown = [c for c in columns if c not in known]
+            if unknown:
+                fail(label, "{} has columns the schema does not: {}".format(table, unknown))
+            for number, row in enumerate(tuples, 1):
+                module_rows += 1
+                if len(row) != len(columns):
+                    fail(label, "{} row {}: {} values for {} columns".format(
+                        table, number, len(row), len(columns)))
+        if any(ord(char) > 127 for char in read(path)):
+            fail(label, "non-ASCII byte")
+    print("{:<52} {:>5} rows".format("sql/world + sql/characters", module_rows))
 
     # both drafts ship the same core, so their C++ headers must agree
     a = sorted(os.listdir(os.path.join(DRAFTS, "midnight-port", "src", "game", "Housing")))
