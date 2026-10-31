@@ -130,7 +130,7 @@ Two deliverables:
 - `tools/housing/harvest_decor.py` - read-only MySQL client, scans
   `gameobject_template`, matches names against a keyword table derived from retail's seven
   categories (doc 01 sec.5), scores each hit, assigns budget cost by rule, dedupes by name
-  family, and writes `sql/generated/housing_decor_<date>.sql`.
+  family, and writes a dated housing_decor SQL file under `sql/generated/` (created on first run).
 - `tools/sql/psycho_house_harvest.sql` - the same thing in SQL for people who prefer not
   to run Python: per-family candidate queries plus a summary report.
 
@@ -291,13 +291,13 @@ first for anything irreplaceable.
 
 | Path | Change |
 | --- | --- |
-| `src/server/game/PsychoHouse/` | New module (renamed from `Housing`), see doc 05 sec.3 |
-| `src/server/scripts/PsychoHouse/` | Script module: world, player, gossip NPCs, commands, Endeavors |
+| src/server/game/PsychoHouse/ | New module (renamed from `src/game/Housing/`), see doc 05 sec.3 |
+| src/server/scripts/PsychoHouse/ | Script module: world, player, gossip NPCs, commands, Endeavors |
 | `src/server/game/Handlers/ChatHandler.cpp` | The one hook: route `PCHO` addon messages |
 | `sql/updates/world/*psycho_house*` | World tables + content |
 | `sql/updates/characters/*psycho_house*` | Character state |
 | `src/server/worldserver/worldserver.conf.dist` | `PsychoHouse.*` config block |
-| `addon/PsychoHouse/` | Client addon |
+| addon/PsychoHouse/ | Client addon, shipped here as `addon/HousingUI/` |
 | `tools/housing/` | Harvest + build helpers |
 
 Nothing else in the core is edited. That is a hard rule I keep from the prototype, because

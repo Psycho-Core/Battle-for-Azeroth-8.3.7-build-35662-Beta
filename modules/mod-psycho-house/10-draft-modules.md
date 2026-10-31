@@ -21,9 +21,9 @@ Both drafts copy the same trees out of the module:
 | `src/game/Housing/` | 14 | Plots, houses, decor placement, phasing, persistence, the addon protocol |
 | `src/scripts/Housing/` | 4 | `.house` commands, player login hook, world config reload, loader |
 | `addon/HousingUI/` | 2 | The client panel: plot list, catalogue, placement, blueprint codes |
-| `sql/world/01_schema.sql` | 1 | Housing tables, identical in both drafts |
-| `sql/world/02_world_content.sql` | 1 | Six biomes, 55 plot templates, 22 amenity pins, the name pool |
-| `sql/characters/01_characters_schema.sql` | 1 | Ownership, placement, collection, guests, neighborhood membership |
+| `drafts/*/sql/world/01_schema.sql` | 1 | Housing tables, identical in both drafts |
+| `drafts/*/sql/world/02_world_content.sql` | 1 | Six biomes, 55 plot templates, 22 amenity pins, the name pool |
+| `drafts/*/sql/characters/01_characters_schema.sql` | 1 | Ownership, placement, collection, guests, neighborhood membership |
 
 `tools/housing/build_drafts.py` copies the code and the two shared SQL files into a draft
 every time it runs, so the two `src/` trees cannot drift. If I change a C++ file, I re-run
@@ -36,18 +36,20 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | Piece | Value |
 | --- | --- |
 | Vendors | 39, each with the retail npc id, faction and stock count in its row comment |
-| Decor rows | 486 |
-| Stock lines | 583 |
-| Retail item ids on those rows | 199 |
+| Decor rows | 491, every one carrying a real 8.3.7 game object |
+| Stock lines | 588 |
+| Retail item ids on those rows | 351 rows carry one (358 ids in total) |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
 | Gated stock | 82 stock rows sit on vendors that lock some pieces behind Endeavor milestones (Den 10 of 27, Pascal 11 of 17, Griftah 11 of 15, Harlowe 9 of 13, Dovetail 11 of 15, Aeeshna 10 of 12). The draft does not enforce gating yet - that is phase 3 |
 | Unpriced lines | 92, listed as comments and deliberately not inserted |
-| Unmapped pieces | every row, until a game object entry is chosen - `gameobject_entry` is 0 |
+| Unmapped pieces | none: `tools/housing/map_decor_go.py` maps every piece to a real entry and records how sure the match is |
 
-Design rule: a decor row is worth having even when it cannot be placed. The catalogue
-knows the name, the price, the currency, the vendor and, where I found it, the retail item
-id. The spawn is a separate decision, and keeping it separate is what makes the draft
-honest: nobody can point at a row and say the module invented a model.
+Design rule: the spawn is a separate decision from the catalogue, which is why the mapping
+lives in its own CSV with a confidence column instead of being baked into the SQL. A row
+can be listed, priced and owned while its stand-in is still the third-best chair in the
+game; the moment a better candidate exists, `data/town-center-go-map.csv` is edited and
+the draft regenerated. 156 of the 550 are family hits (chair to chair), 365 are keyword
+hits, 29 are category fallbacks.
 
 ## 3. Draft B - `bfa-native`
 
@@ -74,9 +76,9 @@ decision I can change and re-generate in seconds.
 | Needs retail data | yes, by definition | no |
 | Needs client patches | for art, yes | no |
 | Runs on a clean 8.3.7 install | with an empty catalogue until pieces are mapped | yes, immediately |
-| Number of decor pieces | 486 | 350 |
+| Number of decor pieces | 491 | 350 |
 | Number of vendors | 39 | 8 |
-| Item ids referenced | 199 retail ids | 0 |
+| Item ids referenced | 358 retail ids | 0 |
 | Currency | gold + 3363 + item 33226 | gold |
 | Endeavor gating | yes, 4 milestones | no |
 | House levels | 12, retail budgets | 6, my budgets |
@@ -94,11 +96,27 @@ python3 tools/housing/install.py --draft bfa-native --root /path/to/source --dry
 The installer detects which script layout the tree uses:
 
 - **Layout A** - the tree globs a root `modules/` directory. The draft becomes
-  `modules/mod-psycho-house/` and CMake picks it up.
+  `modules/PsychoHouse/`, and the root glob has to exist before CMake will look there, so
+  run the CMake patch once:
+
+  ```
+  python3 tools/housing/patch_cmake.py --root /path/to/source --dry-run
+  python3 tools/housing/patch_cmake.py --root /path/to/source
+  ```
+
+  It widens `GetScriptModuleList` in `cmake/macros/ConfigureScripts.cmake` to include
+  `<source>/modules/*`, keeps the original as `.bak-cmake-patch`, and does nothing on a
+  second run. The folder is `PsychoHouse`, not `mod-psycho-house`, because the loader
+  generator builds `Add<folder>Scripts()` out of the directory name and a hyphen is not a
+  legal identifier.
 - **Layout B** - the BfaCore Reforged layout, where script modules are directories under
   `src/server/scripts/` and the loader function name has to match the directory name. The
   draft becomes `src/server/scripts/PsychoHouse/`, the loader is renamed to
   `psycho_house_loader.cpp`, and the export is renamed to `AddPsychoHouseScripts()`.
+
+Both layouts place the six SQL files under `sql/updates/world/` and
+`sql/updates/characters/` with a `2026_10_31_1<seq>` stamp, and both rename the addon's
+`.toc` to match the folder name, since the client pairs them.
 
 In both layouts `src/server/game/Housing/` gets the core classes, because a script module
 cannot add game-layer classes on this core. That is the one part of the install that is a

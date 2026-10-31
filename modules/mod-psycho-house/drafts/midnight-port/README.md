@@ -10,7 +10,7 @@ retail vendor pages, and the numbers are the retail numbers.
 | --- | --- | --- |
 | Vendors | 39, all with name, npc id, faction and stock count | `sql/world/03_vendors_retail.sql` |
 | Decor rows | 486 | `sql/world/04_decor_retail.sql` |
-| Vendor stock rows | 583 | `sql/world/05_stock_retail.sql` |
+| Vendor stock rows | 588 | `sql/world/05_stock_retail.sql` |
 | Retail decor item ids carried on those rows | 199 | same file, `item_entry` column |
 | House levels, budgets, rooms, exteriors | retail values, 1 to 12 | `../../01-retail-housing-reference.md` |
 | Endeavor milestones | 4, with 82 stock rows on vendors that gate pieces behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
@@ -49,7 +49,7 @@ Prices are gold unless `currency` says otherwise:
 
 ## What is not complete
 
-- 92 stock lines have no published price. They are listed as comments at the end of
+- 87 stock lines have no published price. They are listed as comments at the end of
   `05_stock_retail.sql` and are not inserted, so they cannot come out free.
 - 13 vendors have a name, an npc id and an item count but no item names yet: "High Tides"
   Ren 146, "Len" Splinthoof 117, Gronthul 83, "Yen" Malone 68, Jehzar Starfall 54. Those

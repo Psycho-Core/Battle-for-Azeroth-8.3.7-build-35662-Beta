@@ -75,7 +75,7 @@ Everything else - decor, trees, tents, carts, braziers, fences - comes from the 
 
 ## 5. Addon packaging
 
-`addon/PsychoHouse/` with:
+`addon/HousingUI/` (renamed to PsychoHouse when copied in) with:
 
 | File | Contents |
 | --- | --- |

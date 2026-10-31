@@ -11,7 +11,7 @@ compiled.
 | --- | --- | --- |
 | Decor rows | 350 | `sql/world/03_decor_native.sql` |
 | Vendors | 8 of my own | `sql/world/04_vendors_native.sql` |
-| Vendor stock rows | 350, every decor piece sold somewhere | same file |
+| Vendor stock rows | 350, every native decor piece sold somewhere | same file |
 | Currency | gold only | `currency = 0` on every row |
 | Substitution for missing art | none needed | the pieces are real game objects |
 

@@ -52,7 +52,8 @@ CATEGORY_RULES = [
     ("Rugs", ("rug", "carpet", "mat")),
     ("Lighting", ("lamp", "lantern", "candle", "torch", "brazier", "chandelier",
                   "fire", "glow", "light", "sconce")),
-    ("Nature", ("tree", "plant", "flower", "bush", "ivy", "hay", "grass", "garden",
+    ("Nature", ("tree", "plant", "flower", "bush", "shrub", "fern", "reed", "cactus",
+                "vine", "ivy", "hay", "grass", "garden",
                 "vine", "moss", "leaf", "planter", "trellis", "gazebo", "well",
                 "fountain", "rock", "boulder", "log", "stump", "petal")),
     ("Storage", ("crate", "barrel", "chest", "box", "basket", "sack", "jar", "bag",
@@ -144,6 +145,12 @@ def build_midnight():
                                            "01_characters_schema.sql"))
 
     stock = read_csv(os.path.join(DATA, "town-center-stock.csv"))
+    go_map = {}
+    go_path = os.path.join(DATA, "town-center-go-map.csv")
+    if os.path.exists(go_path):
+        for row in read_csv(go_path):
+            go_map[row["item"]] = (row["gameobject_entry"], row["go_constant"],
+                                   row["confidence"])
     items = read_csv(os.path.join(DATA, "town-center-items.csv"))
     npcs = read_csv(os.path.join(DATA, "vendor_npc_ids.csv"))
 
@@ -194,9 +201,11 @@ def build_midnight():
         key = (row["item"], price, currency)
         if key not in decor_key:
             decor_key[key] = 1000 + len(decor_rows)
+            go_entry = go_map.get(row["item"], ("0", "", "none"))[0]
             decor_rows.append({
                 "id": decor_key[key],
                 "name": row["item"],
+                "go": go_entry,
                 "item": item_id_by_name.get(row["item"], "0"),
                 "budget": budget(price),
                 "category": category(row["item"]),
@@ -224,11 +233,13 @@ def build_midnight():
                  "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
     dlines = []
     for d in decor_rows:
-        dlines.append("({}, '{}', 0, {}, {}, 0, 2, '{}', 0, {}, {}, {}, 3, 0.5, 3, 0)".format(
-            d["id"], sql_escape(d["name"]), d["item"], d["budget"], d["category"],
+        dlines.append("({}, '{}', {}, {}, {}, 0, 2, '{}', 0, {}, {}, {}, 3, 0.5, 3, 0)".format(
+            d["id"], sql_escape(d["name"]), d["go"], d["item"], d["budget"], d["category"],
             d["source"], d["price"], d["currency"]))
     decor_sql.append(",\n".join(dlines) + ";")
-    decor_sql.append("\n-- gameobject_entry is 0 until the decor is mapped to a 8.3.7 spawn.")
+    decor_sql.append("\n-- gameobject_entry is a real 8.3.7 game object chosen by tools/housing/map_decor_go.py.")
+    decor_sql.append("-- Provenance per piece is in data/town-center-go-map.csv; a 0 here means no")
+    decor_sql.append("-- candidate existed and the row stays flagged DecorFlagUnmapped at load.")
     decor_sql.append("-- item_entry holds the Midnight decor item id where it is known ({} of {}).".format(
         sum(1 for d in decor_rows if d["item"] != "0"), len(decor_rows)))
 

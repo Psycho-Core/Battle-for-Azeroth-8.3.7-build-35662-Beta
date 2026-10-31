@@ -46,9 +46,9 @@ Do this as one commit before any feature work, so diffs stay readable.
 ### 3.1 Directory moves
 
 ```
-src/game/Housing/               -> src/game/PsychoHouse/
-src/scripts/Housing/            -> src/scripts/PsychoHouse/
-addon/HousingUI/                -> addon/PsychoHouse/
+src/game/Housing/               -> src/game/PsychoHouse/       (as shipped: src/game/Housing/)
+src/scripts/Housing/            -> src/scripts/PsychoHouse/    (as shipped: src/scripts/Housing/)
+addon/HousingUI/                -> addon/PsychoHouse/          (as shipped: addon/HousingUI/)
 ```
 
 Inside the housing folder those four trees are already in place. What has to move on a

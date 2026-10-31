@@ -3,7 +3,7 @@
 The Founder's Point Town Center and the Razorwind Shores Commons in full: every service,
 every NPC, every vendor, every item they stock, its price, its currency, and its unlock
 condition. Vendor-level data covers all 39 neighborhood vendors (38 with an npc id);
-item-level data covers 33 of them (675 items), 201 of which carry a retail item id. The
+item-level data covers 33 of them (675 items), 358 of which carry a retail item id. The
 remaining six are listed by count and captured by the scraper.
 
 One number to be careful with: the vendor index aggregates the two neighborhoods at
@@ -18,7 +18,7 @@ Hordranin's 12, the one vendor whose page never opened, so I use my own sum and 
 | Founder's Point Breakwater Bight (smugglers) | 3 | 331 | vendor data complete, item capture pending |
 | Razorwind Shores Commons + local | 11 | 350 | 8 complete, 3 pending |
 | Shared (both neighborhoods) | 6 | - | counted above, not double-counted |
-| **Total** | **39** | **1 155** | **675 items transcribed, 33 of 39 vendors, 201 item ids** |
+| **Total** | **39** | **1 155** | **675 items transcribed, 33 of 39 vendors, 358 item ids** |
 
 The CSV next to this document, `data/town-center-stock.csv`, holds the 675 transcribed
 rows in `vendor, item, price, currency, note` form. The scraper in
@@ -79,7 +79,7 @@ transportation, portal, bulletin board, General Contractor, flight point.
 | Faarden the Builder | 69 | Gold | 52.0 / 38.4 | 255213 |
 | Xiao Dan | 65 | Gold | 52.0 / 38.3 | 255203 |
 | Balen Starfinder | 54 | Gold | 52.2 / 38.0 | 255216 |
-| Trevor Grenner | 43 | Gold | 53.5 / 40.9 | 255221 |
+| Trevor Grenner | 43 | Gold | 53.5 / 40.9 | 255221 | 42 ids |
 | Holly Twinklebright | 21 | Gold | 54.4 / 32.8 | 271604 |
 | Burlee Jinglepocket | 16 | Gold | 54.3 / 32.7 | 277593 |
 | Timicky | 16 | Community Coupons | 53.1 / 38.3 | 271173 |
@@ -120,15 +120,15 @@ not yet, and they are the largest single block of stock in the game.
 | "Yen" Malone | 68 | Gold | 40.3 / 73.0 | 255319 | pending |
 | Jehzar Starfall | 54 | Gold | 53.6 / 58.6 | 255298 | pending |
 | Shon'ja | 48 | Gold | 54.1 / 59.0 | 255297 | **complete** |
-| Botanist Boh'an | 32 | Gold | 54.0 / 58.4 | 255301 | **complete** |
-| "Den" Nightshade | 27 | Community Coupons | 39.4 / 70.2 | 257303 | **complete** |
-| Jolli Maxiboom | 23 | Gold | 52.4 / 54.3 | 271366 | **complete** |
+| Botanist Boh'an | 32 | Gold | 54.0 / 58.4 | 255301 | **complete**, 31 ids |
+| "Den" Nightshade | 27 | Community Coupons | 39.4 / 70.2 | 257303 | **complete**, 14 ids |
+| Jolli Maxiboom | 23 | Gold | 52.4 / 54.3 | 271366 | **complete**, 13 ids |
 | Hesta Forlath | 18 | Coupons, gold | 54.4 / 56.0 | 252917 | **complete** |
-| Pascal-K1N6 | 17 | Community Coupons | 54.1 / 56.0 | 248525 | **complete** |
+| Pascal-K1N6 | 17 | Community Coupons | 54.1 / 56.0 | 248525 | **complete**, 16 ids |
 | Roz Copperpinch | 16 | Gold | 52.4 / 54.4 | 277592 | names captured, no prices |
 | Timicky | 16 | Community Coupons | 54.9 / 57.3 | 271173 | complete (shared) |
-| Lefton Farrer | 15 | Gold | 53.5 / 58.5 | 255299 | **complete** |
-| Merki | 13 | Gold | 54.0 / 58.8 | 257257 | **complete** |
+| Lefton Farrer | 15 | Gold | 53.5 / 58.5 | 255299 | **complete**, mirror of Argan |
+| Merki | 13 | Gold | 54.0 / 58.8 | 257257 | **complete**, mirror of Devin |
 | Aeeshna | 12 | Community Coupons | 54.4 / 56.2 | 252605 | **complete** |
 | Spew Gutsout | 11 | Tricky Treat | 52.4 / 54.4 | 273470 | **complete** |
 | Agratha | 9 | Gold | 53.6 / 54.4 | 267794 | **complete** |
@@ -533,17 +533,29 @@ Names and prices are one thing; the **item id** is what actually goes into a ven
 I am collecting them separately, because wowhead's NPC "Sells" list paginates at 50 rows and
 the pager is JavaScript, so one page fetch never returns a vendor's full list.
 
-`data/town-center-items.csv` currently holds **201 resolved item ids**, every one read off a
+`data/town-center-items.csv` currently holds **358 resolved item ids**, every one read off a
 wowhead sell list, none guessed:
 
 | Vendor | Items with ids | Item id range |
 | --- | --- | --- |
-| Xiao Dan (255203) | 50 of 65 | 235633 - 252037 |
 | Faarden the Builder (255213) | 50 of 69 | 235523 - 252004 |
-| Balen Starfinder (255216) | 30 of 53 | 235994 - 246258 |
+| Xiao Dan (255203) | 50 of 65 | 235633 - 252037 |
 | Shon'ja (255297) | 48 of 48 | 244532 - 268028 |
-| Spew Gutsout (273470) | 11 of 11 | 282192 - 282289 |
+| Trevor Grenner (255221) | 42 of 43 | 245298 - 266444 |
+| Botanist Boh'an (255301) | 31 of 32 | 248337 - 266444 |
+| Balen Starfinder (255216) | 30 of 54 | 235994 - 246258 |
+| Pascal-K1N6 (248525) | 16 of 17 | 254400 - 254416 |
+| Brother Dovetail (249684) | 14 of 15 | 246686 - 252041 |
+| Griftah (260485) | 14 of 15 | 255649 - 274539 |
+| "Den" Nightshade (257303) | 14 of 27 | 280625 - 282347 |
+| Argan Hammerfist (255218) | 13 of 15 | 241623 - 267202 |
+| Jolli Maxiboom (271366) | 13 of 23 | 248101 - 282100 |
 | Aeeshna (252605) | 12 of 12 | 262664 - 263048 |
+| Spew Gutsout (273470) | 11 of 11 | 282192 - 282289 |
+
+358 rows, 351 distinct ids: the difference is the Chamberstick and the handful of holiday
+pieces that two vendors both stock. Every row carries a `source` column naming the NPC page
+it came from, so an id can be retraced in one step.
 
 Sample of what is now pinned down, id first:
 
@@ -580,15 +592,56 @@ than in a guide - Aeeshna is an *Endeavor Trader*, Spew Gutsout a *Hallow's End 
 Specialist* - which is also why their stock is paid in Community Coupons and Tricky Treats
 instead of gold.
 
-### The 50-row cap, restated
+### Why 317 stock rows still have no item id
 
-Every remaining vendor has more than 50 items, and wowhead's sell list will not give up row
-51 without the JavaScript pager. That is the only reason 468 item names still have no id.
-The workaround that does not exist: paging the NPC page, paging the item-filter endpoint,
-or asking for `?sells=2` - all three return page one again, tested. The workaround that does
-exist: one fetch per item name through the search endpoint, which is what
-`tools/housing/fetch_item_ids.py --search-fallback` does. It is one request per item, so it
-is a background job, not an afternoon.
+Four walls, all tested rather than assumed:
+
+1. **50 rows per list, no paging.** `?page=2`, `&p=2`, `&pagesize=100` and `?sells=2` all
+   return page one, on `/items`, on `/items/housing/decor`, with and without a vendor
+   filter. The pager in the page markup is JavaScript and the query string is ignored
+   server side. A vendor with 146 items (Ren) therefore shows 50 and there is no URL that
+   shows the other 96.
+2. **The "Sold by NPC" filter is incomplete.** It returns part of a vendor's stock: Den
+   Nightshade 14 of 27, Argan Hammerfist 13 of 15. It is still the best route available,
+   because what it returns is exact.
+3. **Some NPCs are not indexed at all.** Burlee Jinglepocket (277593) and Roz Copperpinch
+   (277592) are 12.1.7 additions: `filter=129;0;277593` answers `no items matched the criteria` on both the live and
+   the PTR listing, which is also why Roz has no
+   prices anywhere on the site.
+4. **A filter can answer with a different vendor.** `filter=129;0;257321` (Fel'orei
+   Moonstrider) came back with Den Nightshade's Westfall set, and two parallel requests
+   for Jolli and Holly returned the same page. Every list is therefore validated by name
+   against the register before an id is accepted: the 157 ids added this round matched
+   their vendor's stock names 100 percent, and two lists that did not (Fel'orei, Lefton)
+   were thrown away rather than merged.
+
+What is left is **317 of the 675 transcribed rows**, plus every row of the six vendors in
+section 7.6, which have no capture at all. Three routes remain, in the order I would use
+them:
+
+1. `tools/housing/fetch_item_ids.py --search-fallback` - one search request per item name.
+   It works, it is slow, and it records `source` per row so a mixed result stays auditable.
+2. The vendor's own wowhead NPC page, which lists up to 50 items with ids regardless of the
+   decor filter. That is what closed Trevor, Boh'an, Pascal, Dovetail and Griftah.
+3. For the six uncaptured vendors: capture the names first (section 7.6 has the counts and
+   the slugs), then run route 2 and 1 against them.
+
+### 7.6 The six vendors with no stock capture
+
+Not skipped, just not reached. Each row lists the item count from the vendor index, so the
+size of the hole is known rather than implied.
+
+| Vendor | npc id | Items | Neighborhood |
+| --- | --- | --- | --- |
+| "High Tides" Ren | 255222 (255325 Horde) | 146 | Founder's Point, 62.4 / 80.2 |
+| "Len" Splinthoof | 255223 (255324 Horde) | 117 | Founder's Point |
+| Gronthul | 255278 | 83 | Razorwind Shores, 54.1 / 59.1 |
+| "Yen" Malone | 255230 (255319 Horde) | 68 | Founder's Point |
+| Jehzar Starfall | 255298 | 54 | Founder's Point |
+| Hordranin | unknown | 12 | Founder's Point |
+
+480 items in total, 41 percent of the catalogue. The pages load, so this is a capture pass
+and not a research problem.
 
 ### Price corrections this exercise forced
 
@@ -619,5 +672,6 @@ wowhead's number.
 | Ids | Printed only when confirmed against an NPC page | 18 confirmed, 9 not |
 | Coordinates | Every coordinate carries its `/way` map id | verified, #2351 vs #2352 |
 | Prices | Printed only when the source prints them | 30 corrected to wowhead; 85 blanks remain where wowhead has not been read yet |
-| Item ids | Id traced to the item page | 201 resolved, 0 guessed |
+| Item ids | Id traced to the item page | 358 resolved, 0 guessed |
+| Decor to game object | Every mapped entry checked against the source index | 550 pieces mapped, 0 invented ids |
 | Vendor npc ids | Id traced to the npc page | 38 of 38 |
