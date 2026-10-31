@@ -258,7 +258,7 @@ local function Usage()
     Print("          /housing dir [page]|decor [category] [page]|buydecor <id>|placed")
     Print("          /housing place <decorId> <x> <y> <z> <o> <scale> <indoor>")
     Print("          /housing move <placementId> <x> <y> <z> <o> <scale>|remove <id>")
-    Print("          /housing guests|guest add <name> <flags>|guest del <name>")
+    Print("          /housing guests|guest add <name> <flags>|guest del <name>|amenities")
     Print("          /housing raw <payload>|log|clear")
 end
 
@@ -320,6 +320,8 @@ SlashCmdList["HOUSING"] = function(input)
         end
     elseif command == "remove" then
         Send("C:REMOVE|" .. rest)
+    elseif command == "amenities" then
+        Send("C:VAREA")
     elseif command == "guests" then
         Send("C:GUESTLIST")
     elseif command == "guest" then

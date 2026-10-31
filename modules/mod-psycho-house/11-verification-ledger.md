@@ -96,7 +96,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | 09 town centre register | 39 vendors, 1 056 rows, 739 ids, 87 blanks | Current. The 99 rows still behind the page cap are named in doc 09 sec.7.4 |
 | 10 draft modules | What each draft contains, how to install and switch | Row counts re-read from the generated SQL; the mapping split was wrong before (156/365/29) and now reads 223/189/171/35. Quest rows and vendor bindings added this pass |
 | 11 this ledger | Where every number comes from | Written this round |
-| 12 Midnight item port | IDs, extraction, model and texture conversion, the five DB2 tables, icons, packaging, verification order, and how the housing menus are rebuilt | Written this round. The procedure is checked against this folder's own data; the client file formats could not be checked here, and the document says which parts those are |
+| 12 Midnight item port | IDs, extraction, model and texture conversion, the five DB2 tables, icons, packaging, verification order, and how the housing menus are rebuilt | Written this round. The procedure is checked against this folder's own data; the client file formats could not be checked here, and the document says which parts those are. Every path it names was checked to exist this round |
 
 ## 5. Open items, with exact counts
 
@@ -177,16 +177,21 @@ vocabulary. The point is that nothing here talks to a MySQL server, so the next 
 is: every column I write is a column this build's own update files already write to.
 
 ```
-harvested 43 tables
-  quest_template            122 columns
-  quest_template_addon        2 columns
+harvested 45 tables
+  quest_template            123 columns
+  quest_template_addon        3 columns
   quest_objectives           12 columns
-  creature_template          11 columns
+  creature_template          12 columns
+  item_template               0 columns
 4 statement(s) checked against the build vocabulary
 0 finding(s)
 ```
 
-The 122 columns above are why the quest rows can be written at all: `quest_template` is a
+`item_template` reading zero is the useful line: no update file in this tree inserts into
+it, so there is no column list to check a guess against. That is exactly why doc 12 sec.3.1
+copies a working row instead of typing an item INSERT.
+
+The 123 columns above are why the quest rows can be written at all: `quest_template` is a
 wide table, and the list came out of the build's own Duskwood POI update rather than out of
 my memory. The vocabulary is saved to `generated/sql-columns.json`, so the check still
 works on a machine without a source checkout.
@@ -250,6 +255,32 @@ The plot inserts are written `INSERT INTO` on one line, the column list on the n
 plot comment contains a semicolon - so 55 plot rows were being read as 13 and never
 checked. Both are fixed, the parser is quote aware, and the row counts it now reports
 (61 in a draft's schema file, 107 across `sql/`) match the files.
+
+### 6.5 The addon and the server, against each other
+
+`python3 tools/housing/check_protocol.py` is the only check that reads both halves at once.
+Three questions, all answered from source:
+
+- does every `C:` opcode the addon sends reach a branch in `HandleAddonMessage`?
+- does every `S:` line the server sends have a handler in the addon, with `S:CHUNK`
+  reassembled inline rather than by handler?
+- does any handler read `fields[N]` beyond the last field of the line it is parsing?
+
+```
+24 C: opcodes sent by the addon, 25 dispatched by the server
+19 S: opcodes sent by the server, 18 handled in the addon
+0 finding(s)
+```
+
+Counting fields is the fiddly part and the check does it properly: a line is often built in
+pieces, because `SendResult` appends its optional `extra` field only when it is non-zero, so
+the count follows the payload variable until the chunk is sent. Written carelessly the check
+reports every line as one field short, which is exactly what happened first.
+
+It caught one real gap: `VAREA` was dispatched by the server and never sent by the addon, so
+the hub amenity list had no way to reach the menu. The House tab now asks for it and lists
+what comes back. An injected off-by-one - reading `fields[9]` from the six-field `S:PLOT`
+line - was reported, so the check fails when it should.
 
 What the scripts cannot settle: whether MySQL accepts the statements (no server here),
 whether the C++ compiles (no boost or MySQL headers here), and whether a mapped game

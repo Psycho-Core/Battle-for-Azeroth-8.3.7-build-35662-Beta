@@ -92,6 +92,7 @@ publish entry ids for the interior quests.
 | `tools/housing/verify_drafts.py` | Reads both `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
 | `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. |
 | `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
+| `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
 | `vendor-slugs.txt` | The 39 vendor slugs the scraper consumes. |
 | `tools/sql/psycho_house_harvest.sql` | The same harvest as pure SQL for people who do not want to run Python: candidate queries per furniture family, plus the report I use to spot gaps. |
@@ -135,6 +136,16 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twelfth revision
+
+The addon and the server, checked against each other.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 54 | Nothing checked that the addon and the protocol agreed. A handler reading one field too far prints `nil` and looks like a server bug | `check_protocol.py`: 24 `C:` opcodes sent, 25 dispatched, 19 `S:` opcodes sent and all handled, and every handler's highest field index inside the field count of its line. One injected off-by-one was caught |
+| 55 | The server dispatches `VAREA` and the addon never sent it, so the hub amenities - stage, mailbox, bulletin board - had no way to appear in the menu | House tab lists them from `S:VAREA`, and `/housing amenities` sends the same request for anyone not using the menu |
+| 56 | Menu.lua was 763 lines and Doc 12 described the menu without saying how it is verified | Doc 12 sec.6 now states the check and what it catches; the file is 829 lines with the amenity list |
 
 ## Audit pass, eleventh revision
 

@@ -270,9 +270,48 @@ for tier = 2, 5 do
     Menu.tierButtons[tier] = button
 end
 
+-- Amenities: the hub's fixed points - stage, mailbox, bulletin board, the rest. They are
+-- server data (C:VAREA), not addon guesses, because the module moves them with the map.
+
+local amenityHeader = NewLabel(housePane, nil, "TOPLEFT", 0, -286)
+amenityHeader:SetText(GOLD .. "Amenities in this hub|r")
+
+Menu.amenityRows = {}
+
+local function BuildAmenities()
+
+    local sorted = {}
+
+    for _, amenity in ipairs(H.amenities or {}) do
+        sorted[#sorted + 1] = amenity
+    end
+
+    for index, row in ipairs(Menu.amenityRows) do
+        row:Hide()
+    end
+
+    for index = 1, math.min(#sorted, 6) do
+        local amenity = sorted[index]
+        local row = Menu.amenityRows[index]
+
+        if not row then
+            row = NewLabel(housePane, "GameFontHighlightSmall", "TOPLEFT", 0, -306 - ((index - 1) * 16))
+            row:SetWidth(520)
+            Menu.amenityRows[index] = row
+        end
+
+        row:SetText(string.format("%s%s|r  type %s, at %.0f / %.0f",
+            DIM, tostring(amenity.name), tostring(amenity.kind),
+            amenity.x or 0, amenity.y or 0))
+        row:Show()
+    end
+end
+
 Menu.onShow = Menu.onShow or {}
 Menu.onShow.house = function()
     H.Send("C:NEIGHBORHOOD")
+    H.amenities = {}
+    H.Send("C:VAREA")
     if H.plotIndex then
         H.Send("C:PLOT|" .. H.plotIndex)
     end
@@ -660,6 +699,7 @@ local GUIDE_LINES = {
     "|cffffd100Move|r       C:MOVE <placementId> <x> <y> <z> <o> <scale>",
     "|cffffd100Remove|r     C:REMOVE <placementId>",
     "|cffffd100Guests|r     C:GUESTLIST, C:GUESTADD <name> <flags>, C:GUESTDEL <name>",
+    "|cffffd100Amenities|r  C:VAREA -> S:VAREA per amenity, S:VAREAEND at the end",
 }
 
 for index, line in ipairs(GUIDE_LINES) do
@@ -729,6 +769,32 @@ H.handlers["PLOTINFO"] = function(fields)
         previousPlotInfo(fields)
     end
     StorePlotInfo(fields)
+end
+
+H.amenities = H.amenities or {}
+
+local previousVarea = H.handlers["VAREA"]
+H.handlers["VAREA"] = function(fields)
+    if previousVarea then
+        previousVarea(fields)
+    end
+    H.amenities[#H.amenities + 1] = {
+        kind = tonumber(fields[2]),
+        name = fields[3],
+        x = tonumber(fields[4]),
+        y = tonumber(fields[5]),
+        biome = tonumber(fields[6]),
+    }
+end
+
+local previousVareaEnd = H.handlers["VAREAEND"]
+H.handlers["VAREAEND"] = function(fields)
+    if previousVareaEnd then
+        previousVareaEnd(fields)
+    end
+    if frame:IsShown() then
+        BuildAmenities()
+    end
 end
 
 local previousNbr = H.handlers["NBR"]
