@@ -40,7 +40,7 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | Stock lines | 583 |
 | Retail item ids on those rows | 199 |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
-| Gated stock | 75 items behind Endeavor milestones, carried as comments until phase 3 |
+| Gated stock | 82 stock rows sit on vendors that lock some pieces behind Endeavor milestones (Den 10 of 27, Pascal 11 of 17, Griftah 11 of 15, Harlowe 9 of 13, Dovetail 11 of 15, Aeeshna 10 of 12). The draft does not enforce gating yet - that is phase 3 |
 | Unpriced lines | 92, listed as comments and deliberately not inserted |
 | Unmapped pieces | every row, until a game object entry is chosen - `gameobject_entry` is 0 |
 

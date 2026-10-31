@@ -144,6 +144,11 @@ players buy her stock without owning a house.
 Prices are gold unless marked. A blank price means the vendor sells the piece for a
 currency or condition the mirror does not print.
 
+Where a vendor gates stock behind Endeavor milestones, the gate is written next to the item
+("first", "second", "third", "fourth" = the milestone that unlocks it). `data/town-center-stock.csv`
+carries only the vendor-level count in its note column, because the mirror states the count
+per vendor rather than per row; doc 09 is the per-item record.
+
 ### 5.1 Faarden the Builder (69, Town Center) - local and Stormwind architecture
 
 Arched Wooden Bench; Broken Founder's Point Fence; Carved Stone Bench; Carved Wooden Bar
