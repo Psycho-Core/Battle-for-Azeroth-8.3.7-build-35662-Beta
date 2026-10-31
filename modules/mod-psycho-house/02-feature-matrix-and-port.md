@@ -190,3 +190,24 @@ the protocol. mod-psycho-house adds:
 Everything else - ownership, travel, budgets, catalogue, placement, permissions, vendors,
 persistence, the addon protocol - is already implemented in the prototype and is a
 rename-and-extend job.
+
+## 6. Where the fallback sits
+
+Section 5 is the honest cost list, so it needs one honest counterweight: there is a smaller
+system hiding inside this one, and it already exists in the wild.
+
+`azerothcore/mod-guildhouse` is a phased services room - one island, one phase per guild, a
+butler selling 55 fixed facilities - with no furniture, no placement and no collection. Doc 13
+reads it end to end and maps it against this document. Two conclusions belong here:
+
+- **it is not a substitute.** Every mechanism in sections 2.4, 2.5, 2.6 and 2.7 is absent
+  from it, and its phase model (a WotLK bitmask, `guildId + 10`) does not exist in this tree
+  at all;
+- **it is an addendum.** The facility shop is the one layer this plan is missing (section 4.6
+  of doc 05), and it is independent of decor, so it can be built first and it survives any
+  later cut.
+
+F0 in doc 13 sec.13 is what happens if placement turns out not to hold: this document minus
+sections 2.4, 2.6 and 2.7, plus the facility shop, on the ownership and travel work already
+done. That is a retreat of real size, and it is worth naming before it is needed rather than
+after.

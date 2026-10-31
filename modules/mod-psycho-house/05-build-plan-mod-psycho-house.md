@@ -130,6 +130,38 @@ e.g. Trevor Grenner (`Nature`), Devin Slatesmith (`Structural`), Argan Hammerfis
 (holiday), Brumewood smuggler (Horde families). Prices from the harvest's suggested price
 band, +/-, tuned after a pass.
 
+### 4.3a Guild-founded neighbourhoods, and what happens when the guild ends
+
+`HousingNeighborhood` stores a `guildId` for guild neighbourhoods, and nothing in the module
+ever clears it. A guild that founds a neighbourhood and then disbands leaves a village owned
+by a guild id that no longer exists: nobody can administer it, and the plots inside it are
+stranded behind an access check that can never pass. This is the one hole reading the guild
+house module found in my own code (doc 13 sec.12).
+
+Two hooks, both small:
+
+```cpp
+class PsychoHouseGuildScript : public GuildScript
+{
+public:
+    PsychoHouseGuildScript() : GuildScript("PsychoHouseGuildScript") { }
+
+    void OnCreate(Guild* guild, Player* leader, std::string const& /*name*/) override;
+    void OnDisband(Guild* guild) override;   // release every neighbourhood whose guildId matches
+};
+```
+
+`OnDisband` walks the neighbourhoods, and for each match:
+
+1. archives every owned plot to `character_housing_archive` with the guild name and the date,
+   so the house can be restored by its owner during the regret window;
+2. clears the decor and the house rows for those plots;
+3. either releases the neighbourhood (free plots, type becomes public) or marks it retired.
+   Releasing is the kinder default and costs one column.
+
+`OnCreate` sends one line of chat to the leader, nothing else. It is not required; it costs
+four lines and it is the difference between a system that reacts and one that does not.
+
 ### 4.4 Portal rooms and Steward
 
 - Two static GO portals (Stormwind Wizard's Sanctum, Orgrimmar Pathfinder's Den) with
@@ -148,6 +180,19 @@ map has art). Gossip states:
 | Unclaimed plot | *Buy this plot for 1 000g*, *Move my house here* (if already owning a plot in this neighborhood) |
 | Own plot | *Rename*, *Lock/unlock*, *Move house*, *Relinquish* |
 | Someone else's | *This plot is not for sale* (and the owner's name, if they have not locked it) |
+
+### 4.6 The facility shop
+
+A house with no bank, no mailbox and no auctioneer is a diorama. The facility layer is
+small, it is independent of decor, and doc 13 sec.13 lays out the four steps in order:
+thirteen additions to `AmenityType`, six columns on `psycho_house_amenity`, one purchase path
+that reuses the existing spawner, and the guild hooks from 4.3a.
+
+The facility list I take from the guild house module, corrected from Wrath to 8.3.7: class
+trainers, primary and secondary profession trainers at BfA ranks, bank, mailbox, guild vault,
+auctioneer and neutral auctioneer, stable master, innkeeper, spirit healer, forge, anvil,
+barber chair, and the portal set. Nothing about it is hard; it is the part of housing that
+makes the plot worth visiting twice.
 
 ## 5. Phase 2 - addon UI v1
 
