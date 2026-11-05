@@ -86,7 +86,9 @@ publish entry ids for the interior quests.
 | `tools/housing/map_decor_go.py` | Chooses a game object for every ported decor piece: family match first, keyword overlap second, category fallback last. Never invents an id. |
 | `data/vendor_npc_ids.csv` | 39 vendors: npc id, catalogue item count and slug. All 39 npc ids are confirmed against a live NPC page, Hordranin included (250820). The item column sums to 1 155, the catalogue total the register works from. |
 | `tools/housing/merge_capture.py` | Merges one vendor capture file from `data/captures/` into both CSVs: replaces that vendor's stock rows, or adds to them with `--append` when a vendor stands as two npcs, adds the ids, keeps an empty price empty and preserves an existing gate note. Re-running it is safe. |
-| `tools/housing/build_drafts.py` | Builds both drafts from the CSVs: vendor rows, decor catalogue, stock rows, and the native catalogue's name refresh. Re-running rewrites every generated file. |
+| `tools/housing/build_drafts.py` | Builds both drafts from the CSVs: vendor rows, decor catalogue, stock rows, the progression file both drafts import, and the native catalogue's name refresh. Re-running rewrites every generated file. |
+| `tools/housing/build_progression.py` | The progression content both drafts share: the 12-level house ladder with its three decor budgets, 6 exterior shells, 18 rooms, 10 portal destinations, 4 Endeavors with 24 tasks and 16 reward rows. Imported by `build_drafts.py`, so the two drafts cannot disagree about what a level 8 house costs. |
+| `tools/sql/bind_housing_content.sql` | Turns the search names the draft rows ship with into ids out of the realm's own `gameobject_template`, `creature_template`, `item_template`, `quest_template` and `game_tele`, then prints what stayed unbound. Every subquery is `COALESCE`d to 0 so one missing name cannot stop the file. |
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
@@ -117,6 +119,8 @@ modular room geometry**, so rooms become "shells" and the UI becomes an addon.
 What 8.3.7 already has that does the heavy lifting:
 
 - **Phases** (`PhaseShift`, 16-bit ids) - the entire neighborhood/plot isolation model.
+  Plot phases are `10000 + slot * 64 + plot` in 8.3.7's uint16 space, so 255
+  neighbourhoods fit before the interior range begins.
 - **Instanced and non-instanced maps** - one map per neighborhood, one interior map.
 - **Game objects** - every furniture piece, tree, brazier, wall, tent and cart already in
   the game is a GO template I can spawn, scale and rotate.
@@ -144,6 +148,30 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, eighteenth revision
+
+The seventeenth revision left a list. This one is not another list: it is the list worked
+off, in both drafts, because the ported draft and the native draft share one core and a
+feature that exists in one of them exists in both.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 87 | Neither draft could be walked on. All 55 `housing_plot` rows shipped with `spawn_x/y/z` NULL and nothing turned a NULL into a position, so `HasSpawn` was false on every plot: no yard was ever entered, no plot was ever buyable, and the neighbourhood existed only as list output | Two changes. The 55 rows now carry authored X/Y and orientation - the anchor layout written down, so a plot can be surveyed against them - and `spawn_z` stays NULL on purpose: a plot row whose Z is NULL means "the ground, whatever it is", and the height is read from the map the first time somebody walks in and cached. A row with a Z keeps it. `BuildAnchorLayout` also fills any remaining template in either map mode, so a half-authored map produces a log line instead of an unbuyable plot |
+| 88 | `Housing.Evict.*` did not exist. A house whose owner stopped logging in kept its plot for ever, and retail's inactivity rule - the one that keeps a neighbourhood from filling with ghosts - had no implementation at all | `HousingMgr::RunLifecycle`, hourly: a house untouched for `Housing.Evict.Days` gets one letter by mail at the start of `Housing.Evict.GraceDays` and goes back on the market at the end of it, with the house packed into the archive first. Off by default, because a house that vanishes during a break is the loudest bug report there is |
+| 89 | There was no population cap. `JoinNeighborhood` did not exist, so the only way into a public neighbourhood was to be placed in one by the finder, and a hundred accounts could hold plots in the same street | `Housing.Neighborhood.PopulationCap`, counted by owned plots, checked both when joining and when buying. `/housing join` and `C:JOIN` are wired to it, faction-checked, and refuse a guild neighbourhood because a guild is joined by invitation |
+| 90 | `ReleaseViewer` despawned the furniture the moment the last *viewer of the yard* left. A player standing inside the house is not a viewer of the yard - the interior is a different map - so decorating, walking out and coming back could meeting an empty room | `IsHouseOccupied` and a new `PlayerState::InsideHousingId`, set on entry and cleared on exit and logout. The despawn waits for the interior too |
+| 91 | `housing_biome.flags` and `housing_plot.flags` were written in the schema, described in doc 02, and read by nothing. Sanctuary, no-fly, island, bridge-only and no-outdoor-decor were all decoration | `EnforceBiomeRules` now reads the biome the player stands on and ORs in the plot's own bits; a plot can refuse outdoor furniture outright. The one bit with no consumer left is `AmenityFlagPortal`, because a portal amenity is routed by its `housing_portal` row instead |
+| 92 | Twelve database writes used `PExecute`, which queues the statement for the next update tick. Every one of them was followed by an in-memory change the player was told about, so a shutdown between the two lost the write and kept the promise - a purchased piece that never reached the table, a sold plot that came back | `DirectPExecute` everywhere the call decides the outcome, in `HousingMgr`, `HousingHouse` and `HousingNeighborhood`. What is left queued is the periodic flush, which is the one place a queue is the right answer |
+| 93 | Placing a piece meant typing `x y z o scale indoor`. That is not a user interface, and it is not what retail's decorator does | `C:PLACEAT` and `/housing at <decorId> [metres] [indoor]`: the server walks forward from the player's own position and facing, snaps to the ground with `Map::GetHeight`, and places there. The typed version stays, because a blueprint import and a careful nudge still want it |
+| 94 | The dye system wrote `variant_entry` and nothing read it. `LoadDecor` did not select the column and `SpawnDecorObject` used the catalogue entry unconditionally, so a dyed chair was a dyed row and an undyed chair | `DecorPlacement` carries the dye group, colour and variant entry; the loader reads all three and the spawner prefers the variant. The catalogue now ships the one colour pair 8.3.7 genuinely has for the same piece - Pink and Red Razorwind Paintbrush - so `/housing dye` has something to act on |
+| 95 | `character_housing_decor` and `housing_vendor_stock` each had a column after the `PRIMARY KEY` line and a trailing comma before the closing parenthesis. Both are syntax error 1064 on MariaDB, and both had been in every draft for two rounds: the column-count check counts columns, not commas | Both tables repaired, the whole folder re-parsed with sqlglot, and a new rule in `check_mariadb.py` that refuses a column definition after a key line or a trailing comma before the close - mutation-tested against the exact shape that got through |
+| 96 | Three new tables had no content and no way to get any: `housing_amenity` had object and creature entries of 0 with nothing to bind them from, `housing_endeavor_task` had targets of 0, and `housing_portal` had map 0 on every row | `tools/sql/bind_housing_content.sql`: name-based bind statements for amenities, shells, portals (from `game_tele`), decor creatures and Endeavor targets, every subquery wrapped in `COALESCE(..., 0)`, and a report of what stayed unbound. The rows carry the search name beside the id, so the bind is repeatable after a content patch |
+
+The last four tables of the progression set - levels, shells, rooms, portals - plus the
+Endeavor ladder and its 16 reward rows come out of `tools/housing/build_progression.py`,
+which both builders import, so draft A and draft B ship the same 12 levels, the same 6
+shells, the same 18 rooms and the same 4 Endeavors over their own decor ids.
 
 ## Audit pass, seventeenth revision
 

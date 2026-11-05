@@ -16,6 +16,7 @@
  */
 
 #include "HousingDecor.h"
+#include "Creature.h"
 #include "GameObject.h"
 #include "Log.h"
 #include "Map.h"
@@ -29,17 +30,23 @@ namespace Housing
 GameObject* SpawnDecorObject(DecorInfo const& info, DecorPlacement& placement, Map* map,
     uint32 phaseId, ObjectGuid ownerGuid)
 {
-    if (!map || !info.GameObjectEntry)
+    if (!map)
+        return nullptr;
+
+    // A dyed piece spawns as the variant game object, not the catalogue one. Without this the
+    // dye row was written and read back and never seen.
+    uint32 const entry = placement.VariantEntry ? placement.VariantEntry : info.GameObjectEntry;
+    if (!entry)
         return nullptr;
 
     Position const pos(placement.X, placement.Y, placement.Z, placement.O);
     QuaternionData const rotation = QuaternionData::fromEulerAnglesZYX(placement.O, 0.0f, 0.0f);
 
-    GameObject* go = GameObject::CreateGameObject(info.GameObjectEntry, map, pos, rotation, 255, GO_STATE_READY);
+    GameObject* go = GameObject::CreateGameObject(entry, map, pos, rotation, 255, GO_STATE_READY);
     if (!go)
     {
         TC_LOG_ERROR("housing", "Failed to create decor object %u (gameobject entry %u, placement " UI64FMTD ")",
-            info.Id, info.GameObjectEntry, placement.Id);
+            info.Id, entry, placement.Id);
         return nullptr;
     }
 
@@ -55,6 +62,46 @@ GameObject* SpawnDecorObject(DecorInfo const& info, DecorPlacement& placement, M
 
     placement.SpawnGuid = go->GetGUID();
     return go;
+}
+
+Creature* SpawnDecorCreature(DecorPlacement& placement, PetBedInfo const& pet, Map* map, uint32 phaseId)
+{
+    // A pet bed is furniture with something asleep on it. The creature is a temp summon in the
+    // same phase as the bed, so it appears to the people who can see the bed and nobody else,
+    // and it is removed with the bed rather than orphaned when the last visitor walks out.
+    if (!map || !pet.CreatureEntry)
+        return nullptr;
+
+    Position const pos(placement.X, placement.Y, placement.Z, placement.O);
+
+    TempSummon* summon = map->SummonCreature(pet.CreatureEntry, pos, nullptr, 0, nullptr);
+    if (!summon)
+    {
+        TC_LOG_ERROR("housing", "Pet bed decor %u could not summon creature %u",
+            placement.DecorId, pet.CreatureEntry);
+        return nullptr;
+    }
+
+    PhasingHandler::AddPhase(summon, phaseId, false);
+
+    if (pet.Roaming && pet.Radius > 0.0f)
+        summon->SetHomePosition(pos);
+    else
+        summon->SetWalk(false);
+
+    placement.PetGuid = summon->GetGUID();
+    return summon;
+}
+
+void DespawnDecorCreature(DecorPlacement& placement, Map* map)
+{
+    if (placement.PetGuid.IsEmpty())
+        return;
+
+    if (Creature* creature = map ? map->GetCreature(placement.PetGuid) : nullptr)
+        creature->DespawnOrUnsummon();
+
+    placement.PetGuid.Clear();
 }
 
 void DespawnDecorObject(DecorPlacement& placement, Map* map)

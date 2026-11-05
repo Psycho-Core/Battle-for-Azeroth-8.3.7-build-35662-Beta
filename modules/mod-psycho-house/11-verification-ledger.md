@@ -507,3 +507,50 @@ because a fix that was never re-read is a fix that is assumed.
 
 The one thing this cannot prove: that `DirectPExecute` behaves as its declaration reads on a live
 server. No server in this workspace has executed a line of the module.
+
+### 6.14 The eighteenth revision: what was added, and what was checked about it
+
+The seventeenth revision ended with a list of systems that were "designed but absent". This
+one closes eleven of them in the shared core, so both drafts get them at once, and records
+where each one was checked.
+
+| System | Where it lives | What was checked |
+| --- | --- | --- |
+| 12-level house ladder and XP | `housing_house_level`, `HousingMgr::GrantHouseXp`, `LevelForXp` | The ladder is a table, not a constant in a header; XP is written before the level is announced; the level raises all three budgets |
+| Decor storage | `character_housing_storage`, `LoadStorage` / `ConsumeStorage` | A placement consumes a copy and a removal returns one - `PlaceDecor` writes the placement before it consumes, so a failed placement cannot eat a copy |
+| Endeavors | `housing_endeavor` / `_task` / `_reward`, `HousingEndeavor.cpp` | Progress is per neighbourhood, not per player; the milestone is the fraction of tasks completed; a claim is keyed on neighbourhood, milestone and account so two players cannot claim the same step twice |
+| Milestone gating | `housing_vendor_stock.milestone`, shop listing | A row above the neighbourhood's milestone is not listed and not buyable |
+| Blueprints | `HousingBlueprint.cpp` | The checksum is verified before the payload is read; the faction byte is checked; a truncated payload is rejected rather than half-applied |
+| Dyes | `housing_decor_variant`, `DyeDecor`, `SpawnDecorObject` | The variant entry is what actually spawns - this round found that the row was written and never read |
+| Pet beds | `housing_decor_creature`, `SpawnDecorCreature` | The creature is a temp summon in the plot's phase and is removed with the furniture, so a bed cannot leave a cat behind |
+| Finder, visit, reservation | `GetPublicNeighborhoods`, `VisitNeighborhood`, `ReservePlot` | A reservation is an account plus an expiry, not a lock on the plot: it only stops the same account reserving twice |
+| Regret window | `character_housing_archive`, `RestoreArchivedHouse` | The house is packed before the plot is freed, and the archive expires rather than lingering for ever |
+| Inactivity | `RunLifecycle` | Off unless `Housing.Evict.Days` is set; the letter is sent once (`evict_warned`), and the sale goes through the same path a manual sale uses |
+| Population cap | `JoinNeighborhood`, `BuyPlot` | Counted from owned plots, checked at both doors, 0 means no cap |
+
+Eleven defects were fixed in the same pass and are recorded as findings 87 to 96 in the module
+README. Two of them were not visible to any checker that existed when they were written:
+
+- `character_housing_decor` and `housing_vendor_stock` each had a column after the index
+  definition. MariaDB rejects that with error 1064. The column-count check counts columns and
+  the tuple check counts commas; neither looks at the order inside the block. `check_mariadb.py`
+  now refuses a column after a key line and a trailing comma before the close, and the whole
+  folder is parsed with sqlglot as a second opinion when it is installed.
+- The dye path read a column that `LoadDecor` never selected. A query that names a column and a
+  loader that selects a different set will never disagree loudly; the only reason this was
+  found is that `variant_entry` was traced from the `UPDATE` to the spawn call.
+
+What is still open after this pass, with the reason:
+
+- **The custom map.** Plot rows carry an X/Y lay-out and a NULL Z, and `Housing.Map.Mode =
+  "anchor"` places the 55 plots on rings around the town centre for a realm that has no map
+  900. Native mode still needs a real map in `Map.db2`; no amount of SQL creates terrain.
+- **Dye variants.** The palette table ships with six colours and the bind statement finds the
+  pairs the realm's `gameobject_template` actually has. A piece with no pair is not dyable.
+  Nothing here invents a recolour that the client cannot render.
+- **Endeavor targets.** The 24 tasks carry a target name, not a target id, because a creature
+  or item id belongs to the realm. `bind_housing_content.sql` resolves them and reports what
+  stayed at 0; an unbound task never completes, which is the safe failure.
+- **Vendor milestones.** The gated rows are known per vendor, not per item, except Hordranin.
+  The stock that is locked is therefore assigned by price order until the per-item list exists,
+  and the draft README says so.

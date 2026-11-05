@@ -249,6 +249,85 @@ H.handlers["VAREAEND"] = function()
     Print("amenity list done")
 end
 
+-- ---- finder, visiting, storage, progression, Endeavors, codes -----------------
+
+H.finder = {}
+H.storage = {}
+H.shells = {}
+H.portals = {}
+H.endeavor = {}
+H.tasks = {}
+
+H.handlers["FINDER"] = function(fields)
+    H.finder[#H.finder + 1] = {
+        id = tonumber(fields[2]), name = fields[3],
+        owned = tonumber(fields[4]), total = tonumber(fields[5]),
+    }
+end
+
+H.handlers["FINDEREND"] = function()
+    Print("public neighbourhoods: " .. #H.finder .. " (/housing visit <id> <plot>)")
+end
+
+H.handlers["STORAGE"] = function(fields)
+    H.storage[tonumber(fields[2])] = tonumber(fields[3])
+end
+
+H.handlers["STORAGEEND"] = function()
+    local total = 0
+    for _, count in pairs(H.storage) do total = total + count end
+    Print("storage: " .. total .. " copies")
+end
+
+H.handlers["SHELL"] = function(fields)
+    H.shells[tonumber(fields[2])] = {
+        name = fields[3], size = tonumber(fields[4]), level = tonumber(fields[5]),
+    }
+end
+
+H.handlers["SHELLEND"] = function()
+    Print("shells: " .. #H.shells .. " (/housing shell <id>)")
+end
+
+H.handlers["PORTAL"] = function(fields)
+    H.portals[tonumber(fields[2])] = { name = fields[3], level = tonumber(fields[4]) }
+end
+
+H.handlers["PORTALEND"] = function()
+    Print("portal destinations: " .. #H.portals)
+end
+
+H.handlers["ENDEAVOR"] = function(fields)
+    H.endeavor = {
+        neighborhood = tonumber(fields[2]), id = tonumber(fields[3]),
+        milestone = tonumber(fields[4]), done = tonumber(fields[5]),
+    }
+end
+
+H.handlers["ENDTASK"] = function(fields)
+    H.tasks[#H.tasks + 1] = {
+        id = tonumber(fields[2]), progress = tonumber(fields[3]),
+        required = tonumber(fields[4]), text = fields[5],
+    }
+end
+
+H.handlers["ENDTASKEND"] = function()
+    local e = H.endeavor
+    Print("endeavor " .. tostring(e.id) .. " milestone " .. tostring(e.milestone) ..
+        "/4, " .. #H.tasks .. " tasks")
+end
+
+H.handlers["PLACEAT"] = function(fields)
+    if fields[3] == "0" then
+        Print("placed in front of you (placement " .. tostring(fields[4]) .. ")")
+    end
+end
+
+H.handlers["BPCODE"] = function(fields)
+    H.lastCode = fields[2]
+    Print("build code: " .. tostring(fields[2]))
+end
+
 -- ---------------------------------------------------------------------------
 -- Blueprint codes (doc 06 sec.3)
 --
@@ -319,7 +398,7 @@ local BLUEPRINT_KINDS = { R = true, B = true, E = true }
 
 function H.ValidateBlueprint(code)
     local kind, faction, payload, checksum =
-        string.match(code or "", "^PCH1%-(%a)%-(%d)%-(%w+)%-(%w%w%w%w)$")
+        string.match(code or "", "^PHP1%:([%w]+)$")
 
     if not kind then
         return false, "not a PCH1 code (PCH1-<kind>-<faction>-<payload>-<checksum>)"
@@ -429,6 +508,73 @@ SlashCmdList["HOUSING"] = function(input)
         else
             Print("|cffff5555" .. reason .. "|r")
         end
+    elseif command == "finder" then
+        H.finder = {}
+        Send("C:FINDER")
+    elseif command == "visit" then
+        local neighborhood, plot = string.match(rest, "^(%d+)%s+(%d+)$")
+        if not neighborhood then
+            Print("usage: /housing visit <neighbourhood> <plot>")
+        else
+            Send("C:VISIT|" .. neighborhood .. "|" .. plot)
+        end
+    elseif command == "at" then
+        local decorId, metres, indoor = string.match(rest, "^(%d+)%s*(%d*)%s*(%d*)$")
+        if not decorId then
+            Print("usage: /housing at <decorId> [metres] [indoor]")
+        else
+            Send("C:PLACEAT|" .. decorId .. "|" .. (metres ~= "" and metres or "2") ..
+                "|" .. (indoor ~= "" and indoor or "0"))
+        end
+    elseif command == "join" then
+        Send("C:JOIN|" .. rest)
+    elseif command == "reserve" then
+        Send("C:RESERVE|" .. rest)
+    elseif command == "storage" then
+        Send("C:STORAGE")
+    elseif command == "buycopy" then
+        local decorId, count = string.match(rest, "^(%d+)%s*(%d*)$")
+        if not decorId then
+            Print("usage: /housing buycopy <decorId> [count]")
+        else
+            Send("C:BUYCOPY|" .. decorId .. "|" .. (count ~= "" and count or "1"))
+        end
+    elseif command == "levelup" then
+        Send("C:LEVELUP")
+    elseif command == "shells" then
+        H.shells = {}
+        Send("C:SHELLS")
+    elseif command == "shell" then
+        Send("C:SHELL|" .. rest)
+    elseif command == "dye" then
+        local placementId, group, colour = string.match(rest, "^(%d+)%s+(%d+)%s+(%d+)$")
+        if not placementId then
+            Print("usage: /housing dye <placementId> <group> <colour>")
+        else
+            Send("C:DYE|" .. placementId .. "|" .. group .. "|" .. colour)
+        end
+    elseif command == "portals" then
+        H.portals = {}
+        Send("C:PORTALS")
+    elseif command == "portal" then
+        Send("C:GOPORTAL|" .. rest)
+    elseif command == "endeavor" then
+        H.tasks = {}
+        Send("C:ENDEAVOR")
+    elseif command == "deliver" then
+        Send("C:DELIVER")
+    elseif command == "claim" then
+        Send("C:CLAIM|" .. rest)
+    elseif command == "export" then
+        local kind, name = string.match(rest, "^(%d*)%s*(%S*)$")
+        Send("C:BPEXP|" .. (kind ~= "" and kind or "0") .. "|" .. (name ~= "" and name or "build"))
+    elseif command == "import" then
+        Send("C:BPIMP|" .. rest)
+    elseif command == "restore" then
+        Send("C:RESTORE")
+    elseif command == "build" then
+        local on, decorId = string.match(rest, "^(%d*)%s*(%d*)$")
+        Send("C:BUILDMODE|" .. (on ~= "" and on or "1") .. "|" .. (decorId ~= "" and decorId or "0"))
     elseif command == "crc" then
         Print("crc32 '" .. rest .. "' = " .. H.Crc32(rest) ..
             " -> " .. H.Base62(H.Crc32(rest), 4))

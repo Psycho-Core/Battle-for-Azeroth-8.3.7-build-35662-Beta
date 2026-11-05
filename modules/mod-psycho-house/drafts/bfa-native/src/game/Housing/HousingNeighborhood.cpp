@@ -17,6 +17,8 @@
 
 #include "HousingNeighborhood.h"
 #include "DatabaseEnv.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
 #include "Log.h"
 
 namespace Housing
@@ -78,6 +80,20 @@ HousingPlot const* HousingNeighborhood::GetPlot(uint8 index) const
     return nullptr;
 }
 
+Player* HousingNeighborhood::GetAnyResident()
+{
+    for (auto const& plot : _plots)
+    {
+        if (!plot->IsOwned())
+            continue;
+
+        if (Player* owner = ObjectAccessor::FindConnectedPlayer(plot->GetOwnerGuid()))
+            return owner;
+    }
+
+    return nullptr;
+}
+
 uint32 HousingNeighborhood::GetOwnedCount() const
 {
     uint32 owned = 0;
@@ -121,7 +137,7 @@ void HousingNeighborhood::AddMember(uint32 accountId, uint8 rank)
 
     _members[accountId] = rank;
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "REPLACE INTO `character_housing_neighbor_member` (`neighborhoodId`, `accountId`, `rank`, `joined`) "
         "VALUES ({}, {}, {}, UNIX_TIMESTAMP())", _id, accountId, uint32(rank));
 }
@@ -129,7 +145,7 @@ void HousingNeighborhood::AddMember(uint32 accountId, uint8 rank)
 void HousingNeighborhood::RemoveMember(uint32 accountId)
 {
     if (_members.erase(accountId))
-        CharacterDatabase.PExecute(
+        CharacterDatabase.DirectPExecute(
             "DELETE FROM `character_housing_neighbor_member` WHERE `neighborhoodId` = {} AND `accountId` = {}",
             _id, accountId);
 }

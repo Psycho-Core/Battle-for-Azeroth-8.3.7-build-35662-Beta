@@ -260,6 +260,47 @@ def check_tables(label, path, schema):
                 fail(where, "column `{}` is a MariaDB reserved word and is not backticked".format(column))
 
 
+def check_column_order(label, path):
+    """A column definition cannot come after a KEY line.
+
+    MariaDB rejects it with error 1064, and a checker that only counts columns and value
+    tuples cannot see it: the column is there, the comma is not. Two tables in this folder
+    shipped that way for a round because a column was inserted with a regex aimed at
+    ") ENGINE" and landed after the index definition instead of before it.
+
+    Also refuses a trailing comma before the closing parenthesis, which is the same mistake
+    made from the other end.
+    """
+    text = strip_comments(read(path))
+    base = os.path.basename(path)
+
+    for table in re.finditer(r"CREATE TABLE(?: IF NOT EXISTS)?\s+`(\w+)`\s*\((.*?)\n\)\s*ENGINE",
+                             text, re.S):
+        name, body = table.group(1), table.group(2)
+        seen_key = None
+
+        for line in body.splitlines():
+            stripped = line.strip().rstrip(",")
+
+            if not stripped:
+                continue
+
+            is_key = bool(re.match(r"(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY|INDEX|CONSTRAINT|FULLTEXT)", stripped))
+            is_column = stripped.startswith("`")
+
+            if is_column and seen_key:
+                fail("{} `{}`".format(label, name),
+                     "column definition after {} - MariaDB rejects the table with error 1064"
+                     .format(seen_key))
+            elif is_key:
+                seen_key = stripped.split("`")[0].strip() or "a key line"
+
+        tail = body.rstrip().splitlines()[-1].strip() if body.strip() else ""
+        if tail.endswith(","):
+            fail("{} `{}`".format(label, name),
+                 "trailing comma before the closing parenthesis - error 1064")
+
+
 def check_rows(label, path, text, schema):
     base = os.path.basename(path)
     for match in re.finditer(r"INSERT\s+INTO\s+`(\w+)`\s*\(([^)]*)\)\s*VALUES", text, re.S):
@@ -477,6 +518,7 @@ def main():
                     schema[name] = info
         for path, text in texts.items():
             check_dialect(draft, path, text)
+            check_column_order(draft, path)
             if "CREATE TABLE" in text:
                 check_tables(draft, path, tables(text))
             check_rows(draft, path, text, schema)

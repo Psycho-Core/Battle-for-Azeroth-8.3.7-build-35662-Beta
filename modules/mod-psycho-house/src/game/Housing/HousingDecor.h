@@ -39,7 +39,11 @@ namespace Housing
         uint8 Surface = SurfaceFloor;
         bool Indoor = false;
         uint32 Placed = 0;
+        uint8 DyeGroup = 0;         // 0 = undyed
+        uint8 DyeColor = 0;
+        uint32 VariantEntry = 0;    // the dyed game object entry, 0 = the catalogue entry
         ObjectGuid SpawnGuid;       // live object, empty when not spawned
+        ObjectGuid PetGuid;         // creature a pet bed owns, empty when not spawned
     };
 
     /// One unlocked decor item for an account, mirrors character_housing_collection.
@@ -53,6 +57,13 @@ namespace Housing
 
     /// Spawn a decor piece on a map in the given phase. Returns nullptr on failure; the
     /// placement is untouched when that happens so the caller can retry later.
+    /// The creature a pet bed owns. Returns nullptr when the piece has no creature or the
+    /// summon fails, which leaves the bed as ordinary furniture.
+    TC_GAME_API Creature* SpawnDecorCreature(DecorPlacement& placement, PetBedInfo const& pet, Map* map,
+        uint32 phaseId);
+
+    TC_GAME_API void DespawnDecorCreature(DecorPlacement& placement, Map* map);
+
     TC_GAME_API GameObject* SpawnDecorObject(DecorInfo const& info, DecorPlacement& placement, Map* map,
         uint32 phaseId, ObjectGuid ownerGuid);
 

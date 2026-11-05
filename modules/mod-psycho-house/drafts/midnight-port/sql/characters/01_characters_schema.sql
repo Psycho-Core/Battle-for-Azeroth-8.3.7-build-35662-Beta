@@ -33,7 +33,12 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
  `ownerAccount`  INT UNSIGNED NOT NULL,
  `ownerGuid`    BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'character that bought it, display only',
  `ownerName`    VARCHAR(32) NOT NULL DEFAULT '',
- `tier`      TINYINT UNSIGNED NOT NULL DEFAULT 1,
+ `tier`      TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'house level, 1-12',
+`xp`        INT UNSIGNED NOT NULL DEFAULT 0,
+`budget_room`  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'cached, recomputed on load',
+`shell_id`  INT UNSIGNED NOT NULL DEFAULT 0,
+`endeavor_id`  INT UNSIGNED NOT NULL DEFAULT 0,
+`edit_session` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 while the owner is in build mode',
  `blueprint`    INT UNSIGNED NOT NULL DEFAULT 0,
  `name`      VARCHAR(64) NOT NULL DEFAULT '',
  `locked`     TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -41,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
  `budget_outdoor` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'cached, recomputed on load',
  `purchase_time`  INT UNSIGNED NOT NULL DEFAULT 0,
  `last_edited`   INT UNSIGNED NOT NULL DEFAULT 0,
+ `evict_warned`  TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 once the inactivity letter has been sent',
  PRIMARY KEY (`id`),
  UNIQUE KEY `idx_housing_plot_unique` (`neighborhoodId`, `plotIndex`),
  KEY `idx_housing_owner_account` (`ownerAccount`),
@@ -59,6 +65,10 @@ CREATE TABLE IF NOT EXISTS `character_housing_decor` (
  `surface`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
  `indoor`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
  `placed`  INT UNSIGNED NOT NULL DEFAULT 0,
+ `dye_group` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ `dye_color` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ `variant_entry` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'the object actually spawned after dyeing',
+ `pet_guid` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'creature owned by a pet bed',
  PRIMARY KEY (`id`),
  KEY `idx_housing_decor_house` (`housingId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Placed decor pieces';
@@ -88,3 +98,86 @@ CREATE TABLE IF NOT EXISTS `character_housing_neighbor_member` (
  `joined`     INT UNSIGNED NOT NULL DEFAULT 0,
  PRIMARY KEY (`neighborhoodId`, `accountId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Guild/private neighbourhood membership';
+
+-- ---------------------------------------------------------------------------
+-- Owned decor copies. Retail's rule is that four chairs are four chairs: buying a piece
+-- adds a copy, placing one spends it, removing one gives it back, and the budget is what
+-- limits how many of them can stand in the house at once. The collection row records what
+-- has ever been learned; this row records what is in storage right now.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `character_housing_storage` (
+ `accountId` INT UNSIGNED NOT NULL,
+ `decorId`   INT UNSIGNED NOT NULL,
+ `count`     INT UNSIGNED NOT NULL DEFAULT 0,
+ `acquired`  INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`accountId`, `decorId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Owned decor copies';
+
+-- ---------------------------------------------------------------------------
+-- Endeavor state per neighbourhood, progress per task, and the claims that stop a reward
+-- being taken twice. One endeavor is active per neighbourhood at a time, exactly as retail.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `character_housing_endeavor` (
+ `neighborhoodId` INT UNSIGNED NOT NULL,
+ `endeavorId` INT UNSIGNED NOT NULL DEFAULT 0,
+ `milestone`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ `started`    INT UNSIGNED NOT NULL DEFAULT 0,
+ `ends`       INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`neighborhoodId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Active Endeavor per neighbourhood';
+
+CREATE TABLE IF NOT EXISTS `character_housing_endeavor_task` (
+ `neighborhoodId` INT UNSIGNED NOT NULL,
+ `taskId`     INT UNSIGNED NOT NULL,
+ `progress`   INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`neighborhoodId`, `taskId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Endeavor task progress';
+
+CREATE TABLE IF NOT EXISTS `character_housing_endeavor_claim` (
+ `neighborhoodId` INT UNSIGNED NOT NULL,
+ `milestone`  TINYINT UNSIGNED NOT NULL,
+ `accountId`  INT UNSIGNED NOT NULL,
+ `claimed`    INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`neighborhoodId`, `milestone`, `accountId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Milestone rewards already taken';
+
+-- ---------------------------------------------------------------------------
+-- Saved builds. The code is the shareable string; the row is the server's copy so the
+-- owner can re-issue it and an import can be validated against the real catalogue.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `character_housing_blueprint` (
+ `id`        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+ `accountId` INT UNSIGNED NOT NULL,
+ `name`      VARCHAR(64) NOT NULL DEFAULT '',
+ `kind`      TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 build, 1 room, 2 exterior',
+ `faction`   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ `code`      TEXT NOT NULL,
+ `created`   INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`id`),
+ KEY `idx_housing_blueprint_account` (`accountId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Exported build codes';
+
+-- ---------------------------------------------------------------------------
+-- Relinquished and evicted houses, kept for the regret window. A sold house is not
+-- destroyed: the placements are parked here and RestorePlot puts them back, which is what
+-- retail's "I sold my house and regret it" timer is.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `character_housing_archive` (
+ `id`        INT UNSIGNED NOT NULL,
+ `accountId` INT UNSIGNED NOT NULL,
+ `plotIndex` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ `neighborhoodId` INT UNSIGNED NOT NULL DEFAULT 0,
+ `name`      VARCHAR(64) NOT NULL DEFAULT '',
+ `tier`      TINYINT UNSIGNED NOT NULL DEFAULT 1,
+ `xp`        INT UNSIGNED NOT NULL DEFAULT 0,
+ `shell_id`  INT UNSIGNED NOT NULL DEFAULT 0,
+ `decor`     MEDIUMTEXT COMMENT 'packed placements, same format as a blueprint code',
+ `price_paid` INT UNSIGNED NOT NULL DEFAULT 0,
+ `archived`  INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`id`),
+ KEY `idx_housing_archive_account` (`accountId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Sold houses kept for the regret window';

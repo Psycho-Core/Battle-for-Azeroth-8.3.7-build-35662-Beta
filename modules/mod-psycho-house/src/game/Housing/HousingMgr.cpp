@@ -17,6 +17,9 @@
 
 #include "HousingMgr.h"
 
+#include "HousingBlueprint.h"
+#include "HousingEndeavor.h"
+
 #include "Chat.h"
 #include "Config.h"
 #include "DB2Stores.h"
@@ -63,7 +66,8 @@ HousingMgr* HousingMgr::instance()
 HousingMgr::HousingMgr()
     : _enabled(false), _housingMapId(0), _interiorMapId(0), _saveInterval(kSaveIntervalSeconds),
     _rateLimit(kRateLimitMessages), _homeCooldown(900), _refundPercent(50), _plotScopedPhasing(true),
-    _nativeMap(true), _nextPlacementId(1), _nextHousingId(1), _nextNeighborhoodId(1),
+    _nativeMap(true), _evictDays(0), _graceDays(7), _populationCap(0), _lifecycleTimer(0),
+    _nextPlacementId(1), _nextHousingId(1), _nextNeighborhoodId(1),
     _saveTimer(0), _tick(0)
 {
     _usedSlots.assign(kNeighborhoodSlotMax + 1, false);
@@ -83,6 +87,12 @@ void HousingMgr::LoadConfig()
     _homeCooldown = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Homestone.Cooldown", 900)));
     _refundPercent = uint32(std::min(100, std::max(0, sConfigMgr->GetIntDefault("Housing.Sell.RefundPercent", 50))));
     _plotScopedPhasing = sConfigMgr->GetBoolDefault("Housing.Phasing.PlotScoped", true);
+
+    // Eviction is off unless the realm asks for it: a house that vanishes because its owner
+    // took a break is the loudest possible bug report.
+    _evictDays = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Evict.Days", 0)));
+    _graceDays = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Evict.GraceDays", 7)));
+    _populationCap = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.PopulationCap", 0)));
 
     std::string const mode = sConfigMgr->GetStringDefault("Housing.Map.Mode", "native");
     _nativeMap = mode != "anchor";
@@ -135,9 +145,16 @@ void HousingMgr::LoadHousingData()
     LoadAmenities();
     LoadNamePool();
 
-    TC_LOG_INFO("housing", "Loaded %u biomes, %u plots, %u decor items, %u vendors, %u amenities",
+    // Level ladder, shells, rooms, dye variants, decor creatures and portals. Runs after the
+    // plot templates because anchor mode fills in the spawn points the templates are missing.
+    LoadProgression();
+    sHousingEndeavor->Load();
+
+    TC_LOG_INFO("housing", "Loaded %u biomes, %u plots, %u decor items, %u vendors, %u amenities, "
+        "%u levels, %u shells, %u rooms, %u portal(s)",
         uint32(_biomes.size()), uint32(_plotTemplates.size()), uint32(_decor.size()),
-        uint32(_vendorList.size()), uint32(_amenityList.size()));
+        uint32(_vendorList.size()), uint32(_amenityList.size()), uint32(_levels.size()),
+        uint32(_shells.size()), uint32(_rooms.size()), uint32(_portalList.size()));
 }
 
 void HousingMgr::LoadBiomes()
@@ -202,10 +219,16 @@ void HousingMgr::LoadPlotTemplates()
         tmpl.SizeClass = fields[3].GetUInt8();
         tmpl.Price = fields[4].GetUInt32();
 
-        tmpl.HasSpawn = !fields[5].IsNull() && !fields[6].IsNull() && !fields[7].IsNull();
+        // X and Y are the authoring decision; Z does not have to be. A row with X and Y and a
+        // NULL Z means "here, on the ground", and the ground is read from the map on entry.
+        tmpl.HasSpawn = !fields[5].IsNull() && !fields[6].IsNull();
         if (tmpl.HasSpawn)
-            tmpl.Spawn = Position(fields[5].GetFloat(), fields[6].GetFloat(), fields[7].GetFloat(),
+        {
+            tmpl.TerrainZ = fields[7].IsNull();
+            tmpl.Spawn = Position(fields[5].GetFloat(), fields[6].GetFloat(),
+                tmpl.TerrainZ ? 0.0f : fields[7].GetFloat(),
                 fields[8].IsNull() ? 0.0f : fields[8].GetFloat());
+        }
 
         tmpl.YardRadius = fields[9].IsNull() ? 0.0f : fields[9].GetFloat();
         tmpl.Flags = fields[10].GetUInt32();
@@ -614,7 +637,7 @@ HousingNeighborhood* HousingMgr::CreateNeighborhood(uint8 type, uint8 faction, s
     std::string escapedName = name;
     CharacterDatabase.EscapeString(escapedName);
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "INSERT INTO `character_housing_neighborhood` (`id`, `type`, `name`, `faction`, `map_id`, `slot`, "
         "`guildId`, `ownerAccount`, `created`) VALUES ({}, {}, '{}', {}, {}, {}, {}, {}, UNIX_TIMESTAMP())",
         id, uint32(type), escapedName, uint32(faction), _housingMapId, uint32(slot), guildId, ownerAccount);
@@ -650,8 +673,8 @@ void HousingMgr::DissolveNeighborhood(HousingNeighborhood* neighborhood)
         ForceSellPlot(plot.get());
     }
 
-    CharacterDatabase.PExecute("DELETE FROM `character_housing_neighborhood` WHERE `id` = {}", neighborhood->GetId());
-    CharacterDatabase.PExecute("DELETE FROM `character_housing_neighbor_member` WHERE `neighborhoodId` = {}",
+    CharacterDatabase.DirectPExecute("DELETE FROM `character_housing_neighborhood` WHERE `id` = {}", neighborhood->GetId());
+    CharacterDatabase.DirectPExecute("DELETE FROM `character_housing_neighbor_member` WHERE `neighborhoodId` = {}",
         neighborhood->GetId());
 
     ReleaseSlot(neighborhood->GetSlot());
@@ -770,6 +793,7 @@ void HousingMgr::OnPlayerZoneChange(Player* player)
     {
         state->NeighborhoodId = 0;
         state->InsideInterior = false;
+        state->InsideHousingId = 0;
     }
 }
 
@@ -788,8 +812,12 @@ void HousingMgr::OnPlayerUpdate(Player* player, uint32 diff)
 
     state->TickAccum = 0;
 
-    if (!IsHousingMap(player->GetMapId()))
+    if (!IsHousingMap(player->GetMapId()) && player->GetMapId() != _interiorMapId)
         return;
+
+    // Sanctuary and no-fly are rules of the ground, so they are re-asserted rather than
+    // applied once on entry: a player who re-flags inside still stops being a target.
+    EnforceBiomeRules(player);
 
     ResolvePlot(player, *state);
 }
@@ -845,6 +873,12 @@ void HousingMgr::ReleaseViewer(HousingPlot* plot)
 
     _houseViewers.erase(itr);
 
+    // Somebody still inside the interior keeps the furniture up. Despawning under a player
+    // who is standing in the room deletes the object they are looking at, and the interior
+    // and the yard are two different maps so the viewer count says nothing about it.
+    if (IsHouseOccupied(housingId))
+        return;
+
     if (HousingHouse* house = plot->GetHouse())
         house->DespawnAll();
 }
@@ -862,6 +896,8 @@ void HousingMgr::ResolvePlot(Player* player, PlayerState& state)
         HousingPlot* plot = neighborhood->GetPlot(state.InsidePlot);
         if (!plot || !plot->IsOwned())
             return;
+
+        ApplyNeighborhoodPhase(player, neighborhood);
 
         if (HousingHouse* house = plot->GetHouse())
             house->EnsureSpawned(player->GetMap(), plot->GetInteriorPhase(),
@@ -928,7 +964,12 @@ void HousingMgr::ResolvePlot(Player* player, PlayerState& state)
         return;
     }
 
+    ApplyNeighborhoodPhase(player, neighborhood);
     ApplyPlotPhase(player, plot);
+
+    // The town centre, the amenities and the plot shells are spawned once per neighbourhood
+    // in its own phase, so a visitor sees the same street a resident does.
+    SpawnNeighborhoodContent(neighborhood, player->GetMap());
 
     if (!plot->IsOwned())
         return;
@@ -1075,6 +1116,11 @@ HousingResult HousingMgr::BuyPlot(Player* player, HousingNeighborhood* neighborh
     if (GetOwnedPlot(player))
         return TooManyHouses;
 
+    // The population cap counts owned plots, so it is checked here as well as on join: a
+    // neighbourhood that filled up after the player joined still has no room for them.
+    if (_populationCap && GetNeighborhoodPopulation(neighborhood) >= _populationCap)
+        return NeighborhoodFull;
+
     uint32 const accountId = player->GetSession()->GetAccountId();
 
     if (neighborhood->GetType() != NeighborhoodPublic && !neighborhood->IsMember(accountId))
@@ -1088,7 +1134,7 @@ HousingResult HousingMgr::BuyPlot(Player* player, HousingNeighborhood* neighborh
     std::string ownerName = player->GetName();
     CharacterDatabase.EscapeString(ownerName);
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "INSERT INTO `character_housing` (`id`, `neighborhoodId`, `plotIndex`, `ownerAccount`, `ownerGuid`, "
         "`ownerName`, `tier`, `blueprint`, `name`, `locked`, `budget_indoor`, `budget_outdoor`, "
         "`purchase_time`, `last_edited`) VALUES ({}, {}, {}, {}, {}, '{}', 1, 0, '', 0, 0, 0, {}, {})",
@@ -1126,8 +1172,8 @@ void HousingMgr::ForceSellPlot(HousingPlot* plot)
         house->DeleteAllDecor();
     }
 
-    CharacterDatabase.PExecute("DELETE FROM `character_housing` WHERE `id` = {}", housingId);
-    CharacterDatabase.PExecute("DELETE FROM `character_housing_guest` WHERE `housingId` = {}", housingId);
+    CharacterDatabase.DirectPExecute("DELETE FROM `character_housing` WHERE `id` = {}", housingId);
+    CharacterDatabase.DirectPExecute("DELETE FROM `character_housing_guest` WHERE `housingId` = {}", housingId);
 
     _houseViewers.erase(housingId);
     _guestCache.erase(housingId);
@@ -1149,6 +1195,26 @@ HousingResult HousingMgr::SellPlot(Player* player)
 
     uint32 const refund = plot->GetPrice() * _refundPercent / 100;
     uint32 const housingId = plot->GetHousingId();
+    uint32 const accountId = player->GetSession()->GetAccountId();
+
+    // Park the house before it is destroyed: the placements go into the archive as a build
+    // code, which is what makes "I sold my house and regret it" recoverable for a week.
+    std::string packed;
+    if (HousingHouse* house = plot->GetHouse())
+        packed = BlueprintCodec::Encode(house->GetPlacements(), BlueprintBuild,
+            player->GetTeamId() == TEAM_ALLIANCE ? FactionAlliance : FactionHorde);
+
+    std::string safeName = plot->GetHouse() ? plot->GetHouse()->GetName() : std::string();
+    CharacterDatabase.EscapeString(safeName);
+
+    CharacterDatabase.DirectPExecute(
+        "REPLACE INTO `character_housing_archive` (`id`, `accountId`, `plotIndex`, `neighborhoodId`, "
+        "`name`, `tier`, `xp`, `shell_id`, `decor`, `price_paid`, `archived`) "
+        "VALUES ({}, {}, {}, {}, '{}', {}, {}, 0, '{}', {}, UNIX_TIMESTAMP())",
+        housingId, accountId, uint32(plot->GetIndex()),
+        plot->GetNeighborhood() ? plot->GetNeighborhood()->GetId() : 0u, safeName,
+        uint32(plot->GetHouse() ? plot->GetHouse()->GetTier() : 1),
+        GetXpForHousing(housingId), packed, plot->GetPrice());
 
     ForceSellPlot(plot);
 
@@ -1275,7 +1341,7 @@ HousingResult HousingMgr::TeleportToPlot(Player* player, uint8 plotIndex)
 
     ApplyPlotPhase(player, plot);
 
-    if (!player->TeleportTo(neighborhood->GetMapId(), plot->GetTemplate().Spawn))
+    if (!player->TeleportTo(neighborhood->GetMapId(), PlotSpawn(plot, player)))
     {
         state->InsidePlot = 0xFF;
         return InternalError;
@@ -1314,7 +1380,7 @@ HousingResult HousingMgr::TeleportHome(Player* player)
 
     ApplyPlotPhase(player, plot);
 
-    if (!player->TeleportTo(neighborhood->GetMapId(), plot->GetTemplate().Spawn))
+    if (!player->TeleportTo(neighborhood->GetMapId(), PlotSpawn(plot, player)))
         return InternalError;
 
     state->LastHomeUse = now;
@@ -1386,10 +1452,12 @@ HousingResult HousingMgr::EnterHouse(Player* player, bool enter)
             PhasingHandler::RemovePhase(player, plot->GetPlotPhase(), true);
 
         state->InsideInterior = true;
+        state->InsideHousingId = plot->GetHousingId();
 
         if (!player->TeleportTo(_interiorMapId, _interiorAnchor))
         {
             state->InsideInterior = false;
+            state->InsideHousingId = 0;
             return InternalError;
         }
 
@@ -1403,8 +1471,9 @@ HousingResult HousingMgr::EnterHouse(Player* player, bool enter)
     ApplyPlotPhase(player, plot);
 
     state->InsideInterior = false;
+    state->InsideHousingId = 0;
 
-    if (!player->TeleportTo(neighborhood->GetMapId(), plot->GetTemplate().Spawn))
+    if (!player->TeleportTo(neighborhood->GetMapId(), PlotSpawn(plot, player)))
         return InternalError;
 
     return Ok;
@@ -1432,8 +1501,18 @@ HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, fl
     if (!plot || !plot->IsOwned())
         return NoHouse;
 
-    if (plot->GetOwnerAccount() != accountId)
+    // Owner, or a guest the owner gave the edit bit to. Unlocking a piece is not enough:
+    // retail makes you own the copies you put down.
+    if (!CanEdit(player, plot))
         return NotOwner;
+
+    if (!GetStorageCount(accountId, decorId))
+        return StorageEmpty;
+
+    // A plot can refuse outdoor furniture outright - the Outer Banks island is a view, not a
+    // garden. The flag has lived in the schema since the first draft; this is what reads it.
+    if (!indoor && (plot->GetTemplate().Flags & PlotFlagNoOutdoorDecor))
+        return NotAllowedHere;
 
     PlayerState* state = GetPlayerState(player);
     if (state && !indoor && state->InsidePlot != plot->GetIndex())
@@ -1457,6 +1536,9 @@ HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, fl
 
     if (result != Ok)
         return result;
+
+    // The copy leaves storage only after the placement is accepted.
+    ConsumeStorage(accountId, decorId);
 
     if (DecorPlacement* placement = house->GetPlacementMutable(placementId))
     {
@@ -1533,17 +1615,25 @@ HousingResult HousingMgr::RemoveDecor(Player* player, uint64 placementId)
     if (!plot || !plot->IsOwned())
         return NoHouse;
 
-    if (plot->GetOwnerAccount() != player->GetSession()->GetAccountId())
+    if (!CanEdit(player, plot))
         return NotOwner;
 
     HousingHouse* house = plot->GetHouse();
     if (!house)
         return NoHouse;
 
+    uint32 removedDecorId = 0;
     if (DecorPlacement* placement = house->GetPlacementMutable(placementId))
+    {
+        removedDecorId = placement->DecorId;
         DespawnDecorObject(*placement, house->IsSpawned() ? house->GetSpawnMap() : player->GetMap());
+    }
 
-    return house->RemovePlacement(placementId);
+    HousingResult const result = house->RemovePlacement(placementId);
+    if (result == Ok && removedDecorId)
+        AddStorage(player->GetSession()->GetAccountId(), removedDecorId, 1);
+
+    return result;
 }
 
 HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
@@ -1563,6 +1653,24 @@ HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
     uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
     if (!(info->FactionMask & factionBit))
         return WrongFaction;
+
+    // Milestone-gated stock: the row carries the milestone, the neighbourhood's progress
+    // decides whether it is on the shelf. Hiding it in the window is not enough - the buy
+    // path checks again.
+    if (info->SourceType == SourceVendor)
+    {
+        auto const stockItr = _vendorStock.find(info->SourceId);
+        if (stockItr != _vendorStock.end())
+        {
+            uint8 needed = 0;
+            for (VendorStockEntry const& entry : stockItr->second)
+                if (entry.DecorId == decorId)
+                    needed = entry.Milestone;
+
+            if (needed && sHousingEndeavor->GetMilestoneFor(player) < needed)
+                return NotAllowedHere;
+        }
+    }
 
     if (info->Currency != kCurrencyGold)
     {
@@ -1590,12 +1698,17 @@ HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
         player->ModifyMoney(-int64(cost));
     }
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, `source_id`, `acquired`) "
         "VALUES ({}, {}, {}, {}, UNIX_TIMESTAMP())",
         accountId, decorId, uint32(info->SourceType), info->SourceId);
 
     _collection[accountId].insert(decorId);
+
+    // One copy in storage, and the first time a piece is learned pays house XP - which is
+    // the whole reason a decor collector levels a house.
+    AddStorage(accountId, decorId, 1);
+    GrantHouseXp(player, kXpPerNewDecor);
 
     return Ok;
 }
@@ -1651,7 +1764,7 @@ void HousingMgr::AddGuest(uint32 housingId, uint32 accountId, uint8 flags)
     if (!housingId || !accountId)
         return;
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "REPLACE INTO `character_housing_guest` (`housingId`, `accountId`, `flags`, `added`) "
         "VALUES ({}, {}, {}, UNIX_TIMESTAMP())", housingId, accountId, uint32(flags));
 
@@ -1660,7 +1773,7 @@ void HousingMgr::AddGuest(uint32 housingId, uint32 accountId, uint8 flags)
 
 void HousingMgr::RemoveGuest(uint32 housingId, uint32 accountId)
 {
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "DELETE FROM `character_housing_guest` WHERE `housingId` = {} AND `accountId` = {}",
         housingId, accountId);
 
@@ -1680,6 +1793,27 @@ void HousingMgr::Update(uint32 diff)
 
     _tick += diff;
     _saveTimer += diff;
+
+    // Hourly. Eviction reads the database, so it must not run on the save cadence.
+    _lifecycleTimer += diff;
+    if (_lifecycleTimer >= 3600 * 1000)
+    {
+        _lifecycleTimer = 0;
+        RunLifecycle();
+    }
+
+    sHousingEndeavor->Update(diff);
+
+    // Reservations expire on their own; nothing else reads the map, so a sweep here is
+    // cheaper than a timer per plot.
+    uint32 const now = getMSTime();
+    for (auto itr = _reservations.begin(); itr != _reservations.end();)
+    {
+        if (itr->second.second <= now)
+            itr = _reservations.erase(itr);
+        else
+            ++itr;
+    }
 
     if (_saveTimer < std::max(5u, _saveInterval) * 1000)
         return;

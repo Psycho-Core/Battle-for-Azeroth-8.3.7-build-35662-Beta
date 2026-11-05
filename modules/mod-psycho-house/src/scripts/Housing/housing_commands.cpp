@@ -23,6 +23,7 @@ Category: commandscripts
 EndScriptData */
 
 #include "Chat.h"
+#include "HousingEndeavor.h"
 #include "HousingMgr.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -30,11 +31,22 @@ EndScriptData */
 #include "ScriptMgr.h"
 #include "WorldSession.h"
 
+#include <algorithm>
 #include <cstring>
 #include <sstream>
 
 namespace
 {
+    /// Parse a bare unsigned id out of a command argument. Deliberately strict: a typo
+    /// must not resolve to zero and act on plot 0.
+    uint32 ParseId(std::string const& text)
+    {
+        std::istringstream stream(text);
+        uint32 value = 0;
+        stream >> value;
+        return stream.fail() ? 0 : value;
+    }
+
     Player* GetSessionPlayer(ChatHandler* handler)
     {
         return handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
@@ -69,8 +81,294 @@ namespace
             case Housing::RateLimited:       return "too many requests";
             case Housing::Cooldown:          return "on cooldown";
             case Housing::NotAllowedHere:    return "not allowed here";
+            case Housing::LevelTooLow:       return "your house is not a high enough level";
+            case Housing::StorageEmpty:      return "you do not own a copy of that";
+            case Housing::EndeavorIncomplete: return "the endeavour has not reached that step";
+            case Housing::BadCode:           return "that build code is not valid";
+            case Housing::ArchiveExpired:    return "the regret window has closed";
+            case Housing::NotGuild:          return "that neighbourhood is not a guild one";
+            case Housing::AlreadyKnown:      return "already known";
             default:                         return "internal error";
         }
+    }
+}
+
+namespace
+{
+    // ---- the commands that arrived with the completeness pass -----------------
+
+    static bool HandleFinderCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        uint8 const faction = player->GetTeamId() == TEAM_ALLIANCE ? Housing::FactionAlliance
+                                                                   : Housing::FactionHorde;
+
+        std::vector<Housing::HousingNeighborhood*> neighborhoods =
+            sHousingMgr->GetPublicNeighborhoods(faction);
+
+        if (neighborhoods.empty())
+        {
+            handler->PSendSysMessage("No public neighbourhoods yet.");
+            return true;
+        }
+
+        for (Housing::HousingNeighborhood* neighborhood : neighborhoods)
+            handler->PSendSysMessage("{} ({}) - {}/{} plots taken", neighborhood->GetName(),
+                neighborhood->GetId(), neighborhood->GetOwnedCount(), uint32(Housing::kPlotCount));
+
+        handler->PSendSysMessage("Visit one with .housing visit <neighbourhood> <plot>.");
+        return true;
+    }
+
+    static bool HandleVisitCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        uint32 neighborhoodId = 0;
+        uint32 plotIndex = 0;
+
+        std::istringstream stream(args);
+        if (!(stream >> neighborhoodId >> plotIndex))
+        {
+            handler->PSendSysMessage("Usage: .housing visit <neighbourhood> <plot>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Visit: {}", ResultText(
+            sHousingMgr->VisitNeighborhood(player, neighborhoodId, uint8(plotIndex))));
+        return true;
+    }
+
+    static bool HandleReserveCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        uint32 plotIndex = 0;
+        if (!(plotIndex = ParseId(args)))
+        {
+            handler->PSendSysMessage("Usage: .housing reserve <plot>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Reserve: {}", ResultText(sHousingMgr->ReservePlot(player, uint8(plotIndex))));
+        return true;
+    }
+
+    static bool HandleStorageCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        auto const& storage = sHousingMgr->GetStorage(player->GetSession()->GetAccountId());
+        if (storage.empty())
+        {
+            handler->PSendSysMessage("Storage is empty.");
+            return true;
+        }
+
+        uint32 total = 0;
+        for (auto const& entry : storage)
+        {
+            handler->PSendSysMessage("  decor {} x{}", entry.first, entry.second);
+            total += entry.second;
+        }
+
+        handler->PSendSysMessage("{} copies in storage.", total);
+        return true;
+    }
+
+    static bool HandleLevelUpCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Level up: {}", ResultText(sHousingMgr->LevelUpWithGold(player)));
+        return true;
+    }
+
+    static bool HandleShellCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (!args)
+        {
+            for (auto const& pair : sHousingMgr->GetShells())
+                handler->PSendSysMessage("  shell {}: {} (level {})", pair.first, pair.second.Name,
+                    uint32(pair.second.LevelRequired));
+
+            handler->PSendSysMessage("Usage: .housing shell <id>");
+            return true;
+        }
+
+        uint32 shellId = 0;
+        if (!(shellId = ParseId(args)))
+            return false;
+
+        handler->PSendSysMessage("Shell: {}", ResultText(sHousingMgr->ApplyShell(player, shellId)));
+        return true;
+    }
+
+    static bool HandleDyeCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        uint64 placementId = 0;
+        uint32 group = 0;
+        uint32 color = 0;
+
+        std::istringstream stream(args);
+        if (!(stream >> placementId >> group >> color))
+        {
+            handler->PSendSysMessage("Usage: .housing dye <placement> <group> <colour>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Dye: {}", ResultText(
+            sHousingMgr->DyeDecor(player, placementId, uint8(group), uint8(color))));
+        return true;
+    }
+
+    static bool HandleBlueprintCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        uint32 kind = Housing::BlueprintBuild;
+        std::string name = "build";
+
+        if (args)
+        {
+            std::istringstream stream(args);
+            stream >> kind;
+            stream >> name;
+        }
+
+        std::string code;
+        Housing::HousingResult const result = sHousingMgr->ExportBlueprint(player,
+            uint8(std::min<uint32>(kind, Housing::BlueprintExterior)), name, code);
+
+        if (result != Housing::Ok)
+        {
+            handler->PSendSysMessage("Export: {}", ResultText(result));
+            return true;
+        }
+
+        handler->PSendSysMessage("Build code ({} pieces):", uint32(code.size()));
+        handler->PSendSysMessage("{}", code);
+        return true;
+    }
+
+    static bool HandleBlueprintImportCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        handler->PSendSysMessage("Import: {}", ResultText(sHousingMgr->ImportBlueprint(player, args)));
+        return true;
+    }
+
+    static bool HandleRestoreCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Restore: {}", ResultText(sHousingMgr->RestoreArchivedHouse(player)));
+        return true;
+    }
+
+    static bool HandlePortalCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (!args)
+        {
+            for (Housing::HousingPortal const& portal : sHousingMgr->GetPortals())
+                handler->PSendSysMessage("  portal {}: {} -> map {}", portal.Id, portal.Name, portal.Map);
+
+            handler->PSendSysMessage("Usage: .housing portal <id>");
+            return true;
+        }
+
+        uint32 portalId = 0;
+        if (!(portalId = ParseId(args)))
+            return false;
+
+        handler->PSendSysMessage("Portal: {}", ResultText(sHousingMgr->UsePortal(player, portalId)));
+        return true;
+    }
+
+    static bool HandleEndeavorCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        uint32 const neighborhoodId = sHousingMgr->GetPlayerNeighborhoodId(player);
+        Housing::EndeavorInfo const* info = sHousingEndeavor->GetInfo(
+            sHousingEndeavor->GetActiveId(neighborhoodId));
+
+        if (!info)
+        {
+            handler->PSendSysMessage("No endeavour is running here.");
+            return true;
+        }
+
+        handler->PSendSysMessage("{} - milestone {}/4, {} tasks done", info->Name,
+            uint32(sHousingEndeavor->GetMilestone(neighborhoodId)),
+            sHousingEndeavor->GetCompletedTasks(neighborhoodId));
+
+        for (Housing::EndeavorTask const& task : info->Tasks)
+            handler->PSendSysMessage("  {}: {}/{}", task.Text,
+                sHousingEndeavor->GetTaskProgress(neighborhoodId, task.Id), task.Required);
+
+        return true;
+    }
+
+    static bool HandleDeliverCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Delivery: {}", sHousingEndeavor->Deliver(player)
+            ? "counted" : ResultText(Housing::EndeavorIncomplete));
+        return true;
+    }
+
+    static bool HandleClaimCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        uint32 milestone = 0;
+        if (!(milestone = ParseId(args)))
+        {
+            handler->PSendSysMessage("Usage: .housing claim <1-4>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Claim: {}", sHousingEndeavor->Claim(player, uint8(milestone))
+            ? "claimed" : ResultText(Housing::EndeavorIncomplete));
+        return true;
     }
 }
 
@@ -108,6 +406,20 @@ public:
             { "move",     0, false, &HandleMoveCommand,       "Move a placed decor item" },
             { "remove",   0, false, &HandleRemoveCommand,     "Remove a placed decor item" },
             { "dir",      0, false, &HandleDirectoryCommand,  "Neighbourhood directory" },
+            { "finder",   0, false, &HandleFinderCommand,     "List public neighbourhoods" },
+            { "visit",    0, false, &HandleVisitCommand,      "Visit a plot in another neighbourhood" },
+            { "reserve",  0, false, &HandleReserveCommand,    "Hold a free plot for 60 seconds" },
+            { "storage",  0, false, &HandleStorageCommand,    "Owned decor copies" },
+            { "levelup",  0, false, &HandleLevelUpCommand,    "Pay the contractor to skip a level" },
+            { "shell",    0, false, &HandleShellCommand,      "Choose or list exterior shells" },
+            { "dye",      0, false, &HandleDyeCommand,        "Dye a placed piece" },
+            { "bp",       0, false, &HandleBlueprintCommand,  "Export a build code" },
+            { "bpimport", 0, false, &HandleBlueprintImportCommand, "Import a build code" },
+            { "restore",  0, false, &HandleRestoreCommand,    "Recover a sold house" },
+            { "portal",   0, false, &HandlePortalCommand,     "Use a portal in your house" },
+            { "endeavor", 0, false, &HandleEndeavorCommand,   "Endeavour progress here" },
+            { "deliver",  0, false, &HandleDeliverCommand,    "Turn in an Endeavour delivery" },
+            { "claim",    0, false, &HandleClaimCommand,      "Claim a milestone reward" },
             { "guest",    0, false, &HandleGuestListCommand,  "Manage plot guests", guestCommandTable },
             { "audit",    rbac::RBAC_PERM_COMMAND_GM, false, &HandleAuditCommand,    "Audit housing state" },
             { "save",     rbac::RBAC_PERM_COMMAND_GM, false, &HandleSaveCommand,     "Flush housing state" },

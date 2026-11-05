@@ -55,6 +55,10 @@ namespace Housing
         std::vector<std::unique_ptr<HousingPlot>> const& GetPlots() const { return _plots; }
 
         uint32 GetOwnedCount() const;
+
+        /// A resident to address neighbourhood-wide messages to: the first owned plot's
+        /// owner if they are online, otherwise null. Used for XP and endeavor announcements.
+        Player* GetAnyResident();
         HousingPlot* FindFreePlot() const;
         HousingPlot* FindPlotOfAccount(uint32 accountId) const;
 

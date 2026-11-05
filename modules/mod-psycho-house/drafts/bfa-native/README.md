@@ -17,6 +17,9 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 | Quest rows | 4, the same ids and beats as the port | `sql/world/06_quests.sql` |
 | Client menu | The same seven-tab window - both drafts ship one core | `addon/HousingUI/Menu.lua` |
 | Substitution for missing art | none needed | the pieces are real game objects |
+| House levels | 12, the same ladder the port uses, from the same generator | `sql/world/07_progression.sql` |
+| Exteriors, rooms, portals | 6 shells, 18 rooms, 10 portal destinations | same file |
+| Endeavors | 4, 24 tasks, 16 reward rows | same file |
 
 ## Where the 350 come from
 
@@ -47,7 +50,7 @@ So the catalogue shows real game object names without me typing any of them.
 Eight stalls of my own design: Housing Steward, Groundskeeper, Stonewright, Lamplighter,
 Stores Overseer, Pet Handler, Tradesman, Festival Steward. Their `creature_entry` is 0
 until they are bound to a creature template that exists, which is what
-`tools/sql/bind_native_vendors.sql` does - it picks existing 8.3.7 creature entries by
+`sql/bind/bind_native_vendors.sql` does - it picks existing 8.3.7 creature entries by
 name and writes them into `housing_vendor.creature_entry`. Nothing is invented: a name
 that is not in `creature_template` simply matches zero rows.
 
@@ -71,14 +74,17 @@ That keeps the retail placement budgets in doc 01 usable without translating pri
 
 ## What it deliberately does not have
 
-- No Community Coupons. 3363 is a real 8.3.7 currency id, but with no Endeavor system
-  behind it there is nothing to earn it from in this draft.
-- No Endeavor milestone gating. Every piece on every stall is buyable from the start.
-- No dyes and no pet beds; those are phase 4 of doc 05.
-- No retail house levels 1 to 12. The core's five rungs are what ships: indoor budget
-  60, 90, 120, 160, 200 and outdoor 25, 45, 65, 85, 110, unlocked at 0, 5 000, 15 000,
-  40 000 and 100 000 gold. They are compiled into `HousingDefines.h`, not loaded from a
-  table, so a different ladder is a code change and a rebuild.
+- No Community Coupons in the shops. 3363 is a real 8.3.7 currency id and the Endeavor
+  rewards pay it, but no stall in this draft prices anything in it: gold is the whole
+  economy here, which is the point of the native draft.
+- No milestone gating on the stalls. Every native piece is buyable from the first visit;
+  `housing_vendor_stock.milestone` is 0 on every row. The gating code is the same one the
+  port uses, so turning it on is a data edit, not a rebuild.
+- No retail numbers. The 12-level ladder and its XP curve come from the shared generator,
+  but the prices and budgets are calculated from this draft's gold prices rather than
+  copied from retail - the ladder is the shape, the numbers are mine.
+- No retail item ids anywhere, and therefore no `item_entry` column values to port later.
+  A piece that gets a retail equivalent later is a row edit in `03_decor_native.sql`.
 
 ## Install
 
@@ -89,7 +95,10 @@ sql/world/02_world_content.sql
 sql/world/03_decor_native.sql
 sql/world/04_vendors_native.sql
 sql/world/06_quests.sql
-tools/sql/bind_native_vendors.sql        (optional, binds vendor models)
+sql/world/07_progression.sql
+sql/bind/bind_native_vendors.sql        (binds the 8 stall models)
+sql/bind/bind_housing_content.sql       (binds amenities, shells, pet beds, portals, Endeavor targets)
+sql/bind/bind_decor_variants.sql        (optional, fills the dye variant table)
 ```
 
 `../../tools/housing/install.py --draft bfa-native` puts the four trees where the build
