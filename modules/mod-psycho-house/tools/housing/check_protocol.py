@@ -65,7 +65,12 @@ def server_ops():
     only when it is non-zero - so the count follows the payload variable for as long as
     the function keeps appending to it, and stops when the chunk is sent.
     """
-    dispatched = set(re.findall(r'op == "([A-Z]+)"', read(PROTOCOL)))
+    # Every file in the game directory: the extended opcode set lives in
+    # HousingMgrExtra.cpp, and a dispatcher split across two files is still one dispatcher.
+    dispatched = set()
+    for name in sorted(os.listdir(GAME_DIR)):
+        if name.endswith(".cpp"):
+            dispatched.update(re.findall(r'op == "([A-Z]+)"', read(os.path.join(GAME_DIR, name))))
     replies = {}
     for name in sorted(os.listdir(GAME_DIR)):
         if not name.endswith(".cpp"):

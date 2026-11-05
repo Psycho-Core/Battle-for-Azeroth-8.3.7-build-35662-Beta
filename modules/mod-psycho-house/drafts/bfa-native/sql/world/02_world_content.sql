@@ -5,30 +5,34 @@
 -- Amenities. Types drive the addon map pins; positions are authored with the map.
 -- ---------------------------------------------------------------------------
 
+-- `go_name` and `creature_name` are search strings, not ids: bind_housing_content.sql looks
+-- them up in the realm's own tables and reports what it could not find. An amenity with
+-- neither stays a pin on the addon map, which is what most of them were before.
 DELETE FROM `housing_amenity` WHERE `id` BETWEEN 1 AND 22;
-INSERT INTO `housing_amenity` (`id`, `biome_id`, `name`, `type`, `radius`, `flags`) VALUES
-(1,  0, 'Town Center',            4, 60, 1),
-(2,  0, 'Bulletin Board',         0,  3, 1),
-(3,  0, 'General Contractor',     2,  3, 1),
-(4,  0, 'Portal to Stormwind',    1,  4, 1),
-(5,  0, 'Endeavors Area',         7,  8, 1),
-(6,  0, 'Stage',                  4, 10, 1),
-(7,  0, 'Moonwell',               5,  6, 1),
-(8,  1, 'Brumewood Graveyard',    5, 15, 1),
-(9,  1, 'Nightwell',              5,  6, 1),
-(10, 1, 'Mushroom Ring',          5,  5, 1),
-(11, 1, 'Breakwater Bight',       6, 20, 1),
-(12, 1, 'Brumewood Flight Point', 3,  5, 1),
-(13, 2, 'Beer Garden',            4, 12, 1),
-(14, 2, 'Windmills',              5, 10, 1),
-(15, 2, 'Lighthouse',             5,  8, 1),
-(16, 2, 'Gilded Oaks Flight Point',3, 5, 1),
-(17, 3, 'Vineyards',              5, 20, 1),
-(18, 3, 'Orchards',               5, 20, 1),
-(19, 3, 'Mear''s Farm Flight Point',3,5, 1),
-(20, 4, 'Gryphon Aerie',          3, 12, 1),
-(21, 5, 'Stoneveil Sheep Pasture',5, 25, 1),
-(22, 6, 'Outer Banks Flight Point',3, 5, 1);
+INSERT INTO `housing_amenity` (`id`, `biome_id`, `name`, `type`, `radius`, `flags`,
+    `go_name`, `creature_name`) VALUES
+(1,  0, 'Town Center',            4, 60, 1, '', ''),
+(2,  0, 'Bulletin Board',         0,  3, 1, 'Notice Board', ''),
+(3,  0, 'General Contractor',     2,  3, 9, '', ''),
+(4,  0, 'Portal to Stormwind',    1,  4, 5, 'Portal', ''),
+(5,  0, 'Endeavors Area',         7,  8, 1, 'Banner', ''),
+(6,  0, 'Stage',                  4, 10, 1, 'Stage', ''),
+(7,  0, 'Moonwell',               5,  6, 1, 'Moonwell', ''),
+(8,  1, 'Brumewood Graveyard',    5, 15, 1, '', ''),
+(9,  1, 'Nightwell',              5,  6, 1, 'Moonwell', ''),
+(10, 1, 'Mushroom Ring',          5,  5, 1, 'Mushroom', ''),
+(11, 1, 'Breakwater Bight',       6, 20, 1, 'Dock', ''),
+(12, 1, 'Brumewood Flight Point', 3,  5, 1, 'Gryphon', ''),
+(13, 2, 'Beer Garden',            4, 12, 1, 'Banner', ''),
+(14, 2, 'Windmills',              5, 10, 1, 'Windmill', ''),
+(15, 2, 'Lighthouse',             5,  8, 1, 'Lighthouse', ''),
+(16, 2, 'Gilded Oaks Flight Point',3, 5, 1, 'Gryphon', ''),
+(17, 3, 'Vineyards',              5, 20, 1, 'Vineyard', ''),
+(18, 3, 'Orchards',               5, 20, 1, 'Apple Tree', ''),
+(19, 3, 'Mear''s Farm Flight Point',3,5, 1, 'Gryphon', ''),
+(20, 4, 'Gryphon Aerie',          3, 12, 1, 'Gryphon', ''),
+(21, 5, 'Stoneveil Sheep Pasture',5, 25, 1, '', 'Sheep'),
+(22, 6, 'Outer Banks Flight Point',3, 5, 1, 'Gryphon', '');
 
 -- ---------------------------------------------------------------------------
 -- Public neighbourhood name pool
@@ -39,4 +43,12 @@ INSERT INTO `housing_neighborhood_name` (`faction`, `name`) VALUES
 (0, 'Elwynn Rest'), (0, 'Hollowmere'), (0, 'Oakhollow'), (0, 'Brightwater'),
 (0, 'Greenfield'), (0, 'Stormward'), (0, 'Amberfall'), (0, 'Westbrook'),
 (0, 'Goldvale'), (0, 'Cliffhaven'), (0, 'Ridgewatch'), (0, 'Bramblewood');
+
+-- The Horde pool. Both factions get a pool of their own: a Horde neighbourhood named
+-- after an Alliance harbour is the kind of thing nobody notices until they do.
+DELETE FROM `housing_neighborhood_name` WHERE `faction` = 1;
+INSERT INTO `housing_neighborhood_name` (`faction`, `name`) VALUES
+(1, 'Razorwind Rest'), (1, 'Durotar Hold'), (1, 'Ashenplain'), (1, 'Thunderstep'),
+(1, 'Redrock'), (1, 'Darkspear Landing'), (1, 'Bonefire'), (1, 'Warcamp'),
+(1, 'Sunveil'), (1, 'Grimhollow'), (1, 'Ashfall'), (1, 'Wolfsbane');
 

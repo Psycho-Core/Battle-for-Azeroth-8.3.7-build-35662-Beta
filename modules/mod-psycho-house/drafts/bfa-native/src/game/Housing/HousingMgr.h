@@ -44,9 +44,13 @@ namespace Housing
         uint32 NeighborhoodId = 0;   // neighbourhood the player is currently in
         uint8 InsidePlot = 0xFF;     // 0xFF = not standing in a plot
         bool InsideInterior = false;
+        uint32 InsideHousingId = 0;  // house whose interior the player is standing in
         uint32 LastHomeUse = 0;      // ms timestamp of the last homestone use
         bool HasOwnedPlot = false;
         uint32 OwnedHousingId = 0;
+        uint32 LastRuleCheck = 0;    // ms, throttles sanctuary and no-fly
+        bool InBuildMode = false;    // placement gizmo: the owner is nudging a piece
+        uint32 PendingDecorId = 0;   // the piece the gizmo is placing
     };
 
     /// Singleton that owns every piece of housing state on this worldserver.
@@ -148,6 +152,87 @@ namespace Housing
         HousingPlot* GetPlotForEdit(Player* player);
         PlayerState* GetPlayerState(Player* player);
 
+        // ---- progression -----------------------------------------------------
+
+        /// Level ladder, shells, rooms, dye variants, decor creatures, portals.
+        void LoadProgression();
+
+        uint8 GetLevelForHousing(uint32 housingId) const;
+        uint32 GetXpForHousing(uint32 housingId) const;
+        void GrantHouseXp(Player* player, uint32 xp);
+        HousingResult LevelUpWithGold(Player* player);
+        HousingResult ApplyShell(Player* player, uint32 shellId);
+
+        HouseLevelInfo const* GetHouseLevel(uint8 level) const;
+        ShellInfo const* GetShell(uint32 id) const;
+        std::map<uint32, ShellInfo> const& GetShells() const { return _shells; }
+        RoomInfo const* GetRoom(uint32 id) const;
+        std::vector<RoomInfo> GetRoomsForShell(uint32 shellId) const;
+        DecorVariant const* GetVariant(uint32 decorId, uint8 group, uint8 color) const;
+        bool HasVariants(uint32 decorId) const;
+        PetBedInfo const* GetDecorCreature(uint32 decorId) const;
+        HousingPortal const* GetPortal(uint32 id) const;
+        std::vector<HousingPortal> const& GetPortals() const { return _portalList; }
+
+        // ---- storage (retail: four chairs are four chairs) -------------------
+
+        void LoadStorage(uint32 accountId);
+        uint32 GetStorageCount(uint32 accountId, uint32 decorId);
+        void AddStorage(uint32 accountId, uint32 decorId, uint32 count);
+        bool ConsumeStorage(uint32 accountId, uint32 decorId);
+        std::map<uint32, uint32> const& GetStorage(uint32 accountId);
+
+        // ---- dyes ------------------------------------------------------------
+
+        HousingResult DyeDecor(Player* player, uint64 placementId, uint8 group, uint8 color);
+
+        // ---- travel, finder, visit, reservation ------------------------------
+
+        std::vector<HousingNeighborhood*> GetPublicNeighborhoods(uint8 faction);
+        HousingResult VisitNeighborhood(Player* player, uint32 neighborhoodId, uint8 plotIndex);
+        HousingResult UsePortal(Player* player, uint32 portalId);
+        HousingResult ReservePlot(Player* player, uint8 plotIndex);
+
+        // ---- archive (the regret window) -------------------------------------
+
+        bool HasArchive(uint32 accountId);
+        HousingResult RestoreArchivedHouse(Player* player);
+
+        // ---- blueprints ------------------------------------------------------
+
+        HousingResult ExportBlueprint(Player* player, uint8 kind, std::string const& name, std::string& code);
+        HousingResult ImportBlueprint(Player* player, std::string const& code);
+        HousingResult ReadBlueprintCode(Player* player, std::string const& code, std::vector<DecorPlacement>& out,
+            uint8& kind);
+
+        // ---- endeavor glue ---------------------------------------------------
+
+        uint32 GetPlayerNeighborhoodId(Player* player);
+        void ApplyNeighborhoodPhase(Player* player, HousingNeighborhood* neighborhood);
+        void SpawnNeighborhoodContent(HousingNeighborhood* neighborhood, Map* map);
+        void EnforceBiomeRules(Player* player);
+
+        /// Owner, or a guest with the edit bit. Place, move and remove all go through this.
+        bool CanEdit(Player* player, HousingPlot* plot);
+
+        /// The extended opcode set: finder, storage, endeavors, codes, dyes, portals, shells.
+        bool HandleExtendedOp(Player* player, PlayerState& state, std::string const& op,
+            std::vector<std::string> const& fields);
+
+        // ---- lifecycle -------------------------------------------------------
+
+        /// Eviction, grace and the population cap. Runs on its own timer: a house nobody has
+        /// touched for Housing.Evict.Days goes back on the market, and a neighbourhood never
+        /// holds more residents than Housing.Neighborhood.PopulationCap.
+        void RunLifecycle();
+
+        uint32 GetNeighborhoodPopulation(HousingNeighborhood* neighborhood) const;
+        uint32 GetPopulationCap() const { return _populationCap; }
+        uint32 GetEvictGraceDays() const { return _graceDays; }
+
+        /// Join a neighbourhood that is open to the player's faction. Refuses when it is full.
+        HousingResult JoinNeighborhood(Player* player, uint32 neighborhoodId);
+
         // ---- maintenance -----------------------------------------------------
 
         void SaveAll();
@@ -170,6 +255,10 @@ namespace Housing
         uint32 _refundPercent;
         bool _plotScopedPhasing;
         bool _nativeMap;
+        uint32 _evictDays;          // 0 = eviction off
+        uint32 _graceDays;          // days a house sits in the archive before it is sold
+        uint32 _populationCap;      // residents per neighbourhood, 0 = no cap
+        uint32 _lifecycleTimer;
 
         // world data
         std::map<uint32, BiomeInfo> _biomes;
@@ -182,6 +271,17 @@ namespace Housing
         std::vector<AmenityInfo> _amenityList;
         std::vector<VendorInfo> _vendorList;
         std::map<uint32, std::vector<std::string>> _namePool;           // faction -> names
+        std::map<uint8, HouseLevelInfo> _levels;
+        std::map<uint32, ShellInfo> _shells;
+        std::map<uint32, RoomInfo> _rooms;
+        std::map<uint32, HousingPortal> _portals;
+        std::vector<HousingPortal> _portalList;
+        std::map<uint32, DecorVariant> _variants;                       // (decor << 16) | group << 8 | colour
+        std::map<uint32, PetBedInfo> _decorCreatures;
+        std::map<uint32, std::map<uint32, uint32>> _storage;            // accountId -> decorId -> count
+        std::set<uint32> _storageLoaded;
+        std::map<uint8, std::pair<uint32, uint32>> _reservations;       // plotIndex -> account, expiry
+        std::set<uint32> _contentSpawned;                               // neighborhoods whose static content is up
 
         // runtime state
         std::map<uint32, std::unique_ptr<HousingNeighborhood>> _neighborhoods;
@@ -206,6 +306,22 @@ namespace Housing
         void LoadVendors();
         void LoadAmenities();
         void LoadNamePool();
+        void LoadLevels();
+        void LoadShells();
+        void LoadRooms();
+        void LoadPortals();
+        void LoadVariants();
+        void LoadDecorCreatures();
+
+        /// Derive the spawn of a plot when the template has none (anchor mode).
+        void BuildAnchorLayout();
+        Position AnchorForPlot(uint8 plotIndex) const;
+
+        /// The plot's front door, with the ground height filled in when the row asked for it.
+        Position PlotSpawn(HousingPlot* plot, Player* player);
+        Position AnchorForAmenity(uint32 index) const;
+        void SpawnPlotShell(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
+        uint32 GetNeighborhoodPhaseOf(uint32 neighborhoodId) const;
 
         uint16 AllocateSlot();
         void ReleaseSlot(uint16 slot);
@@ -214,6 +330,11 @@ namespace Housing
         void ClearPlotPhases(Player* player, PlayerState& state);
         void ApplyPlotPhase(Player* player, HousingPlot* plot);
         void ReleaseViewer(HousingPlot* plot);
+
+        /// True while somebody is still inside the house's interior. Guards the despawn that
+        /// follows the last viewer leaving: the outdoor plot and the interior are different
+        /// maps, so a player looting the interior is not a "viewer" of the yard.
+        bool IsHouseOccupied(uint32 housingId) const;
 
         void HandleHello(Player* player, PlayerState& state);
         void HandleNeighborhoodInfo(Player* player, PlayerState& state);

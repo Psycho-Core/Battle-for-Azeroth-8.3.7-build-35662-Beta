@@ -21,12 +21,13 @@ Both drafts copy the same trees out of the module:
 
 | Tree | Files | What it does |
 | --- | --- | --- |
-| `src/game/Housing/` | 14 | Plots, houses, decor placement, phasing, persistence, the addon protocol |
-| `src/scripts/Housing/` | 4 | `.house` commands, player login hook, world config reload, loader |
+| `src/game/Housing/` | 19 | Plots, houses, decor placement, phasing, persistence, storage, levels, Endeavors, blueprints, the addon protocol |
+| `src/scripts/Housing/` | 5 | `.house` commands, the player hook, the guild hook, the world hook, the loader |
 | `addon/HousingUI/` | 2 | `Core.lua` (transport, protocol, slash commands) and `Menu.lua` (the seven-tab housing window) |
-| `drafts/*/sql/world/01_schema.sql` | 1 | Housing tables, identical in both drafts |
-| `drafts/*/sql/world/02_world_content.sql` | 1 | Six biomes, 55 plot templates, 22 amenity pins, the name pool |
-| `drafts/*/sql/characters/01_characters_schema.sql` | 1 | Ownership, placement, collection, guests, neighborhood membership |
+| `drafts/*/sql/world/01_schema.sql` | 1 | 17 housing tables, identical in both drafts |
+| `drafts/*/sql/world/02_world_content.sql` | 1 | Six biomes, 55 plot templates with an authored X/Y lay-out, 22 amenity pins with their object and NPC names, both name pools |
+| `drafts/*/sql/world/07_progression.sql` | 1 | 12 house levels, 6 shells, 18 rooms, 10 portals, 4 Endeavors with 24 tasks and 16 rewards, 3 pet beds - generated once, used by both drafts |
+| `drafts/*/sql/characters/01_characters_schema.sql` | 1 | Ownership, placement, collection, guests, membership, storage, Endeavor progress, blueprints, the archive - 12 tables |
 
 `tools/housing/build_drafts.py` copies the code and the two shared SQL files into a draft
 every time it runs, so the two `src/` trees cannot drift. If I change a C++ file, I re-run
@@ -88,10 +89,12 @@ decision I can change and re-generate in seconds.
 | Number of vendors | 39 | 8 |
 | Item ids referenced | 439 distinct retail ids on 450 rows | 0 |
 | Currency | gold + 3363 + item 33226 | gold |
-| Endeavor gating | yes, 4 milestones | no |
+| Endeavor gating | yes, 4 milestones | no, every stall open |
 | Introduction quests | 900100-900103 | 900100-900103 |
-| House levels | 5 rungs, indoor 60/90/120/160/200, outdoor 25/45/65/85/110 | same five rungs - both drafts ship the one core |
-| Dyes and pet beds | phase 4 | not planned |
+| House levels | 12, retail's XP curve and budgets | 12, the same ladder |
+| Shells, rooms, portals | 6 / 18 / 10 | 6 / 18 / 10 |
+| Dyes and pet beds | in, data-driven | in, data-driven |
+| Blueprints | export and import, `PHP1` codes | same |
 | Map mode default | `native` | `anchor` |
 | Best use | proving the retail experience end to end | shipping something today |
 

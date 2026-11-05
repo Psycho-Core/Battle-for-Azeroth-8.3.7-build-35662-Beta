@@ -428,6 +428,12 @@ void HousingMgr::HandleAddonMessage(Player* player, std::string const& message)
         return;
     }
 
+    // Everything that arrived after the first release: the finder, visiting, storage,
+    // copy purchases, the level ladder, shells, dyes, Endeavors, build codes, portals,
+    // reservations and the regret window. Split into HousingMgrExtra.cpp.
+    if (HandleExtendedOp(player, *state, op, fields))
+        return;
+
     // Unknown opcode: drop silently. Echoing an error would turn the channel into an
     // amplifier for anything that can send addon messages.
 }

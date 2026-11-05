@@ -21,11 +21,13 @@
 
 void AddSC_housing_world_script();
 void AddSC_housing_player_script();
+void AddSC_housing_guild_script();
 void AddSC_housing_commands();
 
 void AddHousingScripts()
 {
     AddSC_housing_world_script();
     AddSC_housing_player_script();
+    AddSC_housing_guild_script();
     AddSC_housing_commands();
 }

@@ -103,7 +103,8 @@ bool HousingHouse::LoadDecor()
     _placements.clear();
 
     QueryResult result = CharacterDatabase.PQuery(
-        "SELECT `id`, `decorId`, `x`, `y`, `z`, `o`, `scale`, `surface`, `indoor`, `placed` "
+        "SELECT `id`, `decorId`, `x`, `y`, `z`, `o`, `scale`, `surface`, `indoor`, `placed`, "
+        "`dye_group`, `dye_color`, `variant_entry` "
         "FROM `character_housing_decor` WHERE `housingId` = {}", _id);
 
     if (!result)
@@ -128,6 +129,9 @@ bool HousingHouse::LoadDecor()
         placement.Surface = fields[7].GetUInt8();
         placement.Indoor = fields[8].GetUInt8() != 0;
         placement.Placed = fields[9].GetUInt32();
+        placement.DyeGroup = fields[10].GetUInt8();
+        placement.DyeColor = fields[11].GetUInt8();
+        placement.VariantEntry = fields[12].GetUInt32();
 
         if (!sHousingMgr->GetDecor(placement.DecorId))
         {
@@ -230,7 +234,7 @@ HousingResult HousingHouse::AddPlacement(uint64 placementId, DecorInfo const& in
     if (result != Ok)
         return result;
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "INSERT INTO `character_housing_decor` "
         "(`id`, `housingId`, `decorId`, `x`, `y`, `z`, `o`, `scale`, `surface`, `indoor`, `placed`) "
         "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
@@ -275,7 +279,7 @@ HousingResult HousingHouse::MovePlacement(uint64 id, float x, float y, float z, 
         placement.O = o;
         placement.Scale = scale;
 
-        CharacterDatabase.PExecute(
+        CharacterDatabase.DirectPExecute(
             "UPDATE `character_housing_decor` SET `x` = {}, `y` = {}, `z` = {}, `o` = {}, `scale` = {} "
             "WHERE `id` = {} AND `housingId` = {}",
             x, y, z, o, scale, id, _id);
@@ -294,7 +298,7 @@ HousingResult HousingHouse::RemovePlacement(uint64 id)
         if (itr->Id != id)
             continue;
 
-        CharacterDatabase.PExecute("DELETE FROM `character_housing_decor` WHERE `id` = {} AND `housingId` = {}",
+        CharacterDatabase.DirectPExecute("DELETE FROM `character_housing_decor` WHERE `id` = {} AND `housingId` = {}",
             id, _id);
 
         _placements.erase(itr);
@@ -321,6 +325,11 @@ void HousingHouse::SpawnPlacement(DecorPlacement& placement, Map* map, uint32 ph
             info->Id, placement.Id, uint64(_id));
         (void)go;
     }
+
+    // Pet beds, mount stands and mannequins: the piece is furniture and the creature is what
+    // makes it furniture with something in it.
+    if (PetBedInfo const* pet = sHousingMgr->GetDecorCreature(placement.DecorId))
+        SpawnDecorCreature(placement, *pet, map, phaseId);
 }
 
 void HousingHouse::EnsureSpawned(Map* map, uint32 phaseId, ObjectGuid ownerGuid)
@@ -345,8 +354,13 @@ void HousingHouse::DespawnAll()
         return;
 
     for (DecorPlacement& placement : _placements)
+    {
         if (!placement.SpawnGuid.IsEmpty())
             DespawnDecorObject(placement, _spawnMap);
+
+        if (!placement.PetGuid.IsEmpty())
+            DespawnDecorCreature(placement, _spawnMap);
+    }
 
     _spawnMap = nullptr;
     _spawned = false;
@@ -361,7 +375,7 @@ void HousingHouse::Flush()
 
     CharacterDatabase.EscapeString(_name);
 
-    CharacterDatabase.PExecute(
+    CharacterDatabase.DirectPExecute(
         "UPDATE `character_housing` SET `tier` = {}, `blueprint` = {}, `name` = '{}', `locked` = {}, "
         "`budget_indoor` = {}, `budget_outdoor` = {}, `last_edited` = {} WHERE `id` = {}",
         uint32(_tier), _blueprint, _name, uint32(_locked ? 1 : 0), _usedIndoor, _usedOutdoor,
@@ -372,7 +386,7 @@ void HousingHouse::Flush()
 
 void HousingHouse::DeleteAllDecor()
 {
-    CharacterDatabase.PExecute("DELETE FROM `character_housing_decor` WHERE `housingId` = {}", _id);
+    CharacterDatabase.DirectPExecute("DELETE FROM `character_housing_decor` WHERE `housingId` = {}", _id);
     _placements.clear();
     RecalculateBudget();
     MarkDirty();

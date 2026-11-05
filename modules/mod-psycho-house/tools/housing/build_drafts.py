@@ -21,6 +21,8 @@ import re
 import shutil
 import sys
 
+from build_progression import progression_sql, PET_DECOR_NAMES
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA = os.path.join(ROOT, "data")
 GEN = os.path.join(ROOT, "generated")
@@ -166,6 +168,28 @@ def copy_core(draft):
         shutil.copytree(src, dst)
 
 
+# The bind statements are part of the draft, not part of my working folder: an operator who
+# receives one draft has to be able to resolve its names, and a path into tools/sql/ is not
+# something the draft can promise exists.
+BIND_SQL = (
+    "bind_town_center_vendors.sql",
+    "bind_native_vendors.sql",
+    "bind_housing_content.sql",
+    "bind_decor_variants.sql",
+)
+
+
+def copy_binds(draft):
+    src_dir = os.path.join(ROOT, "tools", "sql")
+    dst_dir = os.path.join(DRAFTS, draft, "sql", "bind")
+    os.makedirs(dst_dir, exist_ok=True)
+
+    for name in BIND_SQL:
+        src = os.path.join(src_dir, name)
+        if os.path.exists(src):
+            shutil.copyfile(src, os.path.join(dst_dir, name))
+
+
 def build_midnight():
     draft = "midnight-port"
     schema, world = read_schema_parts()
@@ -284,10 +308,11 @@ def build_midnight():
                  "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
     dlines = []
     for d in decor_rows:
-        dlines.append("({}, '{}', {}, {}, {}, {}, 2, '{}', 0, {}, {}, {}, {}, 0.5, 3, 0)".format(
+        flags = 0x010 if is_pet_piece(d["name"]) else 0
+        dlines.append("({}, '{}', {}, {}, {}, {}, 2, '{}', 0, {}, {}, {}, {}, 0.5, 3, {})".format(
             d["id"], sql_escape(d["name"]), d["go"], d["item"], d["budget"],
             surface_band(d["category"]), d["category"],
-            d["source"], d["price"], d["currency"], d["faction"]))
+            d["source"], d["price"], d["currency"], d["faction"], flags))
     decor_sql.append(",\n".join(dlines) + ";")
     decor_sql.append("\n-- gameobject_entry is a real 8.3.7 game object chosen by tools/housing/map_decor_go.py.")
     decor_sql.append("-- Provenance per piece is in data/town-center-go-map.csv; a 0 here means no")
@@ -313,10 +338,23 @@ def build_midnight():
           BANNER + "\n".join(stock_sql) + "\n")
     print("midnight-port: {} vendors, {} decor, {} stock".format(
         len(vendor_order), len(decor_rows), len(stock_rows)))
+    write_progression(draft, [(d["id"], d["name"]) for d in decor_rows if is_pet_piece(d["name"])])
     copy_core(draft)
 
 
 SMALL_WORDS = {"of", "the", "and", "for", "in", "on", "with", "to"}
+
+
+def is_pet_piece(name):
+    """A piece that owns a creature rather than only being furniture."""
+    low = name.lower()
+    return any(word.lower() in low for word in PET_DECOR_NAMES)
+
+
+def write_progression(draft, pieces):
+    write(os.path.join(DRAFTS, draft, "sql", "world", "07_progression.sql"),
+          BANNER + progression_sql(pieces))
+    print("{}: progression written, {} pet pieces".format(draft, len(pieces)))
 
 
 def humanise(constant):
@@ -395,9 +433,10 @@ def build_native():
         label = humanise(label)
         price = NATIVE_PRICE.get(cat, 10)
         vendor = 201 + (entry % len(vendors))
-        dlines.append("({}, '{}', {}, {}, {}, 2, '{}', 0, {}, {}, 0, 3, 0.5, 3, 0)".format(
+        flags = 0x010 if is_pet_piece(label) else 0
+        dlines.append("({}, '{}', {}, {}, {}, 2, '{}', 0, {}, {}, 0, 3, 0.5, 3, {})".format(
             2000 + i, sql_escape(label), entry, budget(price), surface_band(cat),
-            cat, vendor, price))
+            cat, vendor, price, flags))
         ssql_lines.append("({}, {}, {})".format(vendor, 2000 + i, price))
     dsql.append(",\n".join(dlines) + ";")
     dsql.append("\n-- Display names come from the world DB, not from the constant name:")
@@ -414,12 +453,17 @@ def build_native():
           BANNER + "\n".join(dsql) + "\n")
     write(os.path.join(DRAFTS, draft, "sql", "world", "04_vendors_native.sql"),
           BANNER + "\n".join(vsql) + "\n" + "\n".join(ssql) + "\n")
+    write_progression(draft, [(2000 + i, humanise(r["constant"] or r["name"]))
+                              for i, r in enumerate(rows)
+                              if is_pet_piece(humanise(r["constant"] or r["name"]))])
     copy_core(draft)
 
 
 def main():
     build_midnight()
     build_native()
+    copy_binds("midnight-port")
+    copy_binds("bfa-native")
 
 
 if __name__ == "__main__":
