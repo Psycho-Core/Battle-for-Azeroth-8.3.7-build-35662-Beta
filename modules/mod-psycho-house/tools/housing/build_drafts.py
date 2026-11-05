@@ -250,9 +250,15 @@ def build_midnight():
             currency = 0
         price = row["price"].strip()
         if not price:
+            # The vendor page did not print a price. The item's own page might have: the same
+            # piece is often sold by two stalls, and one of the two prints what it costs.
+            # Until the eighteenth revision this fallback was computed and then thrown away -
+            # the `continue` ran whether or not it found anything - so three lines with a
+            # perfectly good price on their item page were dropped and listed as unpriced.
             price = item_price_by_name.get(row["item"], "")
-            unpriced.setdefault(vendor, []).append(row["item"])
-            continue
+            if not price:
+                unpriced.setdefault(vendor, []).append(row["item"])
+                continue
         key = (row["item"], price, currency)
         if key not in decor_key:
             decor_key[key] = 1000 + len(decor_rows)
@@ -324,8 +330,9 @@ def build_midnight():
                  "INSERT INTO `housing_vendor_stock` (`vendor_id`, `decor_id`, `price`) VALUES"]
     stock_sql.append(",\n".join("({}, {}, {})".format(*s) for s in stock_rows) + ";")
     if unpriced:
-        stock_sql.append("\n\n-- Unpriced on the vendor page, deliberately not inserted so they do not")
-        stock_sql.append("-- come out free. Fill the price from the vendor and re-run this tool:")
+        stock_sql.append("\n\n-- No price on the vendor page and none on the item page either, so the line is")
+        stock_sql.append("-- deliberately not inserted: a row with no price would come out free. Fill the")
+        stock_sql.append("-- price in data/town-center-stock.csv and re-run this tool:")
         for vendor in sorted(unpriced):
             stock_sql.append("--   vendor {} (id {}): {}".format(
                 vendor, vendor_ids.get(vendor, 0), ", ".join(sorted(unpriced[vendor]))))

@@ -108,7 +108,9 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
    the vendors captured in earlier rounds. The wall is documented in doc 09 sec.7.2: 50
    rows per Wowhead listing with a JavaScript pager that ignores the query string, and two
    12.1.7 NPCs that the "Sold by NPC" filter does not index at all.
-3. **87 stock rows have no published price.** Not free, just unpublished.
+3. **87 captured lines have no published price on their vendor page.** Three of them carry
+   a price on their item page and ship at it; the other 84 are listed as comments and cannot
+   be bought. Not free, just unpublished.
 4. **One npc id unconfirmed**: Throska, a service NPC outside the vendor list, so the
    register still prints no id for it. Every one of the 39 vendors is confirmed.
 5. **Vendor models are not bound in the SQL.** `creature_entry` is 0 in all 39 rows and
@@ -136,7 +138,7 @@ MySQL, so it catches drift and typos, not whether the server would accept a stat
 ```
 drafts/midnight-port/sql/world/03_vendors_retail.sql     39 rows
 drafts/midnight-port/sql/world/04_decor_retail.sql      571 rows
-drafts/midnight-port/sql/world/05_stock_retail.sql      969 rows
+drafts/midnight-port/sql/world/05_stock_retail.sql      972 rows
 drafts/bfa-native/sql/world/03_decor_native.sql         350 rows
 drafts/bfa-native/sql/world/04_vendors_native.sql       358 rows
 0 finding(s)
@@ -457,10 +459,10 @@ unpriced ones were dropped for being free.
 The comment is now the number of rows the file actually inserts, and when the two numbers
 differ it prints both - `8 of 9 stock lines priced` - so a stall that lost lines cannot look
 complete. That is one comment string per vendor row, regenerated, with the stock file unchanged:
-969 lines over 37 vendors, the same 87 unpriced lines named at the end of it.
+972 lines over 37 vendors, and 84 unpriced lines named at the end of it.
 
 The gap that remains is content, not code: Burlee Jinglepocket and Roz Copperpinch need a
-price before their sixteen lines can be sold, and the other ten stalls are short by between
+price before their sixteen lines can be sold, and the other nine stalls are short by between
 one and seventeen.
 
 ### 6.12 The catalogue said the hubs were separate and the data did not
@@ -554,3 +556,49 @@ What is still open after this pass, with the reason:
 - **Vendor milestones.** The gated rows are known per vendor, not per item, except Hordranin.
   The stock that is locked is therefore assigned by price order until the per-item list exists,
   and the draft README says so.
+
+### 6.15 Both drafts against their own data, in both directions
+
+`python3 tools/housing/check_coverage.py` asks a question the other checkers do not: is
+anything missing. It walks the data each draft is generated from and finds it in the SQL,
+then walks the SQL and finds it in the data.
+
+```
+midnight-port   39 vendors   37 priced   972 stock   87 unpriced   121 without item id
+  empty stall: Burlee Jinglepocket (107)
+  empty stall: Roz Copperpinch (131)
+bfa-native       8 vendors   350 stock   350 entries from the source tree
+0 finding(s)
+```
+
+Draft A, checked item by item:
+
+- every one of the 39 vendors has a `housing_vendor` row and carries its retail npc id in
+  the comment;
+- all 972 priced captured lines land on a catalogue row at the row's own price and currency,
+  matched on name, price and currency rather than on a generated id;
+- all 439 retail item ids in `data/town-center-items.csv` appear on a decor row, and no decor
+  row invents an id the data does not have;
+- every catalogue row names a game object that is in `data/town-center-go-map.csv`, and every
+  one has a non-zero entry;
+- the 84 lines that ship nothing are named in the comment block at the end of the stock file.
+
+Draft B, checked item by item:
+
+- all 350 entries are `kind = gameobject` with `decor = yes` in
+  `generated/source-asset-index.csv`, which is built from the constants this tree declares,
+  and no entry appears twice;
+- every piece is sold by one of the 8 stalls, and every stall a stock row names exists;
+- no row carries a currency, so the gold-only claim is a property of the file rather than of
+  the readme.
+
+The checker was mutation-tested before it was trusted, three faults, one per direction:
+a deleted stock tuple was reported against the vendor whose count no longer matched, a decor
+row with its `item_entry` zeroed was reported twice (once as an id in the data with no row,
+once as a row with the wrong id), and a native entry changed to 999999 was reported as not
+being in the source tree.
+
+What the checker cannot see: whether a game object entry exists in the server's
+`gameobject_template`. The source tree declares the constant; only a world database says
+whether the row is there. That is the same wall every other check in this folder hits, and
+`bind_housing_content.sql` is the tool that reports it on a real realm.
