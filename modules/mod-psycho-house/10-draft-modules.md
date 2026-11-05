@@ -43,7 +43,7 @@ The retail port. This is the draft that answers "make it look like Midnight".
 | Vendors | 39, each with the retail npc id, faction and stock count in its row comment |
 | Decor rows | 571, every one carrying a real 8.3.7 game object |
 | Faction split | 397 rows are Horde only and 174 Alliance only, from the side the selling vendor stands on. A piece both hubs stock is two rows at two prices, so each side sees one - Autumn Leaf Pile is 50 gold in Razorwind Shores and 150 in Founder's Point |
-| Stock lines | 969 |
+| Stock lines | 972 |
 | Retail item ids on those rows | 450 rows carry one; between them they cover all 439 distinct ids in the catalogue |
 | Currency | gold, Community Coupons 3363, and Tricky Treat item 33226 |
 | Gated stock | 59 stock rows on six vendors are locked behind Endeavor milestones: Den 10 of 27, Pascal 11 of 17, Griftah 11 of 15, Harlowe 9 of 13, Aeeshna 10 of 12, Hordranin 8 of 12. Hordranin's eight are recorded per item; the others carry a vendor-level count. Hesta Forlath's 14 are gated on the Deed of Patronage instead, which is a different gate. Nothing is enforced yet - that is phase 3 |

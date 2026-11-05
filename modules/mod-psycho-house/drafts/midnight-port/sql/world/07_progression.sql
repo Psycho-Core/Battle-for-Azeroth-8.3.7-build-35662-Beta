@@ -137,8 +137,8 @@ INSERT INTO `housing_dye` (`id`, `name`) VALUES
 DELETE FROM `housing_decor_creature` WHERE `decor_id` >= 1000;
 INSERT INTO `housing_decor_creature` (`decor_id`, `kind`, `creature_entry`, `creature_name`, `roaming`, `radius`) VALUES
 (1181, 0, 0, 'Cat', 0, 0),
-(1458, 0, 0, 'Cat', 0, 0),
-(1462, 0, 0, 'Cat', 0, 0);
+(1460, 0, 0, 'Cat', 0, 0),
+(1464, 0, 0, 'Cat', 0, 0);
 
 -- kind 0 pet bed, 1 mount stand, 2 mannequin. A bed whose creature_entry stays 0
 -- after the bind is furniture: the piece places and the creature is simply absent,

@@ -101,6 +101,7 @@ publish entry ids for the interior quests.
 | `tools/housing/build_schema.py` | Reads the column lists of `creature_template`, `gameobject_template` and `creature_template_model` out of the build's own loader queries. Shared by the two checkers so they cannot disagree about what a column is. |
 | `tools/housing/check_psychohouse.py` | The third draft's checker: the 34 core calls it makes, each against the declaration in this source tree, and every include those calls need; SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, fourteen statements this document makes about build 35662 checked against the source tree, and the MariaDB rules: printf dialect and argument counts, a 64-bit house key on both sides, `COLLATE` on every table, no `INSERT IGNORE`, no bare scalar subquery, no config section header. |
 | `tools/housing/check_mariadb.py` | Reads the module's SQL and all three drafts the way MariaDB 11.8.6 would: every table pinned to InnoDB and utf8mb4 with an explicit COLLATE, NOT NULL columns with no default that an INSERT forgets (error 1364), integer and string literals wider than the column (1264 and 1406), duplicate primary and unique keys inside one file (1062), a decor category straddling two surface bands, and the statements that are MariaDB-only or that make an install unrepeatable. |
+| `tools/housing/check_coverage.py` | Both drafts against the data they are generated from, in both directions: every vendor, every priced line, every resolved retail item id and every catalogue row has to appear on both sides, and anything the data cannot supply has to be named in the file as a comment. Mutation-tested three ways: a dropped stock tuple, a decor row with its item id zeroed, and a native entry that is not in the source tree were each reported. |
 | `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
 | `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
@@ -148,6 +149,34 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, nineteenth revision
+
+Not a defect hunt this time: a completeness question, asked of both drafts in both
+directions. Every piece of data a draft is generated from has to reach the draft, and every
+row in the draft has to come from the data. `tools/housing/check_coverage.py` now does both
+for both drafts, and the answer is one defect.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 97 | Three stock lines were dropped for having no price when they had one. `build_drafts.py` reads a price off the vendor row, and when that is blank it falls back to the price on the item's own page - which is right, because a piece both hubs sell is often priced on only one of the two pages. The fallback value was then thrown away: the `continue` on the next line ran whether the fallback found a price or not. Elegant Elven Bathtub, Empty Elegant Elven Bathtub and Elegant Elven Water Well are 125 gold on their item pages and shipped nowhere | The fallback decides now, and the comment block at the end of the stock file is 84 lines instead of 87. Every one of the three lands on a catalogue row that already existed at that price, so the line count moved and the catalogue did not |
+
+The verification itself, because "complete" is a claim that has to be measured:
+
+| | Draft A - `midnight-port` | Draft B - `bfa-native` |
+| --- | --- | --- |
+| Source of truth | 1 056 captured stock lines, 739 resolved item ids, 618 decor mappings, 39 npcs | 748 decor-shaped game object constants in the source tree |
+| Catalogue rows | 571, every one with a real 8.3.7 game object and a vendor | 350, every entry is a constant the source tree declares |
+| Stock rows | 972, every priced captured line present | 350, every piece sold somewhere |
+| Item ids | 439 distinct retail ids on 450 rows - all 439 the data has | n/a, this draft has no retail ids |
+| Not shipped, and named as such | 84 unpriced lines as comments, 121 pieces without a retail id | nothing |
+| Two empty stalls | Burlee Jinglepocket and Roz Copperpinch, 32 lines between them, no price anywhere | none |
+
+What "not shipped" means in each case: a line with no price on the vendor page and none on
+the item page cannot be sold without inventing one, so it is a comment in the stock file and
+an operator can see it. A piece with no retail item id is not a missing piece - it places,
+it is priced, it is sold; what it lacks is the Midnight id that would let a model be swapped
+in later, and no amount of checking finds an id that was never published.
 
 ## Audit pass, eighteenth revision
 

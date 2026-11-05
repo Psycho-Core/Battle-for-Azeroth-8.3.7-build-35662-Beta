@@ -12,7 +12,7 @@ system is actually about.
 | --- | --- | --- |
 | Vendors | 39, each with its retail name, npc id, faction and captured stock count in a row comment | `sql/world/03_vendors_retail.sql` |
 | Decor rows | 571, every one with a real 8.3.7 game object | `sql/world/04_decor_retail.sql` |
-| Vendor stock rows | 969 | `sql/world/05_stock_retail.sql` |
+| Vendor stock rows | 972 | `sql/world/05_stock_retail.sql` |
 | Retail decor item ids carried on those rows | 450 | same file, `item_entry` column |
 | House levels | the core's five rungs (60/90/120/160/200 indoor, 25/45/65/85/110 outdoor). The retail 12-level ladder is reference only until phase 1 | `../../01-retail-housing-reference.md` and `HousingDefines.h` |
 | Endeavor milestones | 4, with 59 stock rows on six vendors locked behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
@@ -120,11 +120,13 @@ sees each of those two paths twice, at two prices, and buys the cheaper one.
   rows and no more, and the vendors under 50 are the ones that resolved. The rows are
   still in the file with their names and prices, so an id can be filled in later without
   touching anything else.
-- 87 stock lines have no published price. They are listed as comments at the end of
-  `05_stock_retail.sql` and are not inserted, so they cannot come out free. Sixteen of them
-  are Burlee Jinglepocket's whole stock and sixteen are Roz Copperpinch's, so those two
-  stalls import empty and stay empty until a price is filled in. Ten of the other stalls
-  lose between one and seventeen lines; the rest ship everything their page printed.
+- 87 captured lines carry no price on their vendor page. Three of them are priced on their
+  own item page - Elegant Elven Bathtub, Empty Elegant Elven Bathtub and Elegant Elven Water
+  Well, all 125 gold - and ship at that price. The other 84 are listed as comments at the
+  end of `05_stock_retail.sql` and are not inserted, so they cannot come out free. Sixteen
+  of them are Burlee Jinglepocket's whole stock and sixteen are Roz Copperpinch's, so those
+  two stalls import empty and stay empty until a price is filled in. Nine of the other
+  stalls lose between one and seventeen lines; the rest ship everything their page printed.
 - `creature_entry` is 0 in the SQL on all 39 vendor rows. The retail npc id is in each
   row's comment, but a retail npc id is not an 8.3.7 creature entry. Run
   `sql/bind/bind_town_center_vendors.sql` after the import and it fills the column from
