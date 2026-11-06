@@ -35,10 +35,14 @@ namespace Housing
         float Y = 0.0f;
         float Z = 0.0f;
         float O = 0.0f;
+        float Pitch = 0.0f;         // tilt on the forward axis, 0 = upright
+        float Roll = 0.0f;          // tilt on the side axis, 0 = upright
         float Scale = 1.0f;
         uint8 Surface = SurfaceFloor;
         bool Indoor = false;
         uint32 Placed = 0;
+        uint32 PetEntry = 0;        // companion assigned to this bed, 0 = the bed's own creature
+        bool PetRoaming = false;    // whether the assigned companion wanders
         uint8 DyeGroup = 0;         // 0 = undyed
         uint8 DyeColor = 0;
         uint32 VariantEntry = 0;    // the dyed game object entry, 0 = the catalogue entry

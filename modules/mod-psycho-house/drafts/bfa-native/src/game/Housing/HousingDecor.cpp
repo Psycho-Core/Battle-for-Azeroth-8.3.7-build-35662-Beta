@@ -42,7 +42,11 @@ GameObject* SpawnDecorObject(DecorInfo const& info, DecorPlacement& placement, M
         return nullptr;
 
     Position const pos(placement.X, placement.Y, placement.Z, placement.O);
-    QuaternionData const rotation = QuaternionData::fromEulerAnglesZYX(placement.O, 0.0f, 0.0f);
+
+    // Yaw, then the two tilt axes. With pitch and roll at zero this is the quaternion the
+    // spawner has always built, so an untilted piece is placed exactly where it was.
+    QuaternionData const rotation = QuaternionData::fromEulerAnglesZYX(placement.O,
+        placement.Pitch, placement.Roll);
 
     GameObject* go = GameObject::CreateGameObject(entry, map, pos, rotation, 255, GO_STATE_READY);
     if (!go)
@@ -71,16 +75,23 @@ Creature* SpawnDecorCreature(DecorPlacement& placement, PetBedInfo const& pet, M
     // A pet bed is furniture with something asleep on it. The creature is a temp summon in the
     // same phase as the bed, so it appears to the people who can see the bed and nobody else,
     // and it is removed with the bed rather than orphaned when the last visitor walks out.
-    if (!map || !pet.CreatureEntry)
+    // A bed with a companion assigned to it spawns that companion instead of the bed's own
+    // creature: the assignment is the point, and the row-level creature is what the bed shows
+    // when nobody has chosen. The mode travels with the assignment, so one bed can be a
+    // sleeping cat and the next a wandering one.
+    uint32 const entry = placement.PetEntry ? placement.PetEntry : pet.CreatureEntry;
+    bool const roaming = placement.PetEntry ? placement.PetRoaming : pet.Roaming;
+
+    if (!map || !entry)
         return nullptr;
 
     Position const pos(placement.X, placement.Y, placement.Z, placement.O);
 
-    TempSummon* summon = map->SummonCreature(pet.CreatureEntry, pos, nullptr, 0, nullptr);
+    TempSummon* summon = map->SummonCreature(entry, pos, nullptr, 0, nullptr);
     if (!summon)
     {
         TC_LOG_ERROR("housing", "Pet bed decor %u could not summon creature %u",
-            placement.DecorId, pet.CreatureEntry);
+            placement.DecorId, entry);
         return nullptr;
     }
 
@@ -90,7 +101,7 @@ Creature* SpawnDecorCreature(DecorPlacement& placement, PetBedInfo const& pet, M
     // be given somewhere to roam: SetHomePosition alone is a coordinate, not a movement.
     summon->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
 
-    if (pet.Roaming && pet.Radius > 0.0f)
+    if (roaming && pet.Radius > 0.0f)
     {
         summon->SetHomePosition(pos);
         summon->GetMotionMaster()->MoveRandom(pet.Radius);

@@ -148,6 +148,13 @@ void HousingMgr::LoadConfig()
     note("Housing.Armillary.Level", _armillaryLevel);
 
     _guildWings = sConfigMgr->GetBoolDefault("Housing.Guild.Wings", true);
+
+    // Retail's pet bed caps: 100 inside, 25 outside, per house. 0 turns the cap off, which is
+    // what a realm with three bed models is likely to want; the numbers are retail's.
+    _petBedIndoorCap = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.PetBed.IndoorCap", 100)));
+    _petBedOutdoorCap = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.PetBed.OutdoorCap", 25)));
+    note("Housing.PetBed.IndoorCap", _petBedIndoorCap);
+    note("Housing.PetBed.OutdoorCap", _petBedOutdoorCap);
     note("Housing.Guild.Wings", _guildWings ? 1 : 0);
 
     // The stone on an empty plot. 0 keeps the plots bare, which is what a realm without a
@@ -1665,7 +1672,7 @@ HousingResult HousingMgr::EnterHouse(Player* player, bool enter)
 // -----------------------------------------------------------------------------
 
 HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, float y, float z, float o,
-    float scale, bool indoor, uint64& placementId)
+    float scale, bool indoor, uint64& placementId, float pitch, float roll)
 {
     if (!_enabled)
         return Disabled;
@@ -1706,14 +1713,43 @@ HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, fl
     if (!house)
         return NoHouse;
 
+    // Retail's bed caps, counted per house and per side of the door. A cap of 0 is off, so a
+    // realm that only owns three bed models is not held to a hundred.
+    if (info->Flags & DecorFlagPetBed)
+    {
+        uint32 const cap = indoor ? _petBedIndoorCap : _petBedOutdoorCap;
+
+        if (cap)
+        {
+            uint32 beds = 0;
+            for (DecorPlacement const& placement : house->GetPlacements())
+            {
+                if (placement.Indoor != indoor)
+                    continue;
+
+                DecorInfo const* bedInfo = GetDecor(placement.DecorId);
+                if (bedInfo && (bedInfo->Flags & DecorFlagPetBed))
+                    ++beds;
+            }
+
+            if (beds >= cap)
+                return NotAllowedHere;
+        }
+    }
+
     float const yardRadius = plot->GetTemplate().YardRadius > 0.0f
         ? plot->GetTemplate().YardRadius
         : float(kDefaultYardRadius);
 
     placementId = GeneratePlacementId();
 
+    // Tilt is clamped rather than refused: a slider that overshoots should stop at the limit,
+    // not bounce, and the client's own limit is advisory.
+    pitch = std::max(-kMaxTilt, std::min(kMaxTilt, pitch));
+    roll = std::max(-kMaxTilt, std::min(kMaxTilt, roll));
+
     HousingResult const result = house->AddPlacement(placementId, *info, x, y, z, o, scale, indoor,
-        plot->GetTemplate().Spawn, yardRadius);
+        plot->GetTemplate().Spawn, yardRadius, pitch, roll);
 
     if (result != Ok)
         return result;
@@ -1732,7 +1768,7 @@ HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, fl
 }
 
 HousingResult HousingMgr::MoveDecor(Player* player, uint64 placementId, float x, float y, float z,
-    float o, float scale)
+    float o, float scale, float pitch, float roll)
 {
     if (!_enabled)
         return Disabled;
@@ -1776,8 +1812,11 @@ HousingResult HousingMgr::MoveDecor(Player* player, uint64 placementId, float x,
     if (!existing->SpawnGuid.IsEmpty())
         DespawnDecorObject(*existing, despawnMap);
 
+    pitch = std::max(-kMaxTilt, std::min(kMaxTilt, pitch));
+    roll = std::max(-kMaxTilt, std::min(kMaxTilt, roll));
+
     HousingResult const result = house->MovePlacement(placementId, x, y, z, o, scale, *info,
-        plot->GetTemplate().Spawn, yardRadius);
+        plot->GetTemplate().Spawn, yardRadius, pitch, roll);
 
     if (result != Ok)
         return result;

@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.5.0"
+H.version = "0.6.0"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -210,6 +210,8 @@ H.handlers["PLACEDENTRY"] = function(fields)
         id = id, decorId = tonumber(fields[3]),
         x = tonumber(fields[4]), y = tonumber(fields[5]), z = tonumber(fields[6]),
         o = tonumber(fields[7]), scale = tonumber(fields[8]), indoor = fields[9] == "1",
+        pitch = tonumber(fields[10]) or 0, roll = tonumber(fields[11]) or 0,
+        petEntry = tonumber(fields[12]) or 0, petRoaming = fields[13] == "1",
     }
 end
 
@@ -434,6 +436,21 @@ function H.SnapScale(value)
     return math.floor(value / H.settings.scaleStep + 0.5) * H.settings.scaleStep
 end
 
+-- Tilt is two optional trailing fields, and only sent when the player asked for one: an
+-- empty suffix leaves the line exactly as long as it was before the addon knew about tilt.
+function H.TiltSuffix(pitch, roll)
+    local pitchValue = tonumber(pitch)
+    local rollValue = tonumber(roll)
+
+    if not pitchValue and not rollValue then
+        return ""
+    end
+
+    return string.format("|%.4f|%.4f", pitchValue or 0, rollValue or 0)
+end
+
+local TiltSuffix = H.TiltSuffix
+
 H.dyes = H.dyes or {}
 
 H.handlers["DYE"] = function(fields)
@@ -600,15 +617,15 @@ SlashCmdList["HOUSING"] = function(input)
         H.placed = {}
         Send("C:PLACED")
     elseif command == "place" then
-        local decorId, x, y, z, o, scale, indoor =
-            string.match(rest, "^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%d+)$")
+        local decorId, x, y, z, o, scale, indoor, pitch, roll =
+            string.match(rest, "^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%d+)%s*(%S*)%s*(%S*)$")
         if not decorId then
-            Print("usage: /housing place <decorId> <x> <y> <z> <o> <scale> <indoor>")
+            Print("usage: /housing place <decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]")
         else
-            Send(string.format("C:PLACE|%s|%.3f|%.3f|%.3f|%.3f|%.3f|%s",
+            Send(string.format("C:PLACE|%s|%.3f|%.3f|%.3f|%.3f|%.3f|%s%s",
                 decorId, H.SnapValue(tonumber(x)), H.SnapValue(tonumber(y)),
                 H.SnapValue(tonumber(z)), H.SnapAngle(tonumber(o)),
-                H.SnapScale(tonumber(scale)), indoor))
+                H.SnapScale(tonumber(scale)), indoor, TiltSuffix(pitch, roll)))
         end
     elseif command == "dyes" then
         H.dyes = {}
@@ -628,15 +645,15 @@ SlashCmdList["HOUSING"] = function(input)
             math.deg(H.settings.angle), H.settings.scaleStep, H.settings.frameScale))
         Print("/house lists the same settings with buttons on the Settings tab")
     elseif command == "move" then
-        local id, x, y, z, o, scale =
-            string.match(rest, "^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+        local id, x, y, z, o, scale, pitch, roll =
+            string.match(rest, "^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s*(%S*)%s*(%S*)$")
         if not id then
-            Print("usage: /housing move <placementId> <x> <y> <z> <o> <scale>")
+            Print("usage: /housing move <placementId> <x> <y> <z> <o> <scale> [pitch] [roll]")
         else
-            Send(string.format("C:MOVE|%s|%.3f|%.3f|%.3f|%.3f|%.3f",
+            Send(string.format("C:MOVE|%s|%.3f|%.3f|%.3f|%.3f|%.3f%s",
                 id, H.SnapValue(tonumber(x)), H.SnapValue(tonumber(y)),
                 H.SnapValue(tonumber(z)), H.SnapAngle(tonumber(o)),
-                H.SnapScale(tonumber(scale))))
+                H.SnapScale(tonumber(scale)), TiltSuffix(pitch, roll)))
         end
     elseif command == "remove" then
         Send("C:REMOVE|" .. rest)

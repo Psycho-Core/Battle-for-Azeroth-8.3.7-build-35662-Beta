@@ -104,8 +104,8 @@ bool HousingHouse::LoadDecor()
     _placements.clear();
 
     QueryResult result = CharacterDatabase.PQuery(
-        "SELECT `id`, `decorId`, `x`, `y`, `z`, `o`, `scale`, `surface`, `indoor`, `placed`, "
-        "`dye_group`, `dye_color`, `variant_entry` "
+        "SELECT `id`, `decorId`, `x`, `y`, `z`, `o`, `pitch`, `roll`, `scale`, `surface`, `indoor`, "
+        "`placed`, `dye_group`, `dye_color`, `variant_entry`, `pet_entry`, `pet_roaming` "
         "FROM `character_housing_decor` WHERE `housingId` = {}", _id);
 
     if (!result)
@@ -126,13 +126,17 @@ bool HousingHouse::LoadDecor()
         placement.Y = fields[3].GetFloat();
         placement.Z = fields[4].GetFloat();
         placement.O = fields[5].GetFloat();
-        placement.Scale = fields[6].GetFloat();
-        placement.Surface = fields[7].GetUInt8();
-        placement.Indoor = fields[8].GetUInt8() != 0;
-        placement.Placed = fields[9].GetUInt32();
-        placement.DyeGroup = fields[10].GetUInt8();
-        placement.DyeColor = fields[11].GetUInt8();
-        placement.VariantEntry = fields[12].GetUInt32();
+        placement.Pitch = fields[6].GetFloat();
+        placement.Roll = fields[7].GetFloat();
+        placement.Scale = fields[8].GetFloat();
+        placement.Surface = fields[9].GetUInt8();
+        placement.Indoor = fields[10].GetUInt8() != 0;
+        placement.Placed = fields[11].GetUInt32();
+        placement.DyeGroup = fields[12].GetUInt8();
+        placement.DyeColor = fields[13].GetUInt8();
+        placement.VariantEntry = fields[14].GetUInt32();
+        placement.PetEntry = fields[15].GetUInt32();
+        placement.PetRoaming = fields[16].GetUInt8() != 0;
 
         if (!sHousingMgr->GetDecor(placement.DecorId))
         {
@@ -229,7 +233,8 @@ HousingResult HousingHouse::Validate(DecorInfo const& info, float x, float y, fl
 }
 
 HousingResult HousingHouse::AddPlacement(uint64 placementId, DecorInfo const& info, float x, float y, float z,
-    float o, float scale, bool indoor, Position const& plotSpawn, float yardRadius)
+    float o, float scale, bool indoor, Position const& plotSpawn, float yardRadius,
+    float pitch, float roll)
 {
     HousingResult const result = Validate(info, x, y, z, scale, indoor, plotSpawn, yardRadius);
     if (result != Ok)
@@ -237,10 +242,11 @@ HousingResult HousingHouse::AddPlacement(uint64 placementId, DecorInfo const& in
 
     CharacterDatabase.DirectPExecute(
         "INSERT INTO `character_housing_decor` "
-        "(`id`, `housingId`, `decorId`, `x`, `y`, `z`, `o`, `scale`, `surface`, `indoor`, `placed`) "
-        "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
-        placementId, _id, info.Id, x, y, z, o, scale, uint32(info.Surface), uint32(indoor ? 1 : 0),
-        uint32(std::time(nullptr)));
+        "(`id`, `housingId`, `decorId`, `x`, `y`, `z`, `o`, `pitch`, `roll`, `scale`, `surface`, "
+        "`indoor`, `placed`) "
+        "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+        placementId, _id, info.Id, x, y, z, o, pitch, roll, scale, uint32(info.Surface),
+        uint32(indoor ? 1 : 0), uint32(std::time(nullptr)));
 
     DecorPlacement placement;
     placement.Id = placementId;
@@ -249,6 +255,8 @@ HousingResult HousingHouse::AddPlacement(uint64 placementId, DecorInfo const& in
     placement.Y = y;
     placement.Z = z;
     placement.O = o;
+    placement.Pitch = pitch;
+    placement.Roll = roll;
     placement.Scale = scale;
     placement.Surface = info.Surface;
     placement.Indoor = indoor;
@@ -262,7 +270,7 @@ HousingResult HousingHouse::AddPlacement(uint64 placementId, DecorInfo const& in
 }
 
 HousingResult HousingHouse::MovePlacement(uint64 id, float x, float y, float z, float o, float scale,
-    DecorInfo const& info, Position const& plotSpawn, float yardRadius)
+    DecorInfo const& info, Position const& plotSpawn, float yardRadius, float pitch, float roll)
 {
     for (DecorPlacement& placement : _placements)
     {
@@ -278,12 +286,36 @@ HousingResult HousingHouse::MovePlacement(uint64 id, float x, float y, float z, 
         placement.Y = y;
         placement.Z = z;
         placement.O = o;
+        placement.Pitch = pitch;
+        placement.Roll = roll;
         placement.Scale = scale;
 
         CharacterDatabase.DirectPExecute(
-            "UPDATE `character_housing_decor` SET `x` = {}, `y` = {}, `z` = {}, `o` = {}, `scale` = {} "
+            "UPDATE `character_housing_decor` SET `x` = {}, `y` = {}, `z` = {}, `o` = {}, "
+            "`pitch` = {}, `roll` = {}, `scale` = {} WHERE `id` = {} AND `housingId` = {}",
+            x, y, z, o, pitch, roll, scale, id, _id);
+
+        MarkDirty();
+        return Ok;
+    }
+
+    return NotFound;
+}
+
+HousingResult HousingHouse::SetPet(uint64 id, uint32 entry, bool roaming)
+{
+    for (DecorPlacement& placement : _placements)
+    {
+        if (placement.Id != id)
+            continue;
+
+        placement.PetEntry = entry;
+        placement.PetRoaming = entry ? roaming : false;
+
+        CharacterDatabase.DirectPExecute(
+            "UPDATE `character_housing_decor` SET `pet_entry` = {}, `pet_roaming` = {} "
             "WHERE `id` = {} AND `housingId` = {}",
-            x, y, z, o, scale, id, _id);
+            placement.PetEntry, uint32(placement.PetRoaming ? 1 : 0), id, _id);
 
         MarkDirty();
         return Ok;

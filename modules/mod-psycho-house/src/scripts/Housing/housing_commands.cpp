@@ -229,8 +229,9 @@ namespace
         uint64 placementId = 0;
         uint32 color = 0;
 
-        // Group is optional: retail has one dye group per piece, so the group a player means
-        // is the piece's own, and asking them to type it is asking them to know a column.
+        // Group is optional and defaults to 0, which means "the group this piece keeps that
+        // colour in". Retail's dye slot belongs to the furniture, so a player normally means
+        // the piece's own group; naming one is only for a piece with more than one.
         std::istringstream stream(args);
         std::string first;
         std::string second;
@@ -247,7 +248,7 @@ namespace
         placementId = uint64(strtoull(first.c_str(), nullptr, 10));
         color = uint32(atoi(second.c_str()));
 
-        uint32 const group = third.empty() ? 1 : uint32(atoi(third.c_str()));
+        uint32 const group = third.empty() ? 0 : uint32(atoi(third.c_str()));
 
         handler->PSendSysMessage("Dye: {}", ResultText(
             sHousingMgr->DyeDecor(player, placementId, uint8(group), uint8(color))));
@@ -625,6 +626,8 @@ public:
             { "place",    0, false, &HandlePlaceCommand,      "Place a decor item" },
             { "move",     0, false, &HandleMoveCommand,       "Move a placed decor item" },
             { "remove",   0, false, &HandleRemoveCommand,     "Remove a placed decor item" },
+            { "tilt",     0, false, &HandleTiltCommand,       "Tilt a placed piece on its two axes" },
+            { "pet",      0, false, &HandlePetCommand,        "Put your summoned companion on a pet bed" },
             { "dir",      0, false, &HandleDirectoryCommand,  "Neighbourhood directory" },
             { "finder",   0, false, &HandleFinderCommand,     "List public neighbourhoods" },
             { "visit",    0, false, &HandleVisitCommand,      "Visit a plot in another neighbourhood" },
@@ -931,6 +934,12 @@ public:
             handler->PSendSysMessage("placement {} decor {} at ({:.2f}, {:.2f}, {:.2f}) o {:.2f} scale {:.2f} {}",
                 placement.Id, placement.DecorId, placement.X, placement.Y, placement.Z, placement.O,
                 placement.Scale, placement.Indoor ? "indoor" : "outdoor");
+
+            // Only pieces that are actually tilted get a second line; a house of 300 upright
+            // chairs does not need 300 lines saying "tilt 0".
+            if (placement.Pitch != 0.0f || placement.Roll != 0.0f)
+                handler->PSendSysMessage("    tilt {} deg pitch, {} deg roll",
+                    int32(placement.Pitch * 57.2958f), int32(placement.Roll * 57.2958f));
         }
 
         return true;
@@ -1088,16 +1097,23 @@ public:
 
         uint32 decorId = 0, indoor = 0;
         float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f, scale = 1.0f;
+        float pitch = 0.0f, roll = 0.0f;
 
-        if (std::sscanf(args, "%u %f %f %f %f %f %u", &decorId, &x, &y, &z, &o, &scale, &indoor) < 7)
+        int const parsed = std::sscanf(args, "%u %f %f %f %f %f %u %f %f",
+            &decorId, &x, &y, &z, &o, &scale, &indoor, &pitch, &roll);
+
+        if (parsed < 7)
         {
-            handler->SendSysMessage("Usage: .housing place <decorId> <x> <y> <z> <o> <scale> <indoor>");
+            handler->SendSysMessage("Usage: .housing place <decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]");
             return true;
         }
 
+        if (parsed < 9)
+            roll = 0.0f;
+
         uint64 placementId = 0;
         Housing::HousingResult const result = sHousingMgr->PlaceDecor(player, decorId, x, y, z, o, scale,
-            indoor != 0, placementId);
+            indoor != 0, placementId, pitch, roll);
 
         if (result == Housing::Ok)
             handler->PSendSysMessage("Placed decor {} as placement {}.", decorId, placementId);
@@ -1115,14 +1131,98 @@ public:
 
         uint32 placementId = 0;
         float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f, scale = 1.0f;
+        float pitch = 0.0f, roll = 0.0f;
 
-        if (std::sscanf(args, "%u %f %f %f %f %f", &placementId, &x, &y, &z, &o, &scale) < 6)
+        int const parsed = std::sscanf(args, "%u %f %f %f %f %f %f %f",
+            &placementId, &x, &y, &z, &o, &scale, &pitch, &roll);
+
+        if (parsed < 6)
         {
-            handler->SendSysMessage("Usage: .housing move <placementId> <x> <y> <z> <o> <scale>");
+            handler->SendSysMessage("Usage: .housing move <placementId> <x> <y> <z> <o> <scale> [pitch] [roll]");
             return true;
         }
 
-        handler->PSendSysMessage("Move: {}", ResultText(sHousingMgr->MoveDecor(player, placementId, x, y, z, o, scale)));
+        if (parsed < 8)
+            roll = 0.0f;
+
+        handler->PSendSysMessage("Move: {}", ResultText(sHousingMgr->MoveDecor(player, placementId, x, y, z,
+            o, scale, pitch, roll)));
+        return true;
+    }
+
+    /*
+     * Tilting a piece by hand otherwise means retyping six numbers read off `.housing placed`
+     * to change two of them, and getting one wrong drops the chair through the floor. This
+     * moves the tilt and nothing else.
+     */
+    static bool HandleTiltCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        uint32 placementId = 0;
+        float pitch = 0.0f, roll = 0.0f;
+
+        int const parsed = std::sscanf(args, "%u %f %f", &placementId, &pitch, &roll);
+        if (parsed < 2)
+        {
+            handler->SendSysMessage("Usage: .housing tilt <placementId> <pitch deg> [roll deg]");
+            return true;
+        }
+
+        Housing::HousingPlot* plot = sHousingMgr->GetPlotForEdit(player);
+        if (!plot || !plot->GetHouse())
+        {
+            handler->SendSysMessage("You do not own a house here.");
+            return true;
+        }
+
+        Housing::DecorPlacement const* placement = plot->GetHouse()->GetPlacement(placementId);
+        if (!placement)
+        {
+            handler->SendSysMessage("No such placement.");
+            return true;
+        }
+
+        handler->PSendSysMessage("Tilt: {}", ResultText(sHousingMgr->MoveDecor(player, placementId,
+            placement->X, placement->Y, placement->Z, placement->O, placement->Scale,
+            pitch / 57.2958f, roll / 57.2958f)));
+        return true;
+    }
+
+    static bool HandlePetCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+            return false;
+
+        uint32 placementId = 0;
+        char mode[16] = { 0 };
+
+        if (std::sscanf(args, "%u %15s", &placementId, mode) != 2)
+        {
+            handler->SendSysMessage("Usage: .housing pet <placementId> <stationary|roaming|clear>");
+            handler->SendSysMessage("  the companion has to be out: summon it first, then assign it");
+            return true;
+        }
+
+        std::string const choice = mode;
+        uint8 value = 0;
+
+        if (choice == "stationary" || choice == "sleep" || choice == "1")
+            value = 1;
+        else if (choice == "roaming" || choice == "roam" || choice == "2")
+            value = 2;
+        else if (choice == "clear" || choice == "off" || choice == "0")
+            value = 0;
+        else
+        {
+            handler->SendSysMessage("Usage: .housing pet <placementId> <stationary|roaming|clear>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Pet: {}", ResultText(sHousingMgr->AssignPet(player, placementId, value)));
         return true;
     }
 

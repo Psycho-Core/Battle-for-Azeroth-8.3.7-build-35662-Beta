@@ -11,11 +11,12 @@ command the server dispatches, and the Settings tab shows every client preferenc
 buttons that change it. The three lists are generated from the same sources the code uses, and
 `check_reference.py` fails if this file and the code disagree.
 
-## 1. The 29 server settings
+## 1. The server settings
 
-Every key is optional. The default below is the value that applies when the key is absent, and
-the clamping in the fourth column is applied by `HousingMgr::LoadConfig` before the value is
-used, so a nonsense value degrades to a usable one instead of falling through.
+Every key is optional, and there are 31 of them. The default below is the value that applies
+when the key is absent, and the clamping in the fourth column is applied by
+`HousingMgr::LoadConfig` before the value is used, so a nonsense value degrades to a usable
+one instead of falling through.
 
 | Key | Default | What it changes | Clamp / when it applies |
 | --- | --- | --- | --- |
@@ -37,6 +38,8 @@ used, so a nonsense value degrades to a usable one instead of falling through.
 | `Housing.Neighborhood.MinResidents` | `0` | below this many residents, with no owned plots, a non-public neighbourhood is dissolved; 0 is off | reload |
 | `Housing.Neighborhood.DissolveGraceDays` | `30` | days an empty neighbourhood stands before it is dissolved; never below 1 | reload |
 | `Housing.Phasing.PlotScoped` | `1` | hide a plot's yard decor unless a player stands in that plot | reload |
+| `Housing.PetBed.IndoorCap` | `100` | beds allowed indoors per house; 0 turns the cap off | reload |
+| `Housing.PetBed.OutdoorCap` | `25` | beds allowed outdoors per plot; 0 turns the cap off | reload |
 | `Housing.SaveInterval` | `30` | seconds between deferred decor and name writes; never below 5 | reload |
 | `Housing.RateLimit.Messages` | `20` | addon messages accepted per ten second window per player; never below 1 | reload |
 | `Housing.Homestone.Cooldown` | `900` | homestone cooldown in seconds; 0 removes the wait | reload |
@@ -60,7 +63,7 @@ player looks at a free plot, not in the middle of a visit.
 A GM command, filtered by substring:
 
 ```
-.housing config                 all 29, in the order LoadConfig reads them
+.housing config                 all 31, in the order LoadConfig reads them
 .housing config Evict           just the eviction keys
 ```
 
@@ -70,7 +73,7 @@ being applied from a setting that is being ignored.
 
 ## 3. Every command
 
-44 commands, of which 37 are player commands and 7 are GM commands. `.housing` with no argument
+46 commands, of which 39 are player commands and 7 are GM commands. `.housing` with no argument
 prints this list from the command table itself, so the in-game help cannot drift from what the
 server dispatches.
 
@@ -90,9 +93,11 @@ server dispatches.
 | `.housing decor` | `[category] [page]` | player | the catalogue, filtered by faction and category, paged |
 | `.housing buydecor` | `<id>` | player | buy a decor item with gold or the row's currency |
 | `.housing placed` | `-` | player | every placement in the house with id, decor, position and scale |
-| `.housing place` | `<decorId> <x> <y> <z> <o> <scale> <indoor>` | player | place a piece at a typed coordinate |
-| `.housing move` | `<placementId> <x> <y> <z> <o> <scale>` | player | move or rescale a placement |
+| `.housing place` | `<decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]` | player | place a piece at a typed coordinate; the two tilt angles are optional and in radians |
+| `.housing move` | `<placementId> <x> <y> <z> <o> <scale> [pitch] [roll]` | player | move, rescale or tilt a placement |
 | `.housing remove` | `<placementId>` | player | take a piece down; the copy goes back to storage |
+| `.housing tilt` | `<placementId> <pitch deg> [roll deg]` | player | tilt one piece without retyping its position; the easier half of `.housing move` |
+| `.housing pet` | `<placementId> <stationary|roaming|clear>` | player | put the companion that is currently summoned on a pet bed, asleep or wandering, or take it off |
 | `.housing dir` | `[page]` | player | the neighbourhood directory: owned plots and their owners |
 | `.housing finder` | `-` | player | public neighbourhoods on the player's faction, with the owned/total count |
 | `.housing visit` | `<neighbourhood> <plot>` | player | visit another neighbourhood's plot, subject to its guest rules |
@@ -100,7 +105,7 @@ server dispatches.
 | `.housing storage` | `-` | player | every decor copy in storage, with counts |
 | `.housing levelup` | `-` | player | pay the Contractor to reach the next level without the experience |
 | `.housing shell` | `[id]` | player | list the exterior shells, or choose one by id |
-| `.housing dye` | `<placement> <colour> [group]` | player | dye one placed piece; colour 0 strips it, group defaults to 1 |
+| `.housing dye` | `<placement> <colour> [group]` | player | dye one placed piece; colour 0 strips it, and the group defaults to whichever one this piece keeps that colour in |
 | `.housing bp` | `[kind] [name]` | player | export a build code, PCH1 format |
 | `.housing bpimport` | `<code>` | player | import a build code |
 | `.housing restore` | `-` | player | recover a sold or evicted house from the archive |
