@@ -69,7 +69,17 @@ def recorded_keys():
 
 
 def doc_keys():
-    body = section(read(DOC), "1. The 29 server settings")
+    """The settings table, found by section number rather than by heading text.
+
+    It used to be found by the literal heading, which meant the count in the heading had to
+    be edited every time a key was added and a stale count silently emptied the set.
+    """
+    text = read(DOC)
+    body = section(text, "1. The")
+    if not body:
+        match = re.search(r"^##\s+(1\.[^\n]*)$(.*?)(?=^##\s|\Z)", text, re.S | re.M)
+        body = match.group(2) if match else ""
+
     return set(re.findall(r"^\|\s*`(Housing\.[A-Za-z.]+)`", body, re.M))
 
 

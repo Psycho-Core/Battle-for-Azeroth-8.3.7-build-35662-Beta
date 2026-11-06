@@ -130,20 +130,28 @@ apart from a corrupted one before anything is saved.
 
 ### 3.2 Payload layout
 
+Version 2, which is what `HousingBlueprint.cpp` writes. A version 1 code still decodes; the
+tilt simply comes back as zero, because a code a player saved before the tilt existed is not a
+mistake.
+
 ```
-header:   u8 roomCount, u8 shellId, u16 worldAnchorX, u16 worldAnchorY
-repeat roomCount:
-          u8  roomId,          // index into psycho_house_room
-          i8  cellX, i8 cellY  // relative to anchor, signed
+header:   u8 version,     // 2
+          u8 kind, u8 faction,
+          u16 placementCount
 repeat placementCount:
-          u16 decorIdDelta,    // delta-encoded vs previous, sorted ascending
+          varint decorId,
           i16 x, i16 y,        // centimetres, relative to the build anchor
           i16 z,
-          u8  rotZ,            // 0..255 -> 0..360
-          u8  scale,           // 0..255 -> 0.5..3.0
-          u8  flags,           // indoor bit, dye slot present bits
-          u8  dyeColor         // optional
+          u8  rotZ,            // 1.40625 degrees per step
+          u8  scale,           // 0..255 -> 0.1..5.1
+          u8  flags,           // indoor bit, surface in bits 1-2
+          u8  tilt             // version 2 only: pitch in the low nibble, roll in the high
 ```
+
+The tilt nibbles are 12 degrees apart over -90 to +90, so both axes fit in the byte the piece
+already had room for and a 300-piece build grows by 300 bytes. The decoder requires the whole
+record - ten bytes per piece on version 2, nine on version 1 - which it did not always do: the
+earlier guard counted only the three coordinates and then read six more bytes.
 
 Delta encoding + 2-byte coordinates keeps a 300-piece build at roughly 3-4 KB raw,
 **~1.2-1.6 KB compressed**, which is 8-10 addon messages of 200 bytes. Acceptable.
@@ -169,14 +177,22 @@ outside the realm, which retail's codes are not (they are account-bound).
 ## 4. Pet beds
 
 Retail: 100 beds indoors, 25 outdoors, one pet per bed, Stationary or Roaming indoors,
-Stationary only outdoors. 8.3.7 can do all of that with creature spawns.
+Stationary only outdoors. 8.3.7 can do all of that with creature spawns, and this is what the
+module now does - the caps are `Housing.PetBed.IndoorCap` and `Housing.PetBed.OutdoorCap`,
+enforced when a bed is placed.
 
 ### 4.1 Implementation
 
-1. A bed is a **decor-like object** of its own kind (`psycho_house_pet_bed` rows) placed
-   through the normal placement flow, with a `petEntry` field.
+1. A bed is **decor with a creature attached**, not a table of its own: the row in
+   `housing_decor_creature` says which creature the piece shows when nobody has chosen, and
+   the placement row carries `pet_entry` and `pet_roaming` for the companion that was.
 2. On assignment, spawn a `Creature` from the pet's `creature_entry` (from
-   `BattlePetSpecies`, which 8.3.7 has) in the plot's phase:
+   `BattlePetSpecies`, which 8.3.7 has) in the plot's phase. `HousingMgr::AssignPet` takes the
+   creature the player currently has summoned, then confirms through
+   `sBattlePetSpeciesStore` and `Player::GetBattlePetCountForSpecies` that the species is in
+   the player's journal - a creature entry alone proves nothing, because a spell can summon
+   anything. The mode and the entry are stored on the placement rows (`pet_entry`,
+   `pet_roaming`), so the bed comes back the way it was left:
 
 ```cpp
 Creature* pet = map->SummonCreature(entry, pos, nullptr, 30000, ownerGuid);

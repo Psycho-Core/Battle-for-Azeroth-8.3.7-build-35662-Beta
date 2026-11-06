@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS `character_housing_decor` (
  `y`     FLOAT NOT NULL DEFAULT 0,
  `z`     FLOAT NOT NULL DEFAULT 0,
  `o`     FLOAT NOT NULL DEFAULT 0,
+ `pitch`   FLOAT NOT NULL DEFAULT 0 COMMENT 'tilt on the forward axis, radians, 0 = upright',
+ `roll`    FLOAT NOT NULL DEFAULT 0 COMMENT 'tilt on the side axis, radians, 0 = upright',
  `scale`   FLOAT NOT NULL DEFAULT 1,
  `surface`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
  `indoor`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -71,6 +73,8 @@ CREATE TABLE IF NOT EXISTS `character_housing_decor` (
  `dye_color` TINYINT UNSIGNED NOT NULL DEFAULT 0,
  `variant_entry` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'the object actually spawned after dyeing',
  `pet_guid` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'creature owned by a pet bed',
+ `pet_entry` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'companion assigned to the bed, 0 = the bed default',
+ `pet_roaming` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 = the assigned companion wanders',
  PRIMARY KEY (`id`),
  KEY `idx_housing_decor_house` (`housingId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Placed decor pieces';

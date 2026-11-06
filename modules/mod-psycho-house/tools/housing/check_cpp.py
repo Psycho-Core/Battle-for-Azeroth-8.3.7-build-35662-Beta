@@ -196,6 +196,36 @@ def check_reachable(cpp_files, repo):
             fail("src", "HousingMgr::{} is defined and never called".format(name))
 
 
+def check_gossip_actions(cpp_files):
+    """Every gossip action id has to reach a menu item and a switch arm.
+
+    A `GOSSIP_ACTION_INFO_DEF + n` that is declared but never added to a menu is a feature
+    nobody can click; one that is in a menu but has no `case` is a button that does nothing.
+    Both compile, and until now nothing here looked at either.
+    """
+    action_enum = re.compile(r"enum\s+(\w+)Action\s*:\s*uint32\s*\{(.*?)\};", re.S)
+    member = re.compile(r"(\w+)\s*=\s*GOSSIP_ACTION_INFO_DEF\s*\+\s*(\d+)")
+
+    for path, text in cpp_files.items():
+        label = os.path.relpath(path, HERE)
+
+        for enum_match in action_enum.finditer(text):
+            names = [m.group(1) for m in member.finditer(enum_match.group(2))]
+
+            if len(set(names)) != len(names):
+                fail(label, "duplicate gossip action name in {}Action".format(enum_match.group(1)))
+
+            for name in names:
+                uses = len(re.findall(r"\b" + name + r"\b", text))
+
+                # declaration, one menu item, one case: three references is the minimum
+                if uses < 3:
+                    fail(label, "{} is declared and never reaches a menu item and a case".format(name))
+
+                if not re.search(r"case\s+" + name + r"\s*:", text):
+                    fail(label, "{} has no case arm".format(name))
+
+
 QUERY = re.compile(r"(?:WorldDatabase|CharacterDatabase|LoginDatabase)\.P?Query\(\s*"
                    r"((?:\"[^\"]*\"\s*)+)\)", re.S)
 
@@ -342,6 +372,7 @@ def main():
     declared = declarations(headers)
     check_definitions(cpp_files, declared, args.repo)
     check_reachable(cpp_files, args.repo)
+    check_gossip_actions(cpp_files)
 
     tables = module_schema()
     for path, text in list(cpp_files.items()) + list(headers.items()):

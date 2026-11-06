@@ -24,8 +24,10 @@
 
 #include "HousingMgr.h"
 
+#include "BattlePet.h"
 #include "Chat.h"
 #include "Config.h"
+#include "DB2Stores.h"
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "HousingBlueprint.h"
@@ -70,6 +72,80 @@ namespace Housing
             return (uint64(mapId) << 8) | uint64(index);
         }
     } // namespace
+
+    /*
+     * Retail's pet bed: the bed is furniture, the companion on it is yours. The creature is
+     * taken from the one standing beside the player (GetSummonedBattlePet) rather than from a
+     * species id, because a species id maps to a creature entry through a DB2 table and a
+     * player who has a pet out has already told the server which creature they mean. The
+     * journal check is the part that matters: species the player does not own are refused, so
+     * the bed cannot be used to display something that was never collected.
+     */
+    HousingResult HousingMgr::AssignPet(Player* player, uint64 placementId, uint8 mode)
+    {
+        if (!_enabled || !player)
+            return Disabled;
+
+        HousingPlot* plot = GetPlotForEdit(player);
+        if (!plot || !plot->IsOwned())
+            return NoHouse;
+
+        if (!CanEdit(player, plot))
+            return NotOwner;
+
+        HousingHouse* house = plot->GetHouse();
+        if (!house)
+            return NoHouse;
+
+        DecorPlacement* placement = house->GetPlacementMutable(placementId);
+        if (!placement)
+            return NotFound;
+
+        DecorInfo const* info = GetDecor(placement->DecorId);
+        if (!info || !(info->Flags & DecorFlagPetBed))
+            return NotAllowedHere;   // furniture with a creature in it, or it is not a bed
+
+        uint32 entry = 0;
+
+        if (mode)
+        {
+            Creature* summoned = player->GetSummonedBattlePet();
+            if (!summoned)
+                return NoBattlePet;
+
+            entry = summoned->GetEntry();
+
+            // Confirm the summoned creature belongs to a species this player's journal holds:
+            // a creature entry on its own proves nothing, because a spell can summon anything.
+            BattlePetSpeciesEntry const* species = nullptr;
+
+            for (uint32 id = 1; id < sBattlePetSpeciesStore.GetNumRows() && !species; ++id)
+            {
+                BattlePetSpeciesEntry const* candidate = sBattlePetSpeciesStore.LookupEntry(id);
+                if (candidate && candidate->CreatureID > 0 && uint32(candidate->CreatureID) == entry)
+                    species = candidate;
+            }
+
+            if (!species || !player->GetBattlePetCountForSpecies(species->ID))
+                return NoBattlePet;
+        }
+
+        HousingResult const result = house->SetPet(placementId, entry, mode == 2);
+        if (result != Ok)
+            return result;
+
+        // Replace the creature in the same breath as the row, so the bed is never a frame out
+        // of step with what the player just asked for.
+        if (Map* map = house->GetSpawnMap())
+        {
+            DespawnDecorCreature(*placement, map);
+            house->SpawnPlacement(*placement, map,
+                placement->Indoor ? plot->GetInteriorPhase() : plot->GetPlotPhase(),
+                plot->GetOwnerGuid());
+        }
+
+        return Ok;
+    }
 
     // -------------------------------------------------------------------------
     // Loading
@@ -299,6 +375,21 @@ namespace Housing
 
     DecorVariant const* HousingMgr::GetVariant(uint32 decorId, uint8 group, uint8 color) const
     {
+        // Group 0 means "whichever group this piece keeps that colour in". Retail's dye slot
+        // is chosen by the furniture, not by the player: one dye of a group colours any slot
+        // in that group, so asking a player to name a group as well was asking them for
+        // something the piece already knows.
+        if (!group)
+        {
+            for (auto const& entry : _variants)
+            {
+                if (entry.second.DecorId == decorId && entry.second.DyeColor == color)
+                    return &entry.second;
+            }
+
+            return nullptr;
+        }
+
         auto const itr = _variants.find(VariantKey(decorId, group, color));
         return itr != _variants.end() ? &itr->second : nullptr;
     }
@@ -1573,6 +1664,10 @@ namespace Housing
         if (!variant || !variant->GameObjectEntry)
             return NotFound;   // this piece has no dyed appearance; the catalogue says so
 
+        // The variant knows which group it belongs to, so the row records that rather than
+        // the 0 the caller may have sent.
+        group = variant->DyeGroup;
+
         CharacterDatabase.DirectPExecute(
             "UPDATE `character_housing_decor` SET `dye_group` = {}, `dye_color` = {}, "
             "`variant_entry` = {} WHERE `id` = " UI64FMTD,
@@ -2744,11 +2839,31 @@ namespace Housing
                 return true;
             }
 
-            uint32 group = 1;
+            // Group 0 asks the piece which group it keeps this colour in; a caller that knows
+            // the group can still name it.
+            uint32 group = 0;
             if (fields.size() >= 4 && !fields[3].empty())
                 HousingAddon::ParseUInt(fields[3], group);
 
             SendResult(player, "DYE", DyeDecor(player, placementId, uint8(group), uint8(color)));
+            return true;
+        }
+
+        if (op == "PET")
+        {
+            uint32 placementId = 0;
+            uint32 mode = 0;
+
+            // `C:PET <placement> <mode>`: 0 takes the companion off, 1 leaves it asleep,
+            // 2 lets it wander. The same three the command line takes.
+            if (fields.size() < 3 || !HousingAddon::ParseUInt(fields[1], placementId)
+                || !HousingAddon::ParseUInt(fields[2], mode))
+            {
+                SendResult(player, "PET", InvalidDecor);
+                return true;
+            }
+
+            SendResult(player, "PET", AssignPet(player, placementId, uint8(mode)));
             return true;
         }
 

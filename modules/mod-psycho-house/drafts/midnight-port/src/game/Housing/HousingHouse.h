@@ -91,11 +91,19 @@ namespace Housing
         HousingResult Validate(DecorInfo const& info, float x, float y, float z, float scale,
             bool indoor, Position const& plotSpawn, float yardRadius, uint64 ignorePlacementId = 0) const;
 
+        // `pitch` and `roll` are the two tilt axes advanced mode adds; both default to 0, so
+        // every caller that only knows about yaw still compiles and behaves as it did.
         HousingResult AddPlacement(uint64 placementId, DecorInfo const& info, float x, float y, float z,
-            float o, float scale, bool indoor, Position const& plotSpawn, float yardRadius);
+            float o, float scale, bool indoor, Position const& plotSpawn, float yardRadius,
+            float pitch = 0.0f, float roll = 0.0f);
         HousingResult MovePlacement(uint64 id, float x, float y, float z, float o, float scale,
-            DecorInfo const& info, Position const& plotSpawn, float yardRadius);
+            DecorInfo const& info, Position const& plotSpawn, float yardRadius,
+            float pitch = 0.0f, float roll = 0.0f);
         HousingResult RemovePlacement(uint64 id);
+
+        /// Put a collected companion on a bed, or take one off with entry 0. Persists and
+        /// returns the placement so the caller can respawn the creature.
+        HousingResult SetPet(uint64 id, uint32 entry, bool roaming);
 
         // ---- live objects ----------------------------------------------------
 

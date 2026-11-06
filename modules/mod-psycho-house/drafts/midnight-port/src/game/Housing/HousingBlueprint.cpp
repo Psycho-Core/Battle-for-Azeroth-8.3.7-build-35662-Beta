@@ -20,7 +20,29 @@ namespace Housing
             "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
         char const* kPrefix = "PHP1:";
         size_t const kPrefixLen = 5;
-        uint8 const kVersion = 1;
+        // Version 2 adds one tilt byte per placement. Version 1 codes still decode, with the
+        // tilt left at zero, because a code a player saved last month is not a mistake.
+        uint8 const kVersion = 2;
+
+        // Two nibbles, one per tilt axis, 12 degrees apart over -90 to +90. That is 16 steps
+        // each and one byte for the pair, which is why the version only grew by one byte per
+        // piece rather than two floats.
+        float const kTiltStep = 0.20943951f;   // 12 degrees in radians
+
+        uint8 PackTilt(float value)
+        {
+            float index = (value + 1.5707964f) / kTiltStep;
+            if (index < 0.0f)
+                index = 0.0f;
+            if (index > 15.0f)
+                index = 15.0f;
+            return uint8(std::lround(index));
+        }
+
+        float UnpackTilt(uint8 packed)
+        {
+            return float(packed & 0x0F) * kTiltStep - 1.5707964f;
+        }
 
         std::string ToBase62(std::vector<uint8_t> const& bytes)
         {
@@ -180,6 +202,7 @@ namespace Housing
             bytes.push_back(uint8(std::lround(placement.Scale * 50.0f) > 255 ? 255
                 : std::lround(placement.Scale * 50.0f)));
             bytes.push_back(uint8((placement.Indoor ? 0x01 : 0x00) | ((placement.Surface & 0x03) << 1)));
+            bytes.push_back(uint8((PackTilt(placement.Pitch) & 0x0F) | (PackTilt(placement.Roll) << 4)));
         }
 
         bytes.push_back(Checksum(bytes, 0, bytes.size()));
@@ -205,7 +228,8 @@ namespace Housing
             return false;
 
         size_t pos = 0;
-        if (bytes[pos++] != kVersion)
+        uint8 const version = bytes[pos++];
+        if (version < 1 || version > kVersion)
             return false;
 
         kind = bytes[pos++];
@@ -226,7 +250,11 @@ namespace Housing
             if (!GetVarint(bytes, pos, placement.DecorId))
                 return false;
 
-            if (pos + 6 > bytes.size())
+            // Three int16s, then yaw, scale and the flag byte, then the tilt byte on a version
+            // 2 code: ten bytes, not six. The old guard counted the coordinates only, so a
+            // truncated code read past the end of the buffer for the last piece.
+            size_t const need = version >= 2 ? 10 : 9;
+            if (pos + need > bytes.size())
                 return false;
 
             placement.X = float(GetInt16(bytes, pos)) / 100.0f;
@@ -242,6 +270,13 @@ namespace Housing
             uint8 const flags = bytes[pos++];
             placement.Indoor = (flags & 0x01) != 0;
             placement.Surface = uint8((flags >> 1) & 0x03);
+
+            if (version >= 2)
+            {
+                uint8 const tilt = bytes[pos++];
+                placement.Pitch = UnpackTilt(tilt & 0x0F);
+                placement.Roll = UnpackTilt(tilt >> 4);
+            }
 
             decoded.push_back(placement);
         }

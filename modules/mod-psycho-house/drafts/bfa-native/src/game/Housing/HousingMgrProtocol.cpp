@@ -373,6 +373,7 @@ void HousingMgr::HandleAddonMessage(Player* player, std::string const& message)
     {
         uint32 decorId = 0;
         float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f, scale = 1.0f;
+        float pitch = 0.0f, roll = 0.0f;
         uint32 indoor = 0;
 
         if (fields.size() < 8
@@ -385,8 +386,16 @@ void HousingMgr::HandleAddonMessage(Player* player, std::string const& message)
             return;
         }
 
+        // Tilt is two optional trailing fields. An addon that has not been updated sends seven
+        // and gets an upright piece, which is what it was sending before and what it expects.
+        if (fields.size() > 8)
+            HousingAddon::ParseFloat(fields[8], pitch);
+        if (fields.size() > 9)
+            HousingAddon::ParseFloat(fields[9], roll);
+
         uint64 placementId = 0;
-        HousingResult const result = PlaceDecor(player, decorId, x, y, z, o, scale, indoor != 0, placementId);
+        HousingResult const result = PlaceDecor(player, decorId, x, y, z, o, scale, indoor != 0,
+            placementId, pitch, roll);
         SendResult(player, "PLACE", result, result == Ok ? placementId : 0);
         return;
     }
@@ -395,6 +404,7 @@ void HousingMgr::HandleAddonMessage(Player* player, std::string const& message)
     {
         uint32 placementId = 0;
         float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f, scale = 1.0f;
+        float pitch = 0.0f, roll = 0.0f;
 
         if (fields.size() < 7
             || !HousingAddon::ParseUInt(fields[1], placementId)
@@ -406,7 +416,12 @@ void HousingMgr::HandleAddonMessage(Player* player, std::string const& message)
             return;
         }
 
-        SendResult(player, "MOVE", MoveDecor(player, placementId, x, y, z, o, scale));
+        if (fields.size() > 7)
+            HousingAddon::ParseFloat(fields[7], pitch);
+        if (fields.size() > 8)
+            HousingAddon::ParseFloat(fields[8], roll);
+
+        SendResult(player, "MOVE", MoveDecor(player, placementId, x, y, z, o, scale, pitch, roll));
         return;
     }
 
@@ -625,9 +640,12 @@ void HousingMgr::HandlePlacedList(Player* player, PlayerState& state)
 
     for (DecorPlacement const& placement : house->GetPlacements())
     {
-        payload += Trinity::StringFormat("S:PLACEDENTRY|{}|{}|{}|{}|{}|{}|{}|{};",
+        // The two tilt angles ride at the end so an addon that stops reading at indoor is
+        // still correct, and one that reads on can show and edit the tilt.
+        payload += Trinity::StringFormat("S:PLACEDENTRY|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{};",
             placement.Id, placement.DecorId, placement.X, placement.Y, placement.Z,
-            placement.O, placement.Scale, uint32(placement.Indoor ? 1 : 0));
+            placement.O, placement.Scale, uint32(placement.Indoor ? 1 : 0),
+            placement.Pitch, placement.Roll, placement.PetEntry, uint32(placement.PetRoaming ? 1 : 0));
     }
 
     payload += "S:PLACEDEND;";

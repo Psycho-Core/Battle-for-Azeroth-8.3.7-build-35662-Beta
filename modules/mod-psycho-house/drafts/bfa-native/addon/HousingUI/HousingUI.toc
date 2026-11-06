@@ -2,7 +2,7 @@
 ## Title: PsychoHouse
 ## Notes: Housing window: house card, catalogue, placed decor, neighbours, Endeavors, blueprints
 ## Author: Thordekk
-## Version: 0.5.0
+## Version: 0.6.0
 ## SavedVariables: HousingUIDB
 
 Core.lua

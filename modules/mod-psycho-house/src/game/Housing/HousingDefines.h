@@ -53,6 +53,11 @@ namespace Housing
     constexpr uint32 kNeighborhoodPhaseBase = 60000; // 60000 .. 60255
     constexpr uint32 kMaxPlacedDecor = 400;          // hard stop, above any budget cap
     constexpr float kDefaultYardRadius = 40.0f;
+
+    // Advanced mode tilts a piece on two axes. The yaw is unbounded because it wraps, but a
+    // tilt past a quarter turn puts furniture through the floor or upside down, which is a
+    // way to make a house look broken rather than decorated, so it is clamped to +-90 deg.
+    constexpr float kMaxTilt = 1.5707964f;
     constexpr uint32 kDirectoryPageSize = 20;
     constexpr uint32 kCataloguePageSize = 20;
     constexpr int32 kSaveIntervalSeconds = 30;
@@ -219,6 +224,7 @@ namespace Housing
         ArchiveExpired       = 30,
         NotGuild             = 31,
         AlreadyKnown         = 32,
+        NoBattlePet          = 33,   // nothing summoned, or the species is not in the journal
         NotReady             = 34,   // level, cooldown or prerequisite not met
         OnCooldown           = 35,
         NotInGuild           = 36,

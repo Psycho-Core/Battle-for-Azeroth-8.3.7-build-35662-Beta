@@ -480,6 +480,78 @@ NewButton(placedPane, "Remove selected", 140, 0, -4, function()
     end
 end)
 
+-- Tilt: advanced mode's two extra axes. The buttons step the selected piece by the rotation
+-- step the player set on the Settings tab, so the two preferences agree; the boxes take a
+-- typed angle in degrees for the cases a step cannot reach.
+local tiltPitchBox = CreateFrame("EditBox", nil, placedPane, "InputBoxTemplate")
+tiltPitchBox:SetSize(46, 20)
+tiltPitchBox:SetPoint("TOPLEFT", placedPane, "TOPLEFT", 152, -6)
+tiltPitchBox:SetAutoFocus(false)
+tiltPitchBox:SetNumeric(true)
+tiltPitchBox:SetText("0")
+
+local tiltRollBox = CreateFrame("EditBox", nil, placedPane, "InputBoxTemplate")
+tiltRollBox:SetSize(46, 20)
+tiltRollBox:SetPoint("TOPLEFT", placedPane, "TOPLEFT", 206, -6)
+tiltRollBox:SetAutoFocus(false)
+tiltRollBox:SetNumeric(true)
+tiltRollBox:SetText("0")
+
+local tiltLabel = NewLabel(placedPane, "GameFontDisableSmall", "TOPLEFT", 258, -10)
+tiltLabel:SetText("pitch / roll, degrees")
+
+local function ApplyTilt()
+    local entry = Menu.selectedPlacement and H.placed[Menu.selectedPlacement]
+    if not entry then
+        return
+    end
+
+    local pitch = math.rad(tonumber(tiltPitchBox:GetText()) or 0)
+    local roll = math.rad(tonumber(tiltRollBox:GetText()) or 0)
+
+    H.Send(string.format("C:MOVE|%s|%.3f|%.3f|%.3f|%.3f|%.3f|%.4f|%.4f",
+        tostring(entry.id), entry.x or 0, entry.y or 0, entry.z or 0, entry.o or 0,
+        entry.scale or 1, pitch, roll))
+end
+
+NewButton(placedPane, "Apply", 60, 340, -4, ApplyTilt)
+
+local function NudgeTilt(pitchStep, rollStep)
+    local entry = Menu.selectedPlacement and H.placed[Menu.selectedPlacement]
+    if not entry then
+        return
+    end
+
+    local pitch = (entry.pitch or 0) + pitchStep
+    local roll = (entry.roll or 0) + rollStep
+
+    tiltPitchBox:SetText(string.format("%.0f", math.deg(pitch)))
+    tiltRollBox:SetText(string.format("%.0f", math.deg(roll)))
+
+    H.Send(string.format("C:MOVE|%s|%.3f|%.3f|%.3f|%.3f|%.3f|%.4f|%.4f",
+        tostring(entry.id), entry.x or 0, entry.y or 0, entry.z or 0, entry.o or 0,
+        entry.scale or 1, pitch, roll))
+end
+
+NewButton(placedPane, "Pitch -", 60, 412, 12, function() NudgeTilt(-H.settings.angle, 0) end)
+NewButton(placedPane, "Pitch +", 60, 412, -16, function() NudgeTilt(H.settings.angle, 0) end)
+
+-- Pet beds. The server refuses unless the companion is actually out, so the buttons say so
+-- rather than failing silently; the piece has to be a bed, which the server also checks.
+local function AssignPet(mode)
+    local entry = Menu.selectedPlacement and H.placed[Menu.selectedPlacement]
+    if not entry then
+        H.Print("select a placement in the list first")
+        return
+    end
+
+    H.Send(string.format("C:PET|%s|%d", tostring(entry.id), mode))
+end
+
+NewButton(placedPane, "Pet sleeps", 80, 152, -34, function() AssignPet(1) end)
+NewButton(placedPane, "Pet roams", 80, 238, -34, function() AssignPet(2) end)
+NewButton(placedPane, "Pet off", 60, 324, -34, function() AssignPet(0) end)
+
 Menu.placedRows = {}
 
 local function BuildPlaced()
@@ -517,10 +589,21 @@ local function BuildPlaced()
         local name = catalogue and catalogue.name or ("decor " .. tostring(entry.decorId))
 
         row:SetPoint("TOPLEFT", placedContent, "TOPLEFT", 0, -((index - 1) * 24))
-        row.label:SetText(string.format("%s%s|r  %s%s, x %.1f y %.1f|r",
+        local tilt = ""
+        if (entry.pitch or 0) ~= 0 or (entry.roll or 0) ~= 0 then
+            tilt = string.format(DIM .. ", tilt %.0f/%.0f deg" .. RESET,
+                math.deg(entry.pitch or 0), math.deg(entry.roll or 0))
+        end
+
+        if (entry.petEntry or 0) ~= 0 then
+            tilt = tilt .. string.format(DIM .. ", pet %d %s" .. RESET, entry.petEntry,
+                entry.petRoaming and "roaming" or "asleep")
+        end
+
+        row.label:SetText(string.format("%s%s|r  %s%s, x %.1f y %.1f|r%s",
             entry.indoor and "" or DIM, name,
             entry.indoor and GOOD or DIM, entry.indoor and "indoor" or "outdoor",
-            entry.x or 0, entry.y or 0))
+            entry.x or 0, entry.y or 0, tilt))
 
         row:SetScript("OnClick", function()
             Menu.selectedPlacement = entry.id
@@ -893,8 +976,8 @@ local GUIDE_LINES = {
     "|cffffd100Buy|r        C:BUYDECOR <id> -> S:BUYRESULT",
     "|cffffd100Placed|r     C:PLACED -> S:PLACEDENTRY per placement, S:PLACEDEND",
     "|cffffd100Neighbours|r C:PLOTS -> S:PLOT per plot; C:DIR <page> -> S:DIRENTRY",
-    "|cffffd100Place|r      C:PLACE <decorId> <x> <y> <z> <o> <scale> <indoor>",
-    "|cffffd100Move|r       C:MOVE <placementId> <x> <y> <z> <o> <scale>",
+    "|cffffd100Place|r      C:PLACE <decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]",
+    "|cffffd100Move|r       C:MOVE <placementId> <x> <y> <z> <o> <scale> [pitch] [roll]",
     "|cffffd100Remove|r     C:REMOVE <placementId>",
     "|cffffd100Guests|r     C:GUESTLIST, C:GUESTADD <name> <flags>, C:GUESTDEL <name>",
     "|cffffd100Amenities|r  C:VAREA -> S:VAREA per amenity, S:VAREAEND at the end",

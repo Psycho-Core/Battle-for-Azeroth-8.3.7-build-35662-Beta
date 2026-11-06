@@ -130,9 +130,13 @@ namespace Housing
 
         // ---- decor -----------------------------------------------------------
 
+        /// The last two arguments are advanced mode's tilt axes. Both default to 0, so a
+        /// caller that only knows about yaw - a command, a blueprint import, the addon before
+        /// it grew tilt - places exactly what it placed before.
         HousingResult PlaceDecor(Player* player, uint32 decorId, float x, float y, float z, float o,
-            float scale, bool indoor, uint64& placementId);
-        HousingResult MoveDecor(Player* player, uint64 placementId, float x, float y, float z, float o, float scale);
+            float scale, bool indoor, uint64& placementId, float pitch = 0.0f, float roll = 0.0f);
+        HousingResult MoveDecor(Player* player, uint64 placementId, float x, float y, float z, float o,
+            float scale, float pitch = 0.0f, float roll = 0.0f);
         HousingResult RemoveDecor(Player* player, uint64 placementId);
         HousingResult BuyDecor(Player* player, uint32 decorId);
 
@@ -194,7 +198,8 @@ namespace Housing
         std::map<uint32, ShellInfo> const& GetShells() const { return _shells; }
         RoomInfo const* GetRoom(uint32 id) const;
         std::vector<RoomInfo> GetRoomsForShell(uint32 shellId) const;
-        DecorVariant const* GetVariant(uint32 decorId, uint8 group, uint8 color) const;        PetBedInfo const* GetDecorCreature(uint32 decorId) const;
+        DecorVariant const* GetVariant(uint32 decorId, uint8 group, uint8 color) const;
+        PetBedInfo const* GetDecorCreature(uint32 decorId) const;
         HousingPortal const* GetPortal(uint32 id) const;
         std::vector<HousingPortal> const& GetPortals() const { return _portalList; }
 
@@ -209,6 +214,11 @@ namespace Housing
         // ---- dyes ------------------------------------------------------------
 
         HousingResult DyeDecor(Player* player, uint64 placementId, uint8 group, uint8 color);
+
+        /// Put the companion the player has out onto a bed, or take it off (mode 0). The pet is
+        /// the one actually out - the journal is checked so a species the player does not own
+        /// cannot be named, but the creature is taken from what is standing there.
+        HousingResult AssignPet(Player* player, uint64 placementId, uint8 mode);
 
         /// The palette the realm's own gameobject names support. Loaded from `housing_dye`,
         /// which the bind script fills by looking at which colour words actually appear in
@@ -361,6 +371,8 @@ namespace Housing
         uint32 _armillaryLevel;
         bool _guildWings;
         uint32 _cornerstoneEntry;   // plot stone, 0 = no stone
+        uint32 _petBedIndoorCap;    // beds per house, retail 100
+        uint32 _petBedOutdoorCap;   // beds per plot, retail 25
 
         // world data
         std::map<uint32, BiomeInfo> _biomes;

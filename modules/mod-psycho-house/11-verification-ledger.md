@@ -757,3 +757,44 @@ Unchanged and still true: nothing here was compiled and no SQL was executed. The
 `std::vector` of string pairs, a lambda that formats through `ostringstream`, and a reader of
 `ChatHandler::getCommandTable()` - all of it read against the headers in this tree, none of it
 built.
+
+### 6.19 The twenty-third revision: back to doc 01, row by row
+
+The last two revisions worked outward from the code: what exists, what can be reached, what
+can be configured. This one worked inward from the specification - doc 01 is the retail record,
+doc 02 decides what of it is buildable - and compared each row against what the code actually
+does. Three things came out of it.
+
+**A row that overstated the code.** Doc 02's advanced-mode row read "free placement, rotate,
+scale" and the rotation was yaw only. Retail rotates on three axes. Nothing in the module
+contradicted the row, because no checker compares a sentence about rotation with the number of
+angles in the struct. Pitch and roll are now carried end to end, with the tilt clamped rather
+than refused, and the two blueprint consequences written out in doc 06.
+
+**A system that had been specified and not built.** Doc 06 sec.4 describes the retail pet bed
+in detail - assignment, two modes, two caps - and the implementation spawned a fixed creature
+per decor row. That is a bed with a cat in it that nobody chose. The assignment path now exists:
+the summoned companion, a journal check, a per-bed mode, and the two caps as settings.
+
+**A semantic argument the player was made to supply.** The dye group. Retail's slot decides it,
+so the player chooses a colour and the piece contributes the group; the module asked for both
+and defaulted the group to 1, which silently failed for any piece whose variants are elsewhere.
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; braces, declarations, queries, column counts, includes, the reachability rule and the **new gossip rule**: every `GOSSIP_ACTION_INFO_DEF + n` reaches a menu call and a `case`. Mutation-tested by pointing one menu row at another action |
+| `check_lua.py` | 0 findings; ten tabs, the tilt boxes, the pet buttons |
+| `check_protocol.py` | 0 findings; `C:PET` dispatched, `S:PLACEDENTRY` grew to 13 fields and the addon reads all 13 |
+| `check_sql_columns.py` | 0 findings; `pitch`, `roll`, `pet_entry`, `pet_roaming` against the module's own schema |
+| `check_reference.py` | 0 findings; 31 settings, 46 commands, 6 client settings, all documented |
+| `check_mariadb.py` | 0 findings; the four new columns parsed as MariaDB reads them |
+| `verify_drafts.py` | 0 findings; both drafts rebuilt from the shared trees |
+| `check_coverage.py` | 0 findings; catalogue and stock untouched |
+| `check_psychohouse.py` | 0 findings; draft C untouched |
+| `audit.py` | 0 findings across 9 checks |
+
+What is still not verified, and has not been at any point in this folder: no compiler ran over
+this code and no server executed this SQL. The new core calls were read against the headers -
+`Player::GetSummonedBattlePet`, `Player::GetBattlePetCountForSpecies`, `sBattlePetSpeciesStore`,
+`BattlePetSpeciesEntry::CreatureID`, `QuaternionData::fromEulerAnglesZYX` - and the column
+widths against the schema, but "read against the header" is not "linked and run".

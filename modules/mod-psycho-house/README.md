@@ -35,7 +35,7 @@ modules/mod-psycho-house/
   src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
                          neighbourhoods, the houses, the Endeavor engine, the four NPC
                          scripts and the four gameobject scripts
-  src/scripts/Housing/   commands (43 of them), player/world/guild hooks, loader
+  src/scripts/Housing/   commands (46 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
@@ -103,7 +103,7 @@ publish entry ids for the interior quests.
 | `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL and all three drafts against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
 | `tools/housing/verify_drafts.py` | Reads the three `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
-| `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, and includes that resolve. `--src` and `--sql` point it at any tree, which is how the third draft is checked. |
+| `tools/housing/check_cpp.py` | Static C++ check with no compiler: balanced blocks, declarations against definitions, table and column names in every query string, `fields[N]` against the SELECT that produced it, includes that resolve, every `HousingMgr` method called from somewhere (the reachability rule that found the unreachable membership code), and every gossip action id reaching both a menu item and a `case`. `--src` and `--sql` point it at any tree, which is how the third draft is checked. |
 | `tools/housing/build_schema.py` | Reads the column lists of `creature_template`, `gameobject_template` and `creature_template_model` out of the build's own loader queries. Shared by the two checkers so they cannot disagree about what a column is. |
 | `tools/housing/check_psychohouse.py` | The third draft's checker: the 34 core calls it makes, each against the declaration in this source tree, and every include those calls need; SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, fourteen statements this document makes about build 35662 checked against the source tree, and the MariaDB rules: printf dialect and argument counts, a 64-bit house key on both sides, `COLLATE` on every table, no `INSERT IGNORE`, no bare scalar subquery, no config section header. |
 | `tools/housing/check_mariadb.py` | Reads the module's SQL and all three drafts the way MariaDB 11.8.6 would: every table pinned to InnoDB and utf8mb4 with an explicit COLLATE, NOT NULL columns with no default that an INSERT forgets (error 1364), integer and string literals wider than the column (1264 and 1406), duplicate primary and unique keys inside one file (1062), a decor category straddling two surface bands, and the statements that are MariaDB-only or that make an install unrepeatable. |
@@ -155,6 +155,20 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twenty-third revision
+
+The twenty-second pass fixed the settings layer. This one went back to the retail reference and
+asked, row by row, whether the thing doc 01 describes is the thing the code does. Two systems
+were half-built and one was described as finished while doing half of what its own row claimed.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 128 | Advanced mode is "free placement, free rotation on three axes, scaling". The code carried yaw and scale, so a painting could not hang tilted and a banner could not lie flat. Doc 02's row said "rotate" and was read as done | `pitch` and `roll` end to end: two new columns, two placement fields, a quaternion built from all three angles, a clamp at +-90 degrees, optional trailing fields on `C:PLACE` and `C:MOVE` (an addon that does not send them is unchanged), tilt boxes and a step button in the Placed tab, and `.housing tilt` for changing the tilt alone |
+| 129 | Blueprint codes were version 1 with no room for tilt, and the decoder's bounds check counted the three coordinates but then read nine bytes - a truncated code read past the end of its own buffer | Version 2 adds one packed tilt byte per piece (two nibbles, 12 degrees apart over +-90); version 1 codes still decode with the tilt at zero. The guard now requires the whole record: ten bytes on version 2, nine on version 1 |
+| 130 | Doc 06 sec.4 promised the retail pet bed - assignment, Stationary or Roaming, caps of 100 indoors and 25 outdoors - and the code spawned a fixed creature per decor row. A player could not put their own companion on a bed at all | `AssignPet`: the companion currently summoned goes on the bed, after the species is checked against the journal (`sBattlePetSpeciesStore` plus `GetBattlePetCountForSpecies`), with the mode stored per bed. Caps are enforced on placement: `Housing.PetBed.IndoorCap` 100, `Housing.PetBed.OutdoorCap` 25, both 0 = off. `C:PET`, `.housing pet`, and three buttons in the Placed tab |
+| 131 | The dye group was an argument the player had to supply, defaulting to 1. Retail's dye slot belongs to the furniture: one dye of a group colours any slot in that group, so a piece whose variants live in group 2 could not be dyed without knowing a column | Group 0 now means "the group this piece keeps that colour in", `GetVariant` resolves it, and the row records the group the variant actually has. The command and the addon send the colour alone |
+| 132 | Every gossip action id was unreachable-checked by nothing: an action declared but never added to a menu, or added with no `case`, compiles and does nothing | `check_cpp.py` gained a gossip rule: every `GOSSIP_ACTION_INFO_DEF + n` must appear in a menu call and a `case`. Mutation-tested by pointing one menu row at a different action - the pristine tree reports nothing, the mutated one names the action that lost its menu |
 
 ## Audit pass, twenty-second revision
 

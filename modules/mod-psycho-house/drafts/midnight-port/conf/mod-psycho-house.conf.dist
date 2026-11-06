@@ -84,6 +84,21 @@ Housing.Neighborhood.PopulationCap = 0
 
 Housing.Phasing.PlotScoped = 1
 
+#   Housing.PetBed.IndoorCap
+#       Description: Beds allowed indoors per house. Retail's number is 100. 0 turns the cap
+#                    off, which is what a realm with three bed models probably wants.
+#       Default:     100
+
+Housing.PetBed.IndoorCap = 100
+
+#   Housing.PetBed.OutdoorCap
+#       Description: Beds allowed outdoors per plot. Retail's number is 25. 0 turns the cap
+#                    off.
+#       Default:     25
+
+Housing.PetBed.OutdoorCap = 25
+
+
 #   Housing.SaveInterval
 #       Description: Seconds between deferred decor and name writes.
 #       Default:     30
