@@ -29,6 +29,7 @@
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "HousingBlueprint.h"
+#include "HousingDecor.h"
 #include "HousingEndeavor.h"
 #include "Log.h"
 #include "Creature.h"
@@ -80,6 +81,7 @@ namespace Housing
         LoadShells();
         LoadRooms();
         LoadPortals();
+        LoadDyes();
         LoadVariants();
         LoadDecorCreatures();
 
@@ -301,15 +303,6 @@ namespace Housing
         return itr != _variants.end() ? &itr->second : nullptr;
     }
 
-    bool HousingMgr::HasVariants(uint32 decorId) const
-    {
-        for (auto const& pair : _variants)
-            if (pair.second.DecorId == decorId)
-                return true;
-
-        return false;
-    }
-
     PetBedInfo const* HousingMgr::GetDecorCreature(uint32 decorId) const
     {
         auto const itr = _decorCreatures.find(decorId);
@@ -467,6 +460,8 @@ namespace Housing
             if (player->GetSession())
                 ChatHandler(player->GetSession()).PSendSysMessage(
                     "Your house reached level %u.", uint32(newLevel));
+
+            CheckIntroQuestProgress(player);
         }
     }
 
@@ -1094,6 +1089,240 @@ namespace Housing
             uint32(sHousingEndeavor->GetMilestone(neighborhoodId)));
     }
 
+    // -------------------------------------------------------------------------
+    // Dye palette
+    // -------------------------------------------------------------------------
+
+    void HousingMgr::LoadDyes()
+    {
+        _dyes.clear();
+
+        if (QueryResult result = WorldDatabase.Query("SELECT `id`, `name` FROM `housing_dye` ORDER BY `id`"))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+                _dyes[fields[0].GetUInt8()] = fields[1].GetString();
+            }
+            while (result->NextRow());
+        }
+
+        if (_dyes.empty())
+            TC_LOG_INFO("housing", "No dye palette: `housing_dye` is empty, so the dye station has nothing to sell");
+    }
+
+    std::string const* HousingMgr::GetDyeName(uint8 id) const
+    {
+        auto const itr = _dyes.find(id);
+        return itr != _dyes.end() ? &itr->second : nullptr;
+    }
+
+    // -------------------------------------------------------------------------
+    // Milestones
+    // -------------------------------------------------------------------------
+
+    /*
+     * Doc 04's achievement list, read out of the state the module already keeps. 8.3.7's
+     * achievements are client DBC, so a real panel entry needs a client patch; until then the
+     * conditions are shown where the player already is, and the ones that pay a reward pay it
+     * the first time they are met.
+     *
+     * Nothing new is stored for this: the collection count, the house level, the number of
+     * placed pieces, the storage total, the visited plots and the Endeavor count are all
+     * things the module tracks anyway. That is deliberate - a milestone table that can drift
+     * from the state it describes is worse than no milestone table.
+     */
+    std::string HousingMgr::BuildMilestoneReport(Player* player)
+    {
+        if (!player || !player->GetSession())
+            return "";
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        LoadCollection(accountId);
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        HousingHouse* house = plot ? plot->GetHouse() : nullptr;
+
+        uint32 const collected = uint32(_collection[accountId].size());
+        uint32 const level = house ? house->GetTier() : 0;
+        uint32 const placed = house ? uint32(house->GetPlacements().size()) : 0;
+
+        uint32 copies = 0;
+        if (QueryResult result = CharacterDatabase.Query(
+            "SELECT COALESCE(SUM(`count`), 0) FROM `character_housing_storage` WHERE `accountId` = {}",
+            accountId))
+            copies = result->Fetch()[0].GetUInt32();
+
+        PlayerState* state = GetPlayerState(player);
+        uint32 const visited = state ? uint32(state->VisitedPlots.size()) : 0;
+
+        uint32 endeavors = 0;
+        if (uint32 const neighborhoodId = GetPlayerNeighborhoodId(player))
+            endeavors = sHousingEndeavor->GetCompletedTasks(neighborhoodId);
+
+        struct Milestone
+        {
+            char const* Name;
+            uint32 Have;
+            uint32 Need;
+            char const* Unit;
+        };
+
+        Milestone const list[] =
+        {
+            { "Fully Furnished", collected, 500,  "decor collected"  },
+            { "Landlord",        level,      5,   "house levels"     },
+            { "Estate Manager",  level,     12,   "house levels"     },
+            { "Good Neighbour",  endeavors,  3,   "Endeavor tasks"   },
+            { "Grand Tour",      visited,   20,   "plots visited"    },
+            { "Master Builder",  placed,   100,   "pieces placed"    },
+            { "Hoarder",         copies,  1000,   "copies in storage" }
+        };
+
+        std::string report;
+
+        for (Milestone const& milestone : list)
+        {
+            bool const done = milestone.Have >= milestone.Need;
+            report += Trinity::StringFormat("{} {} - {} of {} {}\n",
+                done ? "[x]" : "[ ]", milestone.Name, milestone.Have, milestone.Need, milestone.Unit);
+        }
+
+        return report;
+    }
+
+    // -------------------------------------------------------------------------
+    // The introduction chain
+    // -------------------------------------------------------------------------
+
+    namespace
+    {
+        // What each quest in the chain asks for, in the terms the module can check.
+        enum IntroStep : uint8
+        {
+            IntroReadDeed   = 0,    // 900100: accept it and read it
+            IntroClaimPlot  = 1,    // 900101: a plot of the character's own
+            IntroPlaceThree = 2,    // 900102: three pieces down
+            IntroLevelTwo   = 3     // 900103: house level 2
+        };
+
+        constexpr uint32 kIntroFirstQuest = 900100;
+
+        bool IntroConditionMet(uint8 step, HousingPlot* plot)
+        {
+            switch (step)
+            {
+                case IntroReadDeed:
+                    return true;
+                case IntroClaimPlot:
+                    return plot != nullptr && plot->IsOwned();
+                case IntroPlaceThree:
+                    return plot && plot->GetHouse()
+                        && plot->GetHouse()->GetPlacements().size() >= 3;
+                case IntroLevelTwo:
+                    return plot && plot->GetHouse() && plot->GetHouse()->GetTier() >= 2;
+                default:
+                    return false;
+            }
+        }
+    }
+
+    uint32 HousingMgr::GetIntroQuestFor(Player* player)
+    {
+        if (!_enabled || !player)
+            return 0;
+
+        for (uint8 step = 0; step < 4; ++step)
+        {
+            uint32 const questId = kIntroFirstQuest + step;
+
+            if (!sObjectMgr->GetQuestTemplate(questId))
+                continue;   // a realm that does not ship the chain simply never offers it
+
+            if (!player->IsQuestRewarded(questId))
+                return questId;
+        }
+
+        return 0;
+    }
+
+    bool HousingMgr::OfferIntroQuest(Player* player, Creature* giver)
+    {
+        uint32 const questId = GetIntroQuestFor(player);
+        if (!questId)
+            return false;
+
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+        if (!quest || !player->CanAddQuest(quest, true))
+            return false;
+
+        QuestStatus const status = player->GetQuestStatus(questId);
+        if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_COMPLETE)
+            return false;   // already holding it; the turn-in is the next click
+
+        player->AddQuest(quest, giver ? static_cast<Object*>(giver) : nullptr);
+        return true;
+    }
+
+    bool HousingMgr::TurnInIntroQuest(Player* player)
+    {
+        if (!_enabled || !player)
+            return false;
+
+        for (uint8 step = 0; step < 4; ++step)
+        {
+            uint32 const questId = kIntroFirstQuest + step;
+            if (player->GetQuestStatus(questId) != QUEST_STATUS_COMPLETE)
+                continue;
+
+            Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+            if (!quest)
+                continue;
+
+            player->RewardQuest(quest, 0, player, false);
+            return true;
+        }
+
+        return false;
+    }
+
+    void HousingMgr::CheckIntroQuestProgress(Player* player)
+    {
+        if (!_enabled || !player)
+            return;
+
+        if (!sObjectMgr->GetQuestTemplate(kIntroFirstQuest))
+            return;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+
+        for (uint8 step = 0; step < 4; ++step)
+        {
+            uint32 const questId = kIntroFirstQuest + step;
+
+            if (player->GetQuestStatus(questId) != QUEST_STATUS_INCOMPLETE)
+                continue;
+
+            if (!IntroConditionMet(step, plot))
+                continue;
+
+            player->AreaExploredOrEventHappens(questId);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Names
+    // -------------------------------------------------------------------------
+
+    std::string HousingMgr::GetAccountCharacterName(uint32 accountId)
+    {
+        if (QueryResult result = CharacterDatabase.Query(
+            "SELECT `name` FROM `characters` WHERE `account` = {} ORDER BY `guid` LIMIT 1", accountId))
+            return result->Fetch()[0].GetString();
+
+        return std::string();
+    }
+
     void HousingMgr::GrantSourceDecor(Player* player, uint8 sourceType, uint32 sourceId)
     {
         if (!_enabled || !player || !sourceId)
@@ -1344,14 +1573,26 @@ namespace Housing
         if (!variant || !variant->GameObjectEntry)
             return NotFound;   // this piece has no dyed appearance; the catalogue says so
 
-        // The dye is written to the row and takes effect the next time the placement is
-        // spawned - re-entering the house, or a relog. Recolouring the object that is already
-        // standing there would mean removing and re-creating it mid-frame for no gain, and a
-        // player who dyes a chair is looking at it from inside the house anyway.
         CharacterDatabase.DirectPExecute(
             "UPDATE `character_housing_decor` SET `dye_group` = {}, `dye_color` = {}, "
             "`variant_entry` = {} WHERE `id` = " UI64FMTD,
             uint32(group), uint32(color), variant->GameObjectEntry, placementId);
+
+        // Then the object standing in the room is replaced with the dyed one, in the same
+        // breath. A dye that only takes effect on the next login is a dye the player thinks
+        // failed.
+        placement->DyeGroup = group;
+        placement->DyeColor = color;
+        placement->VariantEntry = variant->GameObjectEntry;
+
+        if (Map* map = house->GetSpawnMap())
+        {
+            DespawnDecorObject(*placement, map);
+            DespawnDecorCreature(*placement, map);
+            house->SpawnPlacement(*placement, map,
+                placement->Indoor ? plot->GetInteriorPhase() : plot->GetPlotPhase(),
+                plot->GetOwnerGuid());
+        }
 
         return Ok;
     }
@@ -1711,6 +1952,8 @@ namespace Housing
         uint32 const phase = NeighborhoodPhase(neighborhood->GetSlot());
         uint32 const mapId = neighborhood->GetMapId();
 
+        SpawnVendorStalls(neighborhood, map);
+
         // Amenities: a pin is data, an object is furniture. Only the ones the realm bound
         // are spawned; an amenity with entry 0 stays a pin on the addon map.
         uint32 index = 0;
@@ -1783,6 +2026,85 @@ namespace Housing
         {
             PhasingHandler::AddPhase(object, NeighborhoodPhase(neighborhood->GetSlot()), false);
             map->AddToMap(object);
+        }
+    }
+
+    void HousingMgr::SpawnVendorStalls(HousingNeighborhood* neighborhood, Map* map)
+    {
+        if (!neighborhood || !map)
+            return;
+
+        // The town-centre phase, so a stall is visible from the hub and from nowhere else.
+        uint32 const phase = NeighborhoodPhase(neighborhood->GetSlot());
+        uint32 spawned = 0;
+
+        // The stall row: a wider ring than the amenities, in the order the vendor rows were
+        // written, so a row added later lands at the end of the row rather than on top of
+        // somebody. Stalls with authored coordinates keep them.
+        uint32 const stalls = std::max<uint32>(1, uint32(_vendorList.size()));
+        uint32 slot = 0;
+
+        for (VendorInfo const& vendor : _vendorList)
+        {
+            if (!vendor.HasSpawn || !vendor.CreatureEntry)
+                continue;
+
+            // biome 0 is the town centre; the rest are placed by the biome's own anchor rules
+            // and are not part of the hub, so they are left to the amenity spawner.
+            if (vendor.BiomeId)
+                continue;
+
+            Position pos = vendor.Pos;
+            if (pos.m_positionX == 0.0f && pos.m_positionY == 0.0f)
+            {
+                float const angle = 6.2831853f * float(slot) / float(stalls);
+                float const radius = kAnchorAmenityRadius + 22.0f;
+
+                pos = Position(_townCenter.m_positionX + std::cos(angle) * radius,
+                    _townCenter.m_positionY + std::sin(angle) * radius,
+                    _townCenter.m_positionZ,
+                    angle + 3.1415927f);
+            }
+
+            ++slot;
+
+            if (Creature* stall = map->SummonCreature(vendor.CreatureEntry, pos, nullptr, 0, nullptr, 0, 0, false))
+            {
+                PhasingHandler::AddPhase(stall, phase, true);
+                stall->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                ++spawned;
+            }
+            else
+                TC_LOG_ERROR("housing", "Vendor stall %u (creature %u) could not be summoned",
+                    vendor.Id, vendor.CreatureEntry);
+        }
+
+        if (spawned)
+            TC_LOG_INFO("housing", "Neighbourhood %u: %u vendor stall(s) standing",
+                neighborhood->GetId(), spawned);
+    }
+
+    void HousingMgr::BroadcastEndeavorMilestone(HousingNeighborhood* neighborhood, uint8 milestone)
+    {
+        if (!neighborhood)
+            return;
+
+        uint32 const favor = GetFavor(neighborhood->GetId());
+
+        for (auto const& entry : _playerStates)
+        {
+            if (entry.second.NeighborhoodId != neighborhood->GetId())
+                continue;
+
+            Player* player = ObjectAccessor::FindPlayerByLowGUID(entry.first);
+            if (!player)
+                continue;
+
+            player->SendUpdateWorldState(kFavorWorldState, favor);
+            player->SendUpdateWorldState(kMilestoneWorldState, milestone);
+            player->GetSession()->SendNotification(
+                "|cffe6cc80Endeavor|r: milestone %u of 4 reached in %s.",
+                uint32(milestone), neighborhood->GetName().c_str());
         }
     }
 
@@ -2397,18 +2719,34 @@ namespace Housing
 
         // ---- dyes ------------------------------------------------------------
 
+        if (op == "DYES")
+        {
+            auto const& palette = GetDyes();
+
+            for (auto const& dye : palette)
+                SendChunk(player, Trinity::StringFormat("S:DYE|{}|{};", uint32(dye.first), dye.second));
+
+            SendChunk(player, "S:DYEEND;");
+            return true;
+        }
+
         if (op == "DYE")
         {
             uint32 placementId = 0;
-            uint32 group = 0;
             uint32 color = 0;
 
-            if (fields.size() < 4 || !HousingAddon::ParseUInt(fields[1], placementId)
-                || !HousingAddon::ParseUInt(fields[2], group) || !HousingAddon::ParseUInt(fields[3], color))
+            // `C:DYE <placement> <colour> [group]`. The group is optional because retail has
+            // one per piece, and the command line accepts the same two forms.
+            if (fields.size() < 3 || !HousingAddon::ParseUInt(fields[1], placementId)
+                || !HousingAddon::ParseUInt(fields[2], color))
             {
                 SendResult(player, "DYE", InvalidDecor);
                 return true;
             }
+
+            uint32 group = 1;
+            if (fields.size() >= 4 && !fields[3].empty())
+                HousingAddon::ParseUInt(fields[3], group);
 
             SendResult(player, "DYE", DyeDecor(player, placementId, uint8(group), uint8(color)));
             return true;

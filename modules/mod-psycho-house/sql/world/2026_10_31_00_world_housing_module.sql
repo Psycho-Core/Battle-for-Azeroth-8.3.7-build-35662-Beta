@@ -457,6 +457,12 @@ UPDATE `creature_template` SET `ScriptName` = 'npc_housing_steward'
  WHERE `name` IN ('Lyssabel Dawnpetal', 'Tocho Cloudhide')
    AND (`ScriptName` = '' OR `ScriptName` = 'npc_housing_steward');
 
+-- The dye station: doc 09's two Dye Crafters. A realm without them keeps the menu on the
+-- Dyes tab and `.housing dye`, which do the same thing.
+UPDATE `creature_template` SET `ScriptName` = 'npc_housing_dyecrafter'
+ WHERE `name` IN ('Helmi Cooper', 'Haleth Turnwater')
+   AND (`ScriptName` = '' OR `ScriptName` = 'npc_housing_dyecrafter');
+
 -- Every decor vendor in `housing_vendor`, in one statement, so a shop added later is bound
 -- by the act of adding it.
 UPDATE `creature_template` ct

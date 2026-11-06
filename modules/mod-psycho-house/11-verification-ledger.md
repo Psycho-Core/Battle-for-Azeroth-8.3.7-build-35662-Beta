@@ -656,3 +656,53 @@ The checkers, all of them, on the tree as it stands:
 What none of them can say: that this compiles, or that a realm accepts it. Both remain the
 limit named in section 3, and nothing in this revision claims otherwise - the new C++ was
 read against the headers it calls and the new SQL was parsed as text, and that is all.
+
+### 6.17 The twenty-first revision: from "does it exist" to "can it be reached"
+
+The twentieth revision gave every feature-matrix row a function. That is a weaker claim than
+it sounds, and this revision is the proof: nine things were written, correct, and connected to
+nothing.
+
+How it was found, because "check again" is not a method:
+
+- **Call-site census.** Every `Class::Method` definition in `src/` was counted against its
+  uses across the whole module. Eleven methods had a definition and no caller:
+  `GetNeighborhoodBySlot`, `GetOrCreateGuildWing`, `HasVariants`, `InviteToNeighborhood`,
+  `IsGuest`, `RemoveFromNeighborhood`, `ScaledRequirement`, `SendLine`, `SetMemberRank`,
+  `SpawnEndeavorTheming`, `GetPlotTemplate`. Five were deleted, four were wired, and
+  `HandleAddonMessage` turned out to be called from the core's `ChatHandler.cpp` - the one
+  place outside the module that knows it exists.
+- **Config members.** All eighteen `HousingMgr` config fields were grepped for a second
+  reference; every one is read somewhere other than its assignment, so no key is decorative.
+- **Tables.** All 29 tables were counted against the C++ that queries them. Every one is
+  read; `housing_dye` was written by the progression generator and read by nothing, which is
+  how the missing dye station surfaced.
+- **Content that cannot start.** The four introduction quests were traced from row to giver:
+  none. `quest_template` rows 900100-900103 with no `creature_template` reference, no
+  `quest_objectives`, and no code that offers or completes them.
+- **Doc claims against code again, in the other direction:** the achievement list in doc 04,
+  the scaling formula in doc 02, the dye station in doc 09, the guild wing table in doc 02.
+  All four had documentation and no behaviour.
+
+A new checker rule came out of this, and it is the only one that would have caught findings
+113, 114 and 115: `check_cpp.py` now fails when a `HousingMgr` method is defined and never
+called, reading the core's `src/server/game/Handlers/` as a second call corpus for the entry
+point the core itself calls. It was mutation-tested by deleting the single call site of
+`InviteToNeighborhood` in a copy of the tree, and it named exactly that method.
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; braces, declarations, the new reachability rule, column counts, includes |
+| `check_lua.py` | 0 findings; the addon parses, nine tabs |
+| `check_protocol.py` | 0 findings; `C:DYES` and `S:DYE` are paired, every opcode dispatched |
+| `check_sql_columns.py` | 0 findings; 17 statements against the build's own loader queries |
+| `check_mariadb.py` | 0 findings; every file parsed with sqlglot as MariaDB 11.8.6 reads it |
+| `verify_drafts.py` | 0 findings; both drafts, both conf files, the shared trees |
+| `check_coverage.py` | 0 findings; 571 + 350 catalogue rows and their stock, both directions |
+| `check_psychohouse.py` | 0 findings; draft C |
+| `audit.py` | 0 findings across 8 checks |
+
+Still true, and still the limit of every claim in this folder: nothing here was compiled and
+no SQL was executed against a server. The new C++ was read against the headers it calls -
+`QuestStatus`, `Player::AddQuest`, `AreaExploredOrEventHappens`, `RewardQuest`,
+`MotionMaster::MoveRandom`, `UNIT_FLAG_IMMUNE_TO_NPC` - and the new SQL was parsed as text.

@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+class Creature;
 class Map;
 class Player;
 
@@ -51,6 +52,7 @@ namespace Housing
         uint32 LastRuleCheck = 0;    // ms, throttles sanctuary and no-fly
         bool InBuildMode = false;    // placement gizmo: the owner is nudging a piece
         uint32 PendingDecorId = 0;   // the piece the gizmo is placing
+        std::set<uint32> VisitedPlots;  // neighbourhood * 256 + plot, for the Grand Tour
     };
 
     /// Singleton that owns every piece of housing state on this worldserver.
@@ -80,22 +82,14 @@ namespace Housing
 
         // ---- world data ------------------------------------------------------
 
-        BiomeInfo const* GetBiome(uint32 id) const;
-        PlotTemplate const* GetPlotTemplate(uint32 mapId, uint8 index) const;
-        DecorInfo const* GetDecor(uint32 id) const;
+        BiomeInfo const* GetBiome(uint32 id) const;        DecorInfo const* GetDecor(uint32 id) const;
         VendorInfo const* GetVendor(uint32 id) const;
         AmenityInfo const* GetAmenity(uint32 id) const;
 
         std::map<uint32, DecorInfo> const& GetDecorCatalogue() const { return _decor; }
 
-        std::vector<PlotTemplate> const& GetPlotTemplates(uint32 mapId) const;
-        std::vector<AmenityInfo> const& GetAmenities() const { return _amenityList; }
-        std::vector<VendorInfo> const& GetVendors() const { return _vendorList; }
-        std::vector<VendorStockEntry> const& GetVendorStock(uint32 vendorId) const;
-
-        uint32 GetHousingMapId() const { return _housingMapId; }
-        uint32 GetInteriorMapId() const { return _interiorMapId; }
-        bool IsHousingMap(uint32 mapId) const;
+        std::vector<PlotTemplate> const& GetPlotTemplates(uint32 mapId) const;        std::vector<VendorInfo> const& GetVendors() const { return _vendorList; }
+        std::vector<VendorStockEntry> const& GetVendorStock(uint32 vendorId) const;        bool IsHousingMap(uint32 mapId) const;
 
         uint64 GeneratePlacementId() { return _nextPlacementId++; }
         uint32 GenerateHousingId() { return _nextHousingId++; }
@@ -103,9 +97,7 @@ namespace Housing
 
         // ---- neighbourhoods --------------------------------------------------
 
-        HousingNeighborhood* GetNeighborhood(uint32 id);
-        HousingNeighborhood* GetNeighborhoodBySlot(uint16 slot);
-        std::map<uint32, std::unique_ptr<HousingNeighborhood>> const& GetNeighborhoods() const { return _neighborhoods; }
+        HousingNeighborhood* GetNeighborhood(uint32 id);        std::map<uint32, std::unique_ptr<HousingNeighborhood>> const& GetNeighborhoods() const { return _neighborhoods; }
         HousingNeighborhood* FindNeighborhoodFor(Player* player);
         HousingNeighborhood* CreateNeighborhood(uint8 type, uint8 faction, std::string const& name,
             uint64 guildId, uint32 ownerAccount);
@@ -122,8 +114,6 @@ namespace Housing
 
         void HandleAddonMessage(Player* player, std::string const& message);
         void SendResult(Player* player, char const* op, HousingResult result, uint64 extra = 0);
-        void SendLine(Player* player, std::string const& payload);
-
         // ---- player operations -----------------------------------------------
 
         HousingResult BuyPlot(Player* player, HousingNeighborhood* neighborhood, uint8 plotIndex);
@@ -180,6 +170,22 @@ namespace Housing
         /// Grant the decor a character has already earned achievements for. Runs at login,
         /// because this core has no achievement-complete hook.
         void SyncAchievementDecor(Player* player);
+
+        // ---- the introduction chain, 900100-900103 ---------------------------
+        //
+        // These four quests were shipped as rows with no giver and no objective hook, so
+        // nothing in the game could offer them and nothing could finish them. The Steward
+        // hands over the one that is next and the Contractor accepts the turn-in; the
+        // objective is a module event and is marked here.
+
+        /// The quest the player should be offered next, or 0 when the chain is finished.
+        uint32 GetIntroQuestFor(Player* player);
+        bool OfferIntroQuest(Player* player, Creature* giver);
+        bool TurnInIntroQuest(Player* player);
+
+        /// Called from the events the chain is built on: a plot bought, a piece placed, a
+        /// level reached. Marks the current quest complete when its condition is met.
+        void CheckIntroQuestProgress(Player* player);
         HousingResult LevelUpWithGold(Player* player);
         HousingResult ApplyShell(Player* player, uint32 shellId);
 
@@ -188,9 +194,7 @@ namespace Housing
         std::map<uint32, ShellInfo> const& GetShells() const { return _shells; }
         RoomInfo const* GetRoom(uint32 id) const;
         std::vector<RoomInfo> GetRoomsForShell(uint32 shellId) const;
-        DecorVariant const* GetVariant(uint32 decorId, uint8 group, uint8 color) const;
-        bool HasVariants(uint32 decorId) const;
-        PetBedInfo const* GetDecorCreature(uint32 decorId) const;
+        DecorVariant const* GetVariant(uint32 decorId, uint8 group, uint8 color) const;        PetBedInfo const* GetDecorCreature(uint32 decorId) const;
         HousingPortal const* GetPortal(uint32 id) const;
         std::vector<HousingPortal> const& GetPortals() const { return _portalList; }
 
@@ -205,6 +209,12 @@ namespace Housing
         // ---- dyes ------------------------------------------------------------
 
         HousingResult DyeDecor(Player* player, uint64 placementId, uint8 group, uint8 color);
+
+        /// The palette the realm's own gameobject names support. Loaded from `housing_dye`,
+        /// which the bind script fills by looking at which colour words actually appear in
+        /// front of a furniture name - there is no invented colour list here.
+        std::map<uint8, std::string> const& GetDyes() const { return _dyes; }
+        std::string const* GetDyeName(uint8 id) const;
 
         // ---- travel, finder, visit, reservation ------------------------------
 
@@ -250,11 +260,7 @@ namespace Housing
         /// dissolved: its plots are sold, its members are told, and its slot goes back.
         void RunDissolutionSweep();
 
-        uint32 GetNeighborhoodPopulation(HousingNeighborhood* neighborhood) const;
-        uint32 GetPopulationCap() const { return _populationCap; }
-        uint32 GetEvictGraceDays() const { return _graceDays; }
-
-        /// Join a neighbourhood that is open to the player's faction. Refuses when it is full.
+        uint32 GetNeighborhoodPopulation(HousingNeighborhood* neighborhood) const;        /// Join a neighbourhood that is open to the player's faction. Refuses when it is full.
         HousingResult JoinNeighborhood(Player* player, uint32 neighborhoodId);
         HousingResult LeaveNeighborhood(Player* player);
 
@@ -266,6 +272,15 @@ namespace Housing
         HousingResult InviteToNeighborhood(Player* player, std::string const& name);
         HousingResult SetMemberRank(Player* player, std::string const& name, uint8 rank);
         HousingResult RemoveFromNeighborhood(Player* player, std::string const& name);
+
+        /// The first character name on an account. Membership is stored by account, and a
+        /// founder reading a list of account ids has been told nothing at all.
+        std::string GetAccountCharacterName(uint32 accountId);
+
+        /// The Steward's collection milestones - the seven conditions in doc 04 - as text,
+        /// one line each, achieved or not. There is no achievement DBC entry on 8.3.7, so
+        /// this is where the player reads them.
+        std::string BuildMilestoneReport(Player* player);
 
         /// Move the house to another free plot in the same neighbourhood, keeping every piece
         /// of furniture, the level and the exterior. Retail's "move house" is free; so is this.
@@ -356,6 +371,7 @@ namespace Housing
         std::map<uint8, HouseLevelInfo> _levels;
         std::map<uint32, ShellInfo> _shells;
         std::map<uint32, RoomInfo> _rooms;
+        std::map<uint8, std::string> _dyes;
         std::map<uint32, HousingPortal> _portals;
         std::vector<HousingPortal> _portalList;
         std::map<uint32, DecorVariant> _variants;                       // (decor << 16) | group << 8 | colour
@@ -395,6 +411,7 @@ namespace Housing
         void LoadShells();
         void LoadRooms();
         void LoadPortals();
+        void LoadDyes();
         void LoadVariants();
         void LoadDecorCreatures();
 
@@ -411,6 +428,13 @@ namespace Housing
         Position AnchorForAmenity(uint32 index) const;
         void SpawnPlotShell(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
         void SpawnCornerstone(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
+
+        /// The stalls themselves: one creature per `housing_vendor` row that has an entry and
+        /// a position, in the town centre phase. Without this the shops are rows in a table.
+        void SpawnVendorStalls(HousingNeighborhood* neighborhood, Map* map);
+
+        /// Tell everybody standing in the neighbourhood that a milestone moved.
+        void BroadcastEndeavorMilestone(HousingNeighborhood* neighborhood, uint8 milestone);
         uint32 GetNeighborhoodPhaseOf(uint32 neighborhoodId) const;
 
         uint16 AllocateSlot();
@@ -438,8 +462,6 @@ namespace Housing
         void HandlePlacedList(Player* player, PlayerState& state);
         void HandleGuestList(Player* player, PlayerState& state);
         void HandleAmenityList(Player* player, PlayerState& state);
-
-        bool IsGuest(uint32 housingId, uint32 accountId);
 
         std::map<uint32, uint8> const& LoadGuests(uint32 housingId);
         uint8 GetGuestFlags(uint32 housingId, uint32 accountId);

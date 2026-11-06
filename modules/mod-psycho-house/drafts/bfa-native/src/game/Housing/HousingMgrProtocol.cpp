@@ -51,11 +51,6 @@ void HousingMgr::SendChunk(Player* player, std::string const& payload)
     HousingAddon::Send(player, throwaway, payload);
 }
 
-void HousingMgr::SendLine(Player* player, std::string const& payload)
-{
-    SendChunk(player, payload);
-}
-
 void HousingMgr::SendResult(Player* player, char const* op, HousingResult result, uint64 extra)
 {
     std::string payload = Trinity::StringFormat("S:RESULT|{}|{}", op, uint32(result));

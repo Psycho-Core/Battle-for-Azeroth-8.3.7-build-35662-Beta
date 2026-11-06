@@ -169,21 +169,31 @@ each a custom quest with a GO objective:
 Mechanics: `quest_template` + `quest_objectives` with `GAMEOBJECT` type, plus a spawn of a
 small "cache" GO per location. Rewards grant decor directly (`GrantDecor`, no item).
 
+The four introduction quests in section 1 have a giver now: the Steward offers the next one
+in the chain and takes the turn-in, and the objective is marked by the module event that
+satisfies it. They were rows with no giver and no objective hook before that, which meant
+nothing in the game could start or finish them.
+
 ## 6. Achievements
 
 8.3.7 achievement definitions are DBC, so anything here is **[needs client patch]** if I want
-a real achievement panel entry. Cheap alternative first: a **Collection Milestones** list on
-the Steward gossip, and titles only if a title DBC edit is acceptable.
+a real achievement panel entry. What ships instead, and what the table below is checked
+against: `HousingMgr::BuildMilestoneReport` reads all seven conditions out of state the module
+already keeps, and the list is printed on the Steward and by `.housing milestones`. Titles
+still need a DBC edit, so there are none.
 
-| Proposed | Requirement | Reward |
+Where each condition is read from is in the middle column: no milestone table exists, because
+a table that can disagree with the state it describes is worse than none.
+
+| Proposed | Requirement (and where it is read from) | Reward |
 | --- | --- | --- |
-| *Fully Furnished* (parity name) | 500 decor of uncommon+ collected | Title **The Furnished** |
-| *Landlord* | Reach house level 5 | Decor |
-| *Estate Manager* | Reach house level 12 | Large exterior token |
-| *Good Neighbour* | Contribute to 3 completed Endeavors | Decor |
-| *Grand Tour* | Visit 20 different plots | Decor |
-| *Master Builder* | 100 placed pieces at once | Decor, addon badge |
-| *Hoarder* | Own 1 000 decor copies | Decor |
+| *Fully Furnished* (parity name) | 500 decor collected (`character_housing_collection`) | Title **The Furnished** |
+| *Landlord* | House level 5 (`character_housing.tier`) | Decor |
+| *Estate Manager* | House level 12 (same column) | Large exterior token |
+| *Good Neighbour* | 3 completed Endeavor tasks (`character_housing_endeavor_task` progress) | Decor |
+| *Grand Tour* | 20 different plots stood on (the housing tick's plot resolution) | Decor |
+| *Master Builder* | 100 pieces placed at once (`character_housing_decor`) | Decor, addon badge |
+| *Hoarder* | 1 000 copies in storage (`character_housing_storage`) | Decor |
 
 ## 7. Rewards economy
 

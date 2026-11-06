@@ -253,6 +253,7 @@ end
 
 H.finder = {}
 H.rooms = {}
+H.dyesReady = false
 H.roomsOwned = 0
 H.nightMode = false
 H.gryphon = 0
@@ -367,6 +368,16 @@ function H.SnapScale(value)
         return value
     end
     return math.floor(value / H.snap.scaleStep + 0.5) * H.snap.scaleStep
+end
+
+H.dyes = H.dyes or {}
+
+H.handlers["DYE"] = function(fields)
+    H.dyes[#H.dyes + 1] = { id = tonumber(fields[2]), name = fields[3] }
+end
+
+H.handlers["DYEEND"] = function()
+    H.dyesReady = true
 end
 
 H.handlers["ROOM"] = function(fields)
@@ -535,6 +546,9 @@ SlashCmdList["HOUSING"] = function(input)
                 H.SnapValue(tonumber(z)), H.SnapAngle(tonumber(o)),
                 H.SnapScale(tonumber(scale)), indoor))
         end
+    elseif command == "dyes" then
+        H.dyes = {}
+        Send("C:DYES")
     elseif command == "snap" then
         if rest == "on" or rest == "off" then
             H.snap.enabled = (rest == "on")
