@@ -86,6 +86,17 @@ That keeps the retail placement budgets in doc 01 usable without translating pri
 - No retail item ids anywhere, and therefore no `item_entry` column values to port later.
   A piece that gets a retail equivalent later is a row edit in `03_decor_native.sql`.
 
+- What answers when clicked. Eight scripts are selected by `ScriptName`, never by entry, so
+  no creature or object is created and none is overwritten - every binding is an `UPDATE ...
+  WHERE ScriptName = ''`:
+  `npc_housing_steward`, `npc_housing_contractor`, `npc_housing_coffer`,
+  `npc_housing_vendor` in `HousingNpc.cpp`; `go_housing_cornerstone`,
+  `go_housing_coffer`, `go_housing_bulletin`, `go_housing_portal` in `HousingGo.cpp`.
+  `02_world_content.sql` binds the two contractors, the Last Architect as the coffer, the
+  stewards where a realm has them, and every `housing_vendor` row into the vendor script in
+  one join. A creature the realm does not have stays unbound and the command does the same
+  job, which is why nothing here depends on the retail ids.
+
 ## Install
 
 ```

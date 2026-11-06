@@ -504,6 +504,690 @@ namespace Housing
         return Ok;
     }
 
+    // -------------------------------------------------------------------------
+    // Result names
+    // -------------------------------------------------------------------------
+
+    char const* HousingMgr::ResultName(HousingResult result)
+    {
+        switch (result)
+        {
+            case Ok:                return "ok";
+            case Disabled:          return "housing is disabled";
+            case NotInNeighborhood: return "not in a neighbourhood";
+            case InvalidPlot:       return "invalid plot";
+            case PlotTaken:         return "plot taken";
+            case NotOwner:          return "not yours";
+            case NoHouse:           return "no house";
+            case NotEnoughMoney:    return "not enough money";
+            case BudgetExceeded:    return "decor budget exceeded";
+            case InvalidDecor:      return "unknown decor";
+            case NotUnlocked:       return "not collected";
+            case OutOfBounds:       return "outside the plot";
+            case WrongSurface:      return "wrong surface";
+            case BadScale:          return "scale out of range";
+            case TooManyDecor:      return "too many pieces";
+            case WrongFaction:      return "wrong faction";
+            case TooManyHouses:     return "already own a house";
+            case NeighborhoodFull:  return "neighbourhood full";
+            case TierTooLow:        return "not an upgrade";
+            case TierMax:           return "already the highest level";
+            case NotFound:          return "not found";
+            case GuestRestricted:   return "not allowed in";
+            case NotInGuild:        return "not in a guild";
+            case GuildRankTooLow:   return "guild rank too low";
+            case WrongNeighborhood: return "wrong neighbourhood";
+            case NotReady:          return "not ready";
+            case OnCooldown:        return "on cooldown";
+            case LevelTooLow:       return "house level too low";
+            case StorageEmpty:      return "no copy in storage";
+            case EndeavorIncomplete:return "endeavor not complete";
+            case BadCode:           return "bad code";
+            case ArchiveExpired:    return "the archive has expired";
+            case NotGuild:          return "that is not a guild neighbourhood";
+            case AlreadyKnown:      return "already done";
+            default:                return "unknown";
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Membership
+    // -------------------------------------------------------------------------
+
+    HousingResult HousingMgr::FoundNeighborhood(Player* player)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        if (!player || !player->GetSession())
+            return InternalError;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+
+        // One founded neighbourhood per account. A player who wants a second one has to leave
+        // the first: otherwise a single account can allocate 255 slots and lock everyone else
+        // out of the phase space.
+        for (auto const& entry : _neighborhoods)
+            if (entry.second->GetOwnerAccount() == accountId
+                && entry.second->GetType() != NeighborhoodPublic)
+                return AlreadyKnown;
+
+        uint8 const faction = uint8(player->GetTeamId() == TEAM_HORDE ? FactionHorde : FactionAlliance);
+
+        uint64 const guildId = player->GetGuildId();
+        uint8 const type = guildId ? NeighborhoodGuild : NeighborhoodPrivate;
+
+        if (type == NeighborhoodGuild)
+        {
+            Guild* guild = sGuildMgr->GetGuildById(guildId);
+            if (!guild || guild->GetLeaderGUID() != player->GetGUID())
+                return GuildRankTooLow;
+        }
+
+        std::string const name = GenerateNeighborhoodName(faction);
+
+        HousingNeighborhood* neighborhood = CreateNeighborhood(type, faction, name, guildId, accountId);
+        if (!neighborhood)
+            return NeighborhoodFull;
+
+        TC_LOG_INFO("housing", "Account %u founded %s neighbourhood %u ('%s')",
+            accountId, type == NeighborhoodGuild ? "a guild" : "a private",
+            neighborhood->GetId(), name.c_str());
+
+        return Ok;
+    }
+
+    HousingResult HousingMgr::LeaveNeighborhood(Player* player)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        HousingNeighborhood* neighborhood = FindNeighborhoodFor(player);
+
+        if (!neighborhood)
+            return NotInNeighborhood;
+
+        // The founder cannot walk out of a neighbourhood that still has residents or plots:
+        // the street would be orphaned. They dissolve it instead, which sells the plots first.
+        if (neighborhood->GetOwnerAccount() == accountId
+            && (neighborhood->GetOwnedCount() || neighborhood->GetMembers().size() > 1))
+            return NotAllowedHere;
+
+        if (neighborhood->GetType() == NeighborhoodGuild)
+            return NotGuild;   // a guild neighbourhood is left by leaving the guild
+
+        neighborhood->RemoveMember(accountId);
+
+        PlayerState* state = GetPlayerState(player);
+        if (state)
+            state->NeighborhoodId = 0;
+
+        return Ok;
+    }
+
+    namespace
+    {
+        /// The rank a member needs to do something to somebody else. Founder only manages
+        /// officers; an officer manages residents.
+        bool CanManage(uint8 actorRank, uint8 targetRank, bool changingRank)
+        {
+            if (actorRank < 2)
+                return false;
+
+            if (actorRank == 3)
+                return changingRank ? targetRank < 3 : targetRank <= 2;
+
+            return !changingRank && targetRank <= 1;
+        }
+    }
+
+    HousingResult HousingMgr::InviteToNeighborhood(Player* player, std::string const& name)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        HousingNeighborhood* neighborhood = FindNeighborhoodFor(player);
+        if (!neighborhood)
+            return NotInNeighborhood;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        if (!CanManage(neighborhood->GetRank(accountId), 1, false))
+            return NotOwner;
+
+        if (_populationCap && GetNeighborhoodPopulation(neighborhood) >= _populationCap)
+            return NeighborhoodFull;
+
+        Player* target = ObjectAccessor::FindPlayerByName(name);
+        if (!target || !target->GetSession())
+            return NotFound;
+
+        if (target->GetTeamId() != player->GetTeamId())
+            return WrongFaction;
+
+        if (neighborhood->IsMember(target->GetSession()->GetAccountId()))
+            return AlreadyKnown;
+
+        neighborhood->AddMember(target->GetSession()->GetAccountId(), 1);
+
+        ChatHandler(target->GetSession()).PSendSysMessage(
+            "You have been invited to the neighbourhood '{}'.", neighborhood->GetName());
+
+        return Ok;
+    }
+
+    HousingResult HousingMgr::SetMemberRank(Player* player, std::string const& name, uint8 rank)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        if (rank < 1 || rank > 2)
+            return InvalidPlot;   // rank 3 is the founder and is not assignable
+
+        HousingNeighborhood* neighborhood = FindNeighborhoodFor(player);
+        if (!neighborhood)
+            return NotInNeighborhood;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        if (neighborhood->GetRank(accountId) != 3)
+            return NotOwner;
+
+        Player* target = ObjectAccessor::FindPlayerByName(name);
+        if (!target || !target->GetSession())
+            return NotFound;
+
+        uint32 const targetAccount = target->GetSession()->GetAccountId();
+        if (!neighborhood->IsMember(targetAccount))
+            return NotFound;
+
+        if (!CanManage(3, neighborhood->GetRank(targetAccount), true))
+            return NotAllowedHere;
+
+        neighborhood->AddMember(targetAccount, rank);
+        return Ok;
+    }
+
+    HousingResult HousingMgr::RemoveFromNeighborhood(Player* player, std::string const& name)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        HousingNeighborhood* neighborhood = FindNeighborhoodFor(player);
+        if (!neighborhood)
+            return NotInNeighborhood;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        Player* target = ObjectAccessor::FindPlayerByName(name);
+        if (!target || !target->GetSession())
+            return NotFound;
+
+        uint32 const targetAccount = target->GetSession()->GetAccountId();
+
+        if (targetAccount == accountId)
+            return NotAllowedHere;   // use .housing leave
+
+        if (!CanManage(neighborhood->GetRank(accountId), neighborhood->GetRank(targetAccount), false))
+            return NotOwner;
+
+        // A resident's house goes back on the market when they are removed: the plot is the
+        // membership, and an ex-resident keeping a plot in the street is not a street.
+        if (HousingPlot* plot = neighborhood->FindPlotOfAccount(targetAccount))
+            ForceSellPlot(plot);
+
+        neighborhood->RemoveMember(targetAccount);
+        return Ok;
+    }
+
+    // -------------------------------------------------------------------------
+    // Move house
+    // -------------------------------------------------------------------------
+
+    HousingResult HousingMgr::MoveHouse(Player* player, uint8 plotIndex)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        HousingPlot* from = GetOwnedPlot(player);
+        if (!from || !from->IsOwned())
+            return NoHouse;
+
+        HousingNeighborhood* neighborhood = from->GetNeighborhood();
+        if (!neighborhood)
+            return NotInNeighborhood;
+
+        if (plotIndex == from->GetIndex())
+            return Ok;
+
+        HousingPlot* to = neighborhood->GetPlot(plotIndex);
+        if (!to)
+            return InvalidPlot;
+
+        if (to->IsOwned())
+            return PlotTaken;
+
+        if (!to->GetTemplate().HasSpawn)
+            return NotReady;   // a plot with no door cannot be moved into
+
+        // The furniture moves with the house because it never moved in the first place: the
+        // placement rows are keyed on the housing id, not on the plot index. What changes is
+        // which plot points at that housing id.
+        uint32 const housingId = from->GetHousingId();
+        uint32 const accountId = from->GetOwnerAccount();
+
+        HousingHouse* house = from->GetHouse();
+        uint8 const tier = house ? house->GetTier() : 1;
+        uint32 const blueprint = house ? house->GetBlueprint() : 0;
+        std::string const name = house ? house->GetName() : std::string();
+        bool const locked = house ? house->IsLocked() : false;
+        uint8 const shellId = house ? house->GetShellId() : 0;
+        uint8 const rooms = house ? house->GetRoomsOwned() : 0;
+        bool const night = house ? house->IsNightMode() : false;
+
+        if (house)
+            house->DespawnAll();
+
+        CharacterDatabase.DirectPExecute(
+            "UPDATE `character_housing` SET `plotIndex` = {}, `last_edited` = {} WHERE `id` = {}",
+            uint32(plotIndex), uint32(std::time(nullptr)), housingId);
+
+        from->ClearOwner();
+
+        to->SetOwner(housingId, accountId, player->GetGUID(), player->GetName(), tier, blueprint,
+            name, locked);
+
+        if (HousingHouse* moved = to->GetHouse())
+        {
+            moved->SetShellId(shellId);
+            moved->SetRoomsOwned(rooms);
+            moved->SetNightMode(night);
+        }
+
+        _houseViewers.erase(housingId);
+
+        PlayerState* state = GetPlayerState(player);
+        if (state && state->InsidePlot == from->GetIndex())
+            state->InsidePlot = plotIndex;
+
+        ApplyPlotPhase(player, to);
+
+        if (Map* map = player->GetMap())
+            if (to->GetHouse())
+                to->GetHouse()->EnsureSpawned(map, to->GetPlotPhase(), player->GetGUID());
+
+        return Ok;
+    }
+
+    // -------------------------------------------------------------------------
+    // Gryphon
+    // -------------------------------------------------------------------------
+
+    HousingResult HousingMgr::CallGryphon(Player* player)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        if (!plot || !plot->IsOwned())
+            return NoHouse;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        uint32 const now = getMSTime();
+
+        auto const used = _gryphonUsed.find(accountId);
+        if (used != _gryphonUsed.end() && (now - used->second) < _gryphonCooldown * 1000)
+            return OnCooldown;
+
+        uint64 const cost = GoldToCopper(_gryphonCost);
+        if (cost && !player->HasEnoughMoney(int64(cost)))
+            return NotEnoughMoney;
+
+        if (cost)
+            player->ModifyMoney(-int64(cost));
+
+        HousingResult const result = TeleportToPlot(player, plot->GetIndex());
+        if (result == Ok)
+            _gryphonUsed[accountId] = now;
+
+        return result;
+    }
+
+    // -------------------------------------------------------------------------
+    // Guild wings
+    // -------------------------------------------------------------------------
+
+    HousingNeighborhood* HousingMgr::GetOrCreateGuildWing(uint64 guildId, uint8 faction)
+    {
+        if (!_enabled || !guildId || !_guildWings)
+            return nullptr;
+
+        // The first guild neighbourhood is created by the founder; every later one is a wing
+        // with its own slot, so a guild of two hundred gets four streets rather than a queue.
+        HousingNeighborhood* best = nullptr;
+        uint32 bestId = 0;
+
+        for (auto const& entry : _neighborhoods)
+        {
+            HousingNeighborhood* candidate = entry.second.get();
+            if (candidate->GetType() != NeighborhoodGuild || candidate->GetGuildId() != guildId)
+                continue;
+
+            if (!candidate->FindFreePlot())
+                continue;
+
+            if (!best || candidate->GetId() < bestId)
+            {
+                best = candidate;
+                bestId = candidate->GetId();
+            }
+        }
+
+        if (best)
+            return best;
+
+        std::string const name = Trinity::StringFormat("{} Wing", GenerateNeighborhoodName(faction));
+        return CreateNeighborhood(NeighborhoodGuild, faction, name, guildId, 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Rooms
+    // -------------------------------------------------------------------------
+
+    std::vector<RoomInfo> HousingMgr::GetRoomsForPlot(HousingPlot* plot) const
+    {
+        uint8 const shellId = (plot && plot->GetHouse()) ? plot->GetHouse()->GetShellId() : 0;
+        return GetRoomsForShell(shellId);
+    }
+
+    HousingResult HousingMgr::CanBuyRoom(Player* player, uint32 roomId) const
+    {
+        RoomInfo const* room = GetRoom(roomId);
+        if (!room)
+            return NotFound;
+
+        if (!player)
+            return InternalError;
+
+        HousingPlot* plot = const_cast<HousingMgr*>(this)->GetOwnedPlot(player);
+        if (!plot || !plot->IsOwned())
+            return NoHouse;
+
+        HousingHouse* house = plot->GetHouse();
+        if (!house)
+            return NoHouse;
+
+        if (house->GetTier() < room->LevelRequired)
+            return LevelTooLow;
+
+        if (room->ShellId && house->GetShellId() && room->ShellId != house->GetShellId())
+            return InvalidPlot;
+
+        return Ok;
+    }
+
+    HousingResult HousingMgr::BuyRoom(Player* player, uint32 roomId)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        HousingResult const allowed = CanBuyRoom(player, roomId);
+        if (allowed != Ok)
+            return allowed;
+
+        RoomInfo const* room = GetRoom(roomId);
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        HousingHouse* house = plot ? plot->GetHouse() : nullptr;
+        if (!house)
+            return NoHouse;
+
+        HouseLevelInfo const* level = GetHouseLevel(house->GetTier());
+        if (!level)
+            return NotFound;
+
+        // A room costs budget the same way a chair does, and the budget is what the level
+        // hands out - so a level-3 house cannot buy an 18th room by owning fewer chairs.
+        uint32 const spent = house->GetRoomsOwned() * room->BudgetCost;
+        if (spent + room->BudgetCost > level->BudgetRoom)
+            return BudgetExceeded;
+
+        house->SetRoomsOwned(uint8(house->GetRoomsOwned() + 1));
+
+        CharacterDatabase.DirectPExecute(
+            "UPDATE `character_housing` SET `rooms_owned` = {} WHERE `id` = {}",
+            uint32(house->GetRoomsOwned()), plot->GetHousingId());
+
+        return Ok;
+    }
+
+    // -------------------------------------------------------------------------
+    // Arcanostorage Sphere
+    // -------------------------------------------------------------------------
+
+    HousingResult HousingMgr::OpenArcanostorage(Player* player)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        if (!plot || !plot->GetHouse())
+            return NoHouse;
+
+        if (plot->GetHouse()->GetTier() < _arcaneLevel)
+            return LevelTooLow;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        uint32 const now = uint32(std::time(nullptr));
+
+        auto const used = _arcaneUsed.find(accountId);
+        if (used != _arcaneUsed.end() && (now - used->second) < _arcaneCooldownDays * 86400)
+            return OnCooldown;
+
+        // The roll is over the pieces this house can already have: an account that has not
+        // collected a piece cannot be handed it, because there is nothing to hand over.
+        std::vector<uint32> pool;
+        for (auto const& entry : _decor)
+        {
+            DecorInfo const& info = entry.second;
+            if (info.Flags & DecorFlagHidden)
+                continue;
+            if (info.FactionMask & (player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02))
+                pool.push_back(info.Id);
+        }
+
+        if (pool.empty())
+            return NotFound;
+
+        uint32 const chosen = pool[urand(0, uint32(pool.size() - 1))];
+
+        AddStorage(accountId, chosen, 1);
+
+        if (!HasUnlocked(accountId, chosen))
+        {
+            CharacterDatabase.DirectPExecute(
+                "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, "
+                "`source_id`, `acquired`) VALUES ({}, {}, 2, 0, UNIX_TIMESTAMP())",
+                accountId, chosen);
+        }
+
+        _arcaneUsed[accountId] = now;
+
+        if (DecorInfo const* info = GetDecor(chosen))
+            if (player->GetSession())
+                ChatHandler(player->GetSession()).PSendSysMessage(
+                    "The Sphere gives up a copy of %s.", info->Name.c_str());
+
+        return Ok;
+    }
+
+    // -------------------------------------------------------------------------
+    // Hearthlight Armillary
+    // -------------------------------------------------------------------------
+
+    HousingResult HousingMgr::ToggleArmillary(Player* player)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        if (!plot || !plot->GetHouse())
+            return NoHouse;
+
+        HousingHouse* house = plot->GetHouse();
+
+        if (house->GetTier() < _armillaryLevel)
+            return LevelTooLow;
+
+        if (!CanEdit(player, plot))
+            return NotOwner;
+
+        bool const night = !house->IsNightMode();
+        house->SetNightMode(night);
+
+        CharacterDatabase.DirectPExecute(
+            "UPDATE `character_housing` SET `night_mode` = {} WHERE `id` = {}",
+            uint32(night ? 1 : 0), plot->GetHousingId());
+
+        // The ambience is a phase, not a shader. Every lighting piece in the catalogue that
+        // has a lit variant spawns as that variant while the Armillary is lit, and the world
+        // state below tells the client's UI which way round it is.
+        if (HousingHouse* owned = plot->GetHouse())
+        {
+            owned->DespawnAll();
+
+            if (Map* map = player->GetMap())
+                owned->EnsureSpawned(map, plot->GetInteriorPhase(), player->GetGUID());
+        }
+
+        player->SendUpdateWorldState(kArmillaryWorldState, night ? 1 : 0);
+
+        return Ok;
+    }
+
+    // -------------------------------------------------------------------------
+    // Endeavor favour and scaling
+    // -------------------------------------------------------------------------
+
+    uint32 HousingMgr::GetFavor(uint32 neighborhoodId) const
+    {
+        if (!neighborhoodId)
+            return 0;
+
+        HousingNeighborhood* neighborhood = const_cast<HousingMgr*>(this)->GetNeighborhood(neighborhoodId);
+        if (!neighborhood)
+            return 0;
+
+        EndeavorInfo const* info = sHousingEndeavor->GetInfo(sHousingEndeavor->GetActiveId(neighborhoodId));
+        if (!info || info->Tasks.empty())
+            return 0;
+
+        uint32 const done = sHousingEndeavor->GetCompletedTasks(neighborhoodId);
+        return std::min<uint32>(1000, (done * 1000) / uint32(info->Tasks.size()));
+    }
+
+    void HousingMgr::SendFavor(Player* player, uint32 neighborhoodId)
+    {
+        if (!player)
+            return;
+
+        player->SendUpdateWorldState(kFavorWorldState, GetFavor(neighborhoodId));
+        player->SendUpdateWorldState(kMilestoneWorldState,
+            uint32(sHousingEndeavor->GetMilestone(neighborhoodId)));
+    }
+
+    void HousingMgr::GrantSourceDecor(Player* player, uint8 sourceType, uint32 sourceId)
+    {
+        if (!_enabled || !player || !sourceId)
+            return;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        LoadCollection(accountId);
+
+        uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
+        uint32 granted = 0;
+
+        for (auto const& entry : _decor)
+        {
+            DecorInfo const& info = entry.second;
+
+            if (info.SourceType != sourceType || info.SourceId != sourceId)
+                continue;
+
+            if ((info.Flags & DecorFlagHidden) || !(info.FactionMask & factionBit))
+                continue;
+
+            if (HasUnlocked(accountId, info.Id))
+                continue;
+
+            CharacterDatabase.DirectPExecute(
+                "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, "
+                "`source_id`, `acquired`) VALUES ({}, {}, {}, {}, UNIX_TIMESTAMP())",
+                accountId, info.Id, uint32(info.SourceType), info.SourceId);
+
+            _collection[accountId].insert(info.Id);
+            AddStorage(accountId, info.Id, 1);
+            ++granted;
+        }
+
+        if (!granted)
+            return;
+
+        TC_LOG_INFO("housing", "account {} earned {} piece(s) of decor from source type {} id {}",
+            accountId, granted, uint32(sourceType), sourceId);
+
+        GrantHouseXp(player, kXpPerNewDecor * granted);
+        SendChunk(player, Trinity::StringFormat("S:RESULT|DECOR|0|{}", granted));
+    }
+
+    uint32 HousingMgr::ScaledRequirement(uint32 baseRequired, uint32 neighborhoodId) const
+    {
+        HousingNeighborhood* neighborhood =
+            const_cast<HousingMgr*>(this)->GetNeighborhood(neighborhoodId);
+
+        if (!neighborhood || !baseRequired)
+            return baseRequired;
+
+        // A street of three and a street of thirty should not need the same number of kills.
+        // The factor is clamped so a nearly empty neighbourhood is still playable and a huge
+        // one is not punished with an impossible number.
+        uint32 const residents = std::max<uint32>(1, GetNeighborhoodPopulation(neighborhood));
+        float const factor = std::min(3.0f, std::max(0.5f, float(residents) / 10.0f));
+
+        return std::max<uint32>(1, uint32(float(baseRequired) * factor));
+    }
+
+    void HousingMgr::SpawnEndeavorTheming(HousingNeighborhood* neighborhood, Map* map,
+        uint32 endeavorId, uint8 milestone)
+    {
+        if (!neighborhood || !map || !endeavorId || !milestone)
+            return;
+
+        // Theming is data: the Endeavor's own name picks the pieces, and the pieces are the
+        // town-centre props that already exist. Four milestones, each adding one prop, so a
+        // street that has finished everything looks finished.
+        uint8 const count = std::min<uint8>(milestone, 4);
+
+        for (uint8 step = 0; step < count; ++step)
+        {
+            uint32 const amenityId = 1 + uint32(step % std::max<size_t>(1, _amenityList.size()));
+            AmenityInfo const* amenity = GetAmenity(amenityId);
+            if (!amenity)
+                continue;
+
+            if (!amenity->GameObjectEntry)
+                continue;
+
+            Position const pos = AnchorForAmenity(uint32(_amenityList.size()) + step);
+            QuaternionData const rotation = QuaternionData::fromEulerAnglesZYX(pos.GetOrientation(), 0.0f, 0.0f);
+
+            if (GameObject* object = GameObject::CreateGameObject(amenity->GameObjectEntry, map, pos,
+                    rotation, 255, GO_STATE_READY))
+            {
+                PhasingHandler::AddPhase(object, GetNeighborhoodPhaseOf(neighborhood->GetId()), false);
+                map->AddToMap(object);
+            }
+        }
+    }
+
     HousingResult HousingMgr::ApplyShell(Player* player, uint32 shellId)
     {
         if (!_enabled)
@@ -535,7 +1219,10 @@ namespace Housing
         if (HousingNeighborhood* neighborhood = plot->GetNeighborhood())
         {
             if (HousingHouse* owned = plot->GetHouse())
+            {
+                owned->SetShellId(uint8(shellId));
                 owned->MarkDirty();
+            }
 
             if (Map* map = sMapMgr->FindMap(neighborhood->GetMapId(), 0))
                 SpawnPlotShell(plot, neighborhood, map);
@@ -1058,6 +1745,8 @@ namespace Housing
 
         for (auto const& entry : neighborhood->GetPlots())
         {
+            SpawnCornerstone(entry.get(), neighborhood, map);
+
             if (!entry->IsOwned())
                 continue;
 
@@ -1065,6 +1754,35 @@ namespace Housing
                 continue;
 
             SpawnPlotShell(entry.get(), neighborhood, map);
+        }
+    }
+
+    /*
+     * The stone at the edge of an empty plot. Retail's plot is bought by clicking one, and
+     * the stone is the only thing on an empty plot to click, so without it the only door into
+     * housing is the addon or a command.
+     *
+     * The entry is configuration rather than a constant: the object has to exist in the
+     * realm's own gameobject table, and no 8.3.7 entry is the retail cornerstone. At 0 the
+     * step is skipped and plots are bought from the addon or the Steward, which is how the
+     * draft behaves on a fresh install.
+     */
+    void HousingMgr::SpawnCornerstone(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map)
+    {
+        if (!plot || !neighborhood || !map || !_cornerstoneEntry)
+            return;
+
+        if (plot->IsOwned())
+            return;
+
+        Position const pos = plot->GetTemplate().HasSpawn ? plot->GetTemplate().Spawn
+                                                         : AnchorForPlot(plot->GetIndex());
+
+        if (GameObject* object = GameObject::CreateGameObject(_cornerstoneEntry, map, pos,
+            QuaternionData::fromEulerAnglesZYX(pos.GetOrientation(), 0.0f, 0.0f), 255, GO_STATE_READY))
+        {
+            PhasingHandler::AddPhase(object, NeighborhoodPhase(neighborhood->GetSlot()), false);
+            map->AddToMap(object);
         }
     }
 
@@ -1279,7 +1997,12 @@ namespace Housing
 
     void HousingMgr::RunLifecycle()
     {
-        if (!_enabled || !_evictDays)
+        if (!_enabled)
+            return;
+
+        RunDissolutionSweep();
+
+        if (!_evictDays)
             return;
 
         // Idle days are measured from last_edited, which every edit and every level change
@@ -1369,6 +2092,109 @@ namespace Housing
         if (warned || sold)
             TC_LOG_INFO("housing", "Lifecycle: %u house(s) warned, %u house(s) returned to the market",
                 warned, sold);
+    }
+
+    HousingPlot* HousingMgr::FindPlotAt(uint32 mapId, float x, float y, float radius)
+    {
+        float best = radius;
+        HousingPlot* found = nullptr;
+
+        for (auto const& entry : _neighborhoods)
+        {
+            HousingNeighborhood* neighborhood = entry.second.get();
+            if (neighborhood->GetMapId() != mapId)
+                continue;
+
+            for (auto const& plotOwner : neighborhood->GetPlots())
+            {
+                HousingPlot* plot = plotOwner.get();
+                if (plot->GetIndex() >= kPlotCount)
+                    continue;
+
+                Position const pos = plot->GetTemplate().HasSpawn ? plot->GetTemplate().Spawn
+                                                                 : AnchorForPlot(plot->GetIndex());
+
+                float const distance = std::sqrt((pos.m_positionX - x) * (pos.m_positionX - x)
+                    + (pos.m_positionY - y) * (pos.m_positionY - y));
+
+                if (distance <= best)
+                {
+                    best = distance;
+                    found = plot;
+                }
+            }
+
+            if (found)
+                return found;
+        }
+
+        return found;
+    }
+
+    void HousingMgr::RunDissolutionSweep()
+    {
+        if (!_guildWings && !_minResidents)
+            return;
+
+        uint32 const now = uint32(std::time(nullptr));
+        uint32 const grace = _dissolveGraceDays * 86400;
+
+        std::vector<uint32> dissolve;
+        uint32 dissolved = 0;
+
+        for (auto const& entry : _neighborhoods)
+        {
+            HousingNeighborhood* neighborhood = entry.second.get();
+
+            // Public neighbourhoods are never dissolved: the auto-scaler made them and the
+            // auto-scaler owns them.
+            if (neighborhood->GetType() == NeighborhoodPublic)
+            {
+                _emptySince.erase(neighborhood->GetId());
+                continue;
+            }
+
+            bool const empty = GetNeighborhoodPopulation(neighborhood) == 0
+                && neighborhood->GetMembers().size() <= 1;   // the founder alone is not a street
+
+            if (!empty)
+            {
+                _emptySince.erase(neighborhood->GetId());
+                continue;
+            }
+
+            auto const since = _emptySince.find(neighborhood->GetId());
+            if (since == _emptySince.end())
+            {
+                _emptySince[neighborhood->GetId()] = now;
+                continue;
+            }
+
+            if ((now - since->second) < grace)
+                continue;
+
+            dissolve.push_back(neighborhood->GetId());
+        }
+
+        for (uint32 id : dissolve)
+        {
+            HousingNeighborhood* neighborhood = GetNeighborhood(id);
+            if (!neighborhood)
+                continue;
+
+            for (auto const& plot : neighborhood->GetPlots())
+                if (plot->IsOwned())
+                    ForceSellPlot(plot.get());
+
+            TC_LOG_INFO("housing", "Dissolving neighbourhood %u: nobody has lived there for %u day(s)",
+                id, _dissolveGraceDays);
+
+            DissolveNeighborhood(neighborhood);
+            _emptySince.erase(id);
+            ++dissolved;
+        }
+
+        (void)dissolved;
     }
 
     // -------------------------------------------------------------------------
@@ -1751,6 +2577,97 @@ namespace Housing
             }
 
             SendResult(player, "BUILDMODE", Ok);
+            return true;
+        }
+
+        // ---- neighbourhood administration -------------------------------------
+
+        if (op == "FOUND")
+        {
+            SendResult(player, "FOUND", FoundNeighborhood(player));
+            return true;
+        }
+
+        if (op == "LEAVENB")
+        {
+            SendResult(player, "LEAVENB", LeaveNeighborhood(player));
+            return true;
+        }
+
+        if (op == "MOVEHOUSE")
+        {
+            uint32 plotIndex = 0xFF;
+            if (fields.size() < 2 || !HousingAddon::ParseUInt(fields[1], plotIndex))
+            {
+                SendResult(player, "MOVEHOUSE", InvalidPlot);
+                return true;
+            }
+
+            SendResult(player, "MOVEHOUSE", MoveHouse(player, uint8(std::min<uint32>(plotIndex, 0xFF))));
+            return true;
+        }
+
+        if (op == "GRYPHON")
+        {
+            SendResult(player, "GRYPHON", CallGryphon(player));
+            return true;
+        }
+
+        if (op == "ROOM")
+        {
+            uint32 roomId = 0;
+            if (fields.size() < 2 || !HousingAddon::ParseUInt(fields[1], roomId))
+            {
+                SendResult(player, "ROOM", NotFound);
+                return true;
+            }
+
+            SendResult(player, "ROOM", BuyRoom(player, roomId), roomId);
+            return true;
+        }
+
+        if (op == "ROOMS")
+        {
+            HousingPlot* plot = GetOwnedPlot(player);
+            if (plot && plot->GetHouse())
+            {
+                for (RoomInfo const& room : GetRoomsForPlot(plot))
+                    SendChunk(player, Trinity::StringFormat("S:ROOM|{}|{}|{}|{}|{}",
+                        room.Id, room.Name, uint32(room.BudgetCost), uint32(room.LevelRequired),
+                        uint32(CanBuyRoom(player, room.Id))));
+
+                SendChunk(player, Trinity::StringFormat("S:ROOMS|{}",
+                    uint32(plot->GetHouse()->GetRoomsOwned())));
+            }
+            else
+                SendResult(player, "ROOMS", NoHouse);
+
+            return true;
+        }
+
+        if (op == "ARCANE")
+        {
+            SendResult(player, "ARCANE", OpenArcanostorage(player));
+            return true;
+        }
+
+        if (op == "ARMILLARY")
+        {
+            SendResult(player, "ARMILLARY", ToggleArmillary(player));
+            return true;
+        }
+
+        if (op == "FAVOR")
+        {
+            uint32 const neighborhoodId = GetPlayerNeighborhoodId(player);
+            if (!neighborhoodId)
+            {
+                SendResult(player, "FAVOR", NotInNeighborhood);
+                return true;
+            }
+
+            SendFavor(player, neighborhoodId);
+            SendResult(player, "FAVOR", Ok, GetFavor(neighborhoodId));
             return true;
         }
 

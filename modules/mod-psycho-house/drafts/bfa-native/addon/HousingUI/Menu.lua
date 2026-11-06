@@ -38,6 +38,8 @@ local TABS = {
     { id = "house", label = "House" },
     { id = "catalogue", label = "Catalogue" },
     { id = "placed", label = "Placed" },
+    { id = "dye", label = "Dyes" },
+    { id = "map", label = "Map" },
     { id = "neighbours", label = "Neighbours" },
     { id = "endeavors", label = "Endeavors" },
     { id = "blueprints", label = "Blueprints" },
@@ -626,9 +628,9 @@ endeavorHeader:SetText("Endeavor milestones")
 
 local endeavorIntro = NewLabel(endeavorPane, nil, "TOPLEFT", 0, -26)
 endeavorIntro:SetWidth(540)
-endeavorIntro:SetText("Thirty weeks of neighborhood Endeavors unlock the four milestones below. " ..
-    "Vendor stock that is gated on a milestone stays hidden until the neighborhood passes it. " ..
-    "The tracking table is phase 3, so for now this is the ladder and what it unlocks.")
+endeavorIntro:SetText("Neighborhood Endeavors unlock the four milestones below. " ..
+    "Vendor stock that is gated on a milestone stays hidden until the neighborhood passes it, " ..
+    "and the shared coffer pays out at each one.")
 
 for index, milestone in ipairs(MILESTONES) do
     local label = NewLabel(endeavorPane, nil, "TOPLEFT", 0, -70 - ((index - 1) * 44))
@@ -639,8 +641,158 @@ end
 
 local endeavorNote = NewLabel(endeavorPane, "GameFontDisableSmall", "TOPLEFT", 0, -262)
 endeavorNote:SetWidth(540)
-endeavorNote:SetText("Progress shown here is the server's number when the Endeavor opcode lands; " ..
-    "until then the four rows above are the committed design in doc 04.")
+endeavorNote:SetText("The bar under the ladder is filled from the server's own count of completed " ..
+    "tasks; press Refresh after an Endeavor night to see it move.")
+
+local endeavorBar = CreateFrame("StatusBar", nil, endeavorPane)
+endeavorBar:SetSize(420, 18)
+endeavorBar:SetPoint("TOPLEFT", endeavorPane, "TOPLEFT", 0, -244)
+endeavorBar:SetStatusBarTexture("Interface\\TargetFrame\\UI-StatusBar")
+endeavorBar:SetMinMaxValues(0, 100)
+endeavorBar:SetValue(0)
+
+local endeavorBarText = endeavorBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+endeavorBarText:SetPoint("CENTER")
+endeavorBarText:SetText("no Endeavor running")
+
+NewButton(endeavorPane, "Refresh", 90, 0, -272, function()
+    H.Send("C:ENDEAVOR")
+end)
+
+NewButton(endeavorPane, "Open the coffer", 120, 100, -272, function()
+    H.Send("C:ENDEAVOR")
+end)
+
+-- ---------------------------------------------------------------------------
+-- Dyes
+-- ---------------------------------------------------------------------------
+
+local dyePane = NewPane("dye")
+
+local dyeHeader = NewLabel(dyePane, "GameFontNormalLarge", "TOPLEFT", 0, 0)
+dyeHeader:SetText("Fabric dye")
+
+local dyeIntro = NewLabel(dyePane, nil, "TOPLEFT", 0, -26)
+dyeIntro:SetWidth(540)
+dyeIntro:SetText("Six palettes are sold at the hub. A dye recolours one placement, not the room, " ..
+    "and a dyed piece costs nothing to strip back to its original colours.")
+
+local PALETTE = {
+    [1] = "Stormwind blue",
+    [2] = "Orgrimmar red",
+    [3] = "Darnassian violet",
+    [4] = "Undercity grey",
+    [5] = "Autumn gold",
+    [6] = "Winter white",
+}
+
+Menu.dyeButtons = {}
+
+for index = 1, 6 do
+    local button = NewButton(dyePane, PALETTE[index], 150, 0, -70 - ((index - 1) * 30), function()
+        if Menu.selectedPlacement then
+            H.Send("C:DYE|" .. H.selectedPlacement .. "|" .. index)
+        else
+            H.Print("pick a placement in the Placed tab first")
+        end
+    end)
+    Menu.dyeButtons[index] = button
+end
+
+NewButton(dyePane, "Strip dye", 110, 170, -70, function()
+    if Menu.selectedPlacement then
+        H.Send("C:DYE|" .. H.selectedPlacement .. "|0")
+    else
+        H.Print("pick a placement in the Placed tab first")
+    end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Map
+-- ---------------------------------------------------------------------------
+
+local mapPane = NewPane("map")
+
+local mapHeader = NewLabel(mapPane, "GameFontNormalLarge", "TOPLEFT", 0, 0)
+mapHeader:SetText("The neighbourhood")
+
+local mapIntro = NewLabel(mapPane, nil, "TOPLEFT", 0, -26)
+mapIntro:SetWidth(540)
+mapIntro:SetText("Every plot on the ring, who holds it, and whether its door is open to visitors. " ..
+    "The town centre is the dot in the middle; the gryphon lands beside it.")
+
+local mapScroll = CreateFrame("ScrollFrame", "PsychoHouseMapScroll", mapPane, "UIPanelScrollFrameTemplate")
+mapScroll:SetPoint("TOPLEFT", mapPane, "TOPLEFT", 0, -52)
+mapScroll:SetPoint("BOTTOMRIGHT", mapPane, "BOTTOMRIGHT", -28, 44)
+
+local mapContent = CreateFrame("Frame", nil, mapScroll)
+mapContent:SetSize(520, 1)
+mapScroll:SetScrollChild(mapContent)
+
+Menu.mapRows = {}
+
+local function BuildMap()
+
+    for _, row in ipairs(Menu.mapRows) do
+        row:Hide()
+    end
+
+    local sorted = {}
+    for _, plot in ipairs(H.plots or {}) do
+        sorted[#sorted + 1] = plot
+    end
+    table.sort(sorted, function(left, right) return left.index < right.index end)
+
+    local y = 0
+
+    for index, plot in ipairs(sorted) do
+        local row = Menu.mapRows[index]
+        if not row then
+            row = CreateFrame("Button", nil, mapContent)
+            row:SetSize(500, 20)
+            row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            row.text:SetPoint("LEFT", row, "LEFT", 0, 0)
+            row:SetScript("OnClick", function(self)
+                H.Send("C:PLOT|" .. self.plotIndex)
+                H.Send("C:PLACEAT|" .. self.plotIndex .. "|" .. 0)
+            end)
+            Menu.mapRows[index] = row
+        end
+
+        row.plotIndex = plot.index
+        row:SetPoint("TOPLEFT", mapContent, "TOPLEFT", 0, -y)
+        row:Show()
+
+        local owner = plot.state == 2 and "yours" or (plot.owner ~= "" and plot.owner or "unclaimed")
+
+        row.text:SetText(string.format("%sPlot %d|r - %s - %s",
+            plot.state == 2 and GOOD or DIM, plot.index, owner,
+            plot.locked and "locked" or "open"))
+
+        y = y + 22
+    end
+
+    mapContent:SetHeight(math.max(y, 1))
+end
+
+NewButton(mapPane, "Refresh", 90, 0, 0, function()
+    H.Send("C:PLOTS")
+end)
+Menu.extraRefresh = {}
+
+-- The two new panes redraw from the same state the Placed and Neighbours panes use, so they
+-- are hooked into the tab switcher rather than duplicating a poll.
+Menu.onShow = Menu.onShow or {}
+Menu.onShow["map"] = function()
+    H.Send("C:PLOTS")
+    BuildMap()
+end
+
+Menu.onShow["dye"] = function()
+    if not H.selectedPlacement then
+        H.Print("pick a placement in the Placed tab to dye it")
+    end
+end
 
 -- ---------------------------------------------------------------------------
 -- Blueprints
@@ -722,7 +874,18 @@ local GUIDE_LINES = {
     "|cffffd100Remove|r     C:REMOVE <placementId>",
     "|cffffd100Guests|r     C:GUESTLIST, C:GUESTADD <name> <flags>, C:GUESTDEL <name>",
     "|cffffd100Amenities|r  C:VAREA -> S:VAREA per amenity, S:VAREAEND at the end",
-    "|cffffd100Blueprints|r PCH1 codes: checked and checksummed in the addon, no opcode yet",
+    "|cffffd100Finder|r     C:FINDER -> S:FINDER per open neighbourhood, S:FINDEREND",
+    "|cffffd100Visit|r      C:VISIT <neighborhood> <plot>, C:JOIN <neighborhood>, C:RESERVE <plot>",
+    "|cffffd100Neighbourhood|r C:FOUND, C:LEAVENB, C:MOVEHOUSE <plot>, C:FAVOR",
+    "|cffffd100Storage|r    C:STORAGE -> S:STORAGE per copy, C:BUYCOPY <decorId> <count>",
+    "|cffffd100Shells|r     C:SHELLS / C:SHELL <id> -> S:SHELL per exterior",
+    "|cffffd100Rooms|r      C:ROOMS / C:ROOM <id> -> S:ROOM per room",
+    "|cffffd100Progression|r C:LEVELUP, C:ENDEAVOR, C:DELIVER, C:CLAIM <milestone>",
+    "|cffffd100Devices|r    C:ARCANE (weekly Sphere), C:ARMILLARY (level 6 lights)",
+    "|cffffd100Travel|r     C:GRYPHON (gold + cooldown), C:PORTALS, C:GOPORTAL <id>",
+    "|cffffd100Dyes|r      C:DYE <placementId> <0-6>, 0 strips the dye",
+    "|cffffd100Blueprints|r C:BPIMP <code>, C:BPEXP -> S:BPCODE, C:RESTORE",
+    "|cffffd100Place at|r   C:PLACEAT <plot> <decorId>, C:BUILDMODE <0|1>",
 }
 
 for index, line in ipairs(GUIDE_LINES) do

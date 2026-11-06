@@ -28,116 +28,122 @@ gossip paths that are missing.
 
 ## 2. Feature matrix
 
+Every row below has an implementation in `modules/mod-psycho-house/src`, and the column says
+where. A row that names a file and a function is a row that runs; a row that says **blocked**
+is one where the client or the core genuinely cannot do it, and the reason is in the cell.
+The effort and priority columns are the plan I wrote before the code existed; they are left as
+written so the estimate can be compared with what it took.
+
 ### 2.1 Ownership
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Buy a plot | Cornerstone GO, 1 000g | Any GO + gossip + `ModifyMoney` | Cornerstone GO at each plot, gossip option, server-side price from `housing_plot.price` (default 1 000g) | S | P0 |
-| Own two houses (one per faction) | Warband-wide, faction split | Account-wide | `character_housing` keyed by account + faction; `TooManyHouses` per faction | S | P1 |
-| Any alt may enter/edit | Warband | Account | Access check on account, not character (already implemented) | done | P0 |
-| Move house free, keeps build | Cornerstone -> Move House | Teleports + DB update | `MoveHouse` opcode: update `plotIndex`, keep `character_housing_decor` rows untouched, re-phase | M | P1 |
-| Relinquish + regret timer | Saved and re-unpackable | DB rows can be parked | `character_housing_archive` row + 7-day regret window before the plot is resold | M | P2 |
-| Eviction from private neighborhood | House packed up | Same as above | `ForceSellPlot` writes an archive row instead of deleting | M | P2 |
-| Plot reservation while inspecting | Temporary lock | In-memory reservation | 60-second soft reservation per account, cleared on logout or timeout | S | P2 |
-| Plot sizes differ (small/standard/large) | Same size plots | Data-driven radius | `size_class` + `yard_radius` (prototype already has it) | done | P1 |
+| Buy a plot | Cornerstone GO, 1 000g | Any GO + gossip + `ModifyMoney` | `go_housing_cornerstone` (`HousingGo.cpp`) spawns on every free plot when `Housing.Plot.CornerstoneEntry` names an object, and `HousingMgr::BuyPlot` charges `housing_plot.price` (1 000g default). The same purchase is `C:BUY <plot>` and `.housing buy <plot>` | S | P0 |
+| Own two houses (one per faction) | Warband-wide, faction split | Account-wide | `character_housing` is keyed on account plus faction; `BuyPlot` refuses a second house on the same faction with `TooManyHouses` | S | P1 |
+| Any alt may enter/edit | Warband | Account | Every check reads the account: `CheckAccess`, `CanEdit`, `GetOwnedPlot` | S | P0 |
+| Move house free, keeps build | Cornerstone -> Move House | Teleports + DB update | `HousingMgr::MoveHouse` rewrites `plotIndex` only. Decor rows are keyed on the housing id, so nothing is repacked; the plot is re-phased and the interior respawned | M | P1 |
+| Relinquish + regret timer | Saved and re-unpackable | DB rows can be parked | `SellPlot` writes a `character_housing_archive` row; `RestorePlot` puts it back inside `Housing.Evict.GraceDays` and answers `ArchiveExpired` afterwards | M | P2 |
+| Eviction from private neighborhood | House packed up | Same as above | `ForceSellPlot` archives rather than deletes, so an evicted house can be restored with `C:RESTORE` | M | P2 |
+| Plot reservation while inspecting | Temporary lock | In-memory reservation | `_reservations` holds a plot per account for 60 seconds; `C:RESERVE` takes one, logout and the sweep release it | S | P2 |
+| Plot sizes differ (small/standard/large) | Same size plots | Data-driven radius | `housing_plot.size_class` and `yard_radius`, read into `PlotTemplate` and used by the placement bound check | S | P1 |
 
 ### 2.2 Travel
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Capital portal | Stormwind / Orgrimmar portal room | Existing GO + area trigger | Static portal GOs in both portal rooms -> teleport to hub | S | P1 |
-| Steward NPC at the portal | Lyssabel Dawnpetal / Tocho Cloudhide | Creature + gossip | Spawned NPC, gossip: *take me to my neighborhood*, *I want to found one* | S | P1 |
-| Homestone, 15 min | Dashboard button | `getMSTime` cooldown + command | `.house home` + addon button, config cooldown | done | P0 |
-| House Finder | Dashboard UI listing plots | Addon + server query | `C:FINDER` opcode -> list of public neighborhoods and free plots, with district | M | P1 |
-| Visit a friend's house | Right-click -> View Houses | Addon + server | `C:VISIT <community>` listing that account's houses, guest permission gated | M | P2 |
-| Fly to a plot | Flight points per biome | Taxi nodes, if the map has them | Taxi node per biome once the custom map exists; before that, a "call gryphon" teleport service | M | P2 |
+| Capital portal | Stormwind / Orgrimmar portal room | Existing GO + area trigger | `go_housing_portal` (`HousingGo.cpp`) is two-way: inside a neighbourhood it leaves through the `housing_portal` row at that spot, outside one it opens the door to the town centre. Destinations are bound from `game_tele` by `bind_housing_content.sql`, so a name the realm has not got is not offered | S | P1 |
+| Steward NPC at the portal | Lyssabel Dawnpetal / Tocho Cloudhide | Creature + gossip | `npc_housing_steward` (`HousingNpc.cpp`): home, found a neighbourhood, list free plots, finder, gryphon, invite, promote, leave, choose the Endeavor | S | P1 |
+| Homestone, 15 min | Dashboard button | `getMSTime` cooldown + command | `C:HOME`, `.housing home` and the addon button, on `Housing.Homestone.Cooldown` (900 s) | S | P0 |
+| House Finder | Dashboard UI listing plots | Addon + server query | `C:FINDER` -> one `S:FINDER` per public neighbourhood with its free-plot count, `S:FINDEREND` last; the same list is in the Steward's gossip | M | P1 |
+| Visit a friend's house | Right-click -> View Houses | Addon + server | `C:VISIT <neighborhood> <plot>` -> `VisitNeighborhood`, gated by `CheckAccess`; `C:JOIN` enters a public one without a plot | M | P2 |
+| Fly to a plot | Flight points per biome | Taxi nodes, if the map has them | `HousingMgr::CallGryphon` teleports to the player's own door for `Housing.Gryphon.Cost` gold on a `Housing.Gryphon.Cooldown` timer. Real taxi nodes need the custom map; the gryphon is the stand-in and is what the Steward offers | M | P2 |
 
 ### 2.3 House leveling
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| House XP from learning decor | +10 first time | Server event | `HousingHouse::AddXp(10)` inside `BuyDecor`/`GrantDecor` when the collection row is new | S | P1 |
-| XP from Endeavors | varies | Task completion hooks | `AddXp` from the Endeavor task engine | M | P2 |
-| Endeavor Coffer +250 | Chest loot | GO + gossip | Coffer GO, loot once per warband per Endeavor | S | P2 |
-| Level 1-12 thresholds | 0, 10, 1 200, 2 400, 3 700, 5 700, 7 900, 10 300, 12 900, 15 750, 18 850, 22 200 | Data | `housing_house_level` table, verbatim retail values | S | P1 |
-| Interior / room / exterior budgets per level | 910->5975, 19->134, 200->350 | Data | Same table | S | P1 |
-| Apply level at the General Contractor | NPC interaction | Gossip | Jorvan-equivalent NPC: *upgrade my house* when XP threshold met | S | P1 |
-| Room unlocks by level | 12 starter rooms, +6 later | GO shells | `housing_room` table with `level_required` | M | P2 |
-| Weekly Arcanostorage Sphere at level 10 | Weekly quest | Weekly quest + item | Custom quest, 7-day cooldown, random decor from a curated pool | M | P3 |
-| Medium exteriors at 8, Large at 12 | Shell sizes | GO shells | `housing_shell` table with `size` and `level_required` | M | P2 |
+| House XP from learning decor | +10 first time | Server event | `GrantHouseXp(player, kXpPerNewDecor)` inside `BuyDecor` and inside every grant path (`GrantSourceDecor`, `SyncAchievementDecor`) | S | P1 |
+| XP from Endeavors | varies | Task completion hooks | `EndeavorMgr::CompleteTask` calls `GrantHouseXp(owner, kXpPerEndeavor)` for the neighbourhood's residents | M | P2 |
+| Endeavor Coffer +250 | Chest loot | GO + gossip | `go_housing_coffer` claims every unclaimed milestone in order; the payout is `housing_endeavor_reward` (currency and XP), guarded by `character_housing_endeavor_claim` | S | P2 |
+| Level 1-12 thresholds | 0, 10, 1 200, 2 400, 3 700, 5 700, 7 900, 10 300, 12 900, 15 750, 18 850, 22 200 | Data | `housing_house_level`, loaded by `LoadLevels`; the twelve rows are in `07_progression.sql` | S | P1 |
+| Interior / room / exterior budgets per level | 910->5975, 19->134, 200->350 | Data | Same table: `budget_indoor`, `budget_room`, `budget_outdoor` per level | S | P1 |
+| Apply level at the General Contractor | NPC interaction | Gossip | `npc_housing_contractor`: upgrade for gold (`LevelUpWithGold`), and the free claim once the XP threshold is met. XP is never applied automatically - the contract is signed in person, as in retail | S | P1 |
+| Room unlocks by level | 12 starter rooms, +6 later | GO shells | `housing_room` with `level_required` and `budget_cost`; `CanBuyRoom` / `BuyRoom` / `GetRoomsForPlot`, sold by the Contractor and by `C:ROOMS` | M | P2 |
+| Weekly Arcanostorage Sphere at level 10 | Weekly quest | Weekly quest + item | `OpenArcanostorage`: house level `Housing.Arcanostorage.Level`, once per `Housing.Arcanostorage.CooldownDays` per account, rolls one faction-eligible non-hidden piece from the catalogue | M | P3 |
+| Medium exteriors at 8, Large at 12 | Shell sizes | GO shells | `housing_shell` with `size` and `level_required`; `ApplyShell` refuses what the house has not reached, and writes `character_housing.shell_id` | M | P2 |
 
 ### 2.4 Decor
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Decor catalogue | DB2 + catalogue UI | World table + addon | `housing_decor` rows pointing at real GO entries; harvest tool builds them from my own `gameobject_template` (doc 03 sec.6) | M | P0 |
-| Placement cost 1-5 | Per item | Column | `budget_cost`; my scoring heuristic in the harvest tool fills it | done | P1 |
-| Interior / exterior budget split | Separate pools | Columns | `indoor` + two budgets per tier (already implemented) | done | P0 |
-| Free placement, rotate, scale | Advanced mode | GO create with quaternion + `SetObjectScale` | `C:PLACE` / `C:MOVE` with clamped scale (already implemented) | done | P0 |
-| Snap-to-grid basic mode | Grid | Client-side | Addon snaps before sending; the server does not care | S | P1 |
-| Categories and filters | 7 categories, subcategories | Strings | `category` + `subcategory` columns, addon filter UI | S | P1 |
-| Duplicates must be owned individually | Copies in storage | Rows | `character_housing_storage` (decorId, count) + place consumes, remove returns | M | P2 |
-| Repurchase duplicates from vendor | Yes | Vendor + gold | Vendor stock + `BuyDecor` increments storage | S | P1 |
-| Decor from quests/drops/achievements | Everywhere | `ConditionMgr`, quest rewards, loot | `source_type`/`source_id`; grant on quest reward, creature loot, or achievement criteria | L | P2 |
-| Dyes (77 colours, 9 groups) | Crafted, single use | Custom items + GO reshade | Dye item per group; applying re-spawns the GO with an alternate displayid where one exists, else alpha/particle trickery (doc 06 sec.2) | L | P3 |
-| Pet beds | Creature assignment | Creatures can be spawned and moved | Plot phase creature spawn of the pet's creature entry, Stationary/Roaming behaviour via `MoveRandomAroundPoint` (doc 06 sec.4) | M | P2 |
-| Hearthlight Armillary | Level-6 ambience device | `WorldState`/GO interaction | GO that toggles weather/time-of-day *feel* via phasing of light GOs and a `SendWeather`/skybox where possible | M | P3 |
-| Decorative pets/Pepe | Interactive GO | GO gossip | Already designed for Pepe in the prototype | S | P2 |
+| Decor catalogue | DB2 + catalogue UI | World table + addon | `housing_decor` rows pointing at real game objects, harvested from my own `gameobject_template` (doc 03 sec.6) and shipped by the two content drafts. `C:DECOR` pages it as `S:DECORENTRY` | M | P0 |
+| Placement cost 1-5 | Per item | Column | `budget_cost`, filled by the harvest scoring heuristic and checked against the room or yard budget on every placement | S | P1 |
+| Interior / exterior budget split | Separate pools | Columns | Three pools per level: indoor, room and outdoor. `PlaceDecor` picks the pool from the placement and the surface | S | P0 |
+| Free placement, rotate, scale | Advanced mode | GO create with quaternion + `SetObjectScale` | `C:PLACE` / `C:MOVE` carry position, orientation and scale; the server clamps the scale to `housing_decor.scale_min/max` and the position to the plot | S | P0 |
+| Snap-to-grid basic mode | Grid | Client-side | `H.SnapValue` / `H.SnapAngle` / `H.SnapScale` in the addon snap to 0.5 yards, 15 degrees and 0.1 scale before sending; `/housing snap on` and `off` toggle it. The server never sees the difference, which is why the snap is client-side | S | P1 |
+| Categories and filters | 7 categories, subcategories | Strings | `category` and `subcategory` columns; `C:DECOR <category>` filters server-side and the addon's search box filters what it has already been sent | S | P1 |
+| Duplicates must be owned individually | Copies in storage | Rows | `character_housing_storage` (decorId, count); placing consumes one copy and removing returns it | M | P2 |
+| Repurchase duplicates from vendor | Yes | Vendor + gold | `npc_housing_vendor` sells from `housing_vendor_stock`; `C:BUYCOPY` buys further copies of a piece already known | S | P1 |
+| Decor from quests/drops/achievements | Everywhere | `ConditionMgr`, quest rewards, loot | `GrantSourceDecor(player, SourceQuest, questId)` on quest completion and `SyncAchievementDecor` at login, which reconciles every achievement-sourced row against `HasAchieved`. Drop-sourced rows have no hook in this core and are documented as such | M | P2 |
+| Dyes (77 colours, 9 groups) | Crafted, single use | Custom items + GO reshade | `DyeDecor`: `housing_decor_variant` maps (decor, colour group) to an alternate game object entry, the placement stores `VariantEntry`, and the piece is respawned with it. A piece with no variant answers `InvalidDecor` - the same partial coverage retail has. The palette is six authored colours, not seventy-seven | L | P3 |
+| Pet beds | Creature assignment | Creatures can be spawned and moved | `housing_decor_creature` names the creature per decor; `SpawnDecorCreature` puts it in the plot phase, stationary or roaming within a radius | M | P2 |
+| Hearthlight Armillary | Level-6 ambience device | `WorldState`/GO interaction | `ToggleArmillary`: level gate, flips `character_housing.night_mode`, despawns and respawns the interior, and sends worldstate 61202. There is no reachable `Weather` setter from a script, so the change is phasing and lighting rather than sky | M | P3 |
+| Decorative pets/Pepe | Interactive GO | GO gossip | Pepe is a pet-bed creature on a game object, sold by the pet decor vendor (`RolePetDecor`, Perry Winkles / Agratha), so it is the same mechanism as a pet bed | S | P2 |
 
 ### 2.5 Neighborhoods
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Persistent neighborhood | Instance per neighborhood | Phase slot per neighborhood on one map | Prototype already does this | done | P0 |
-| Public auto-scaling | Server creates as needed | On-demand creation | `FindNeighborhoodFor` creates public neighborhoods when full | done | P1 |
-| Guild neighborhood | GM creates, roster driven | `Guild` API + `GuildScript` hooks | Create from guild master; `OnMemberRemove` -> `ForceSellPlot` | M | P2 |
-| Guild attached instances | Unlimited for guilds | Loop over slots | Guild neighborhood "wing" table mapping overflow to extra slots | M | P3 |
-| Charter neighborhood | Player charter, permissions | Custom membership table | Already in prototype (`character_housing_neighbor_member`) + ranks + invite UI | M | P2 |
-| Minimum occupancy + dissolution | Enforced | Periodic sweep | `Housing.Private.GraceDays` sweep (prototype has the hook, needs the timer) | S | P2 |
-| Semi-procedural naming | Generated names | - | Name pool + adjective/noun combinator | S | P1 |
-| Permissions: plot vs house x audience | 5 audiences x 2 spaces | Bitmask | Extend prototype's guest flags into `audience x space` bitmask (doc 06 sec.5) | M | P1 |
-| Immediate ejection on permission change | Frequent re-check | Tick re-evaluation | Per-player access re-check on the 500 ms housing tick | S | P1 |
-| Sanctuary, no PvP | Yes | `SetPvP(false)` / zone flag | Force PvP off in `OnPlayerUpdate` while on the housing map | S | P1 |
-| Neighborhood vendors | Themed NPCs | Creature + vendor lists | `housing_vendor` + stock (prototype) | done | P1 |
-| Smugglers | Horde decor to Alliance | Vendor + cross-faction stock | Vendor role 3, faction-mask on stock | S | P2 |
-| Amenities (stage, beer garden, moonwell) | Static + interactive | GOs | `housing_amenity` pins (prototype) + authored GOs | M | P2 |
+| Persistent neighborhood | Instance per neighborhood | Phase slot per neighborhood on one map | `HousingNeighborhood` plus the slot phase (`NeighborhoodPhase = 60000 + slot`), loaded by `LoadNeighborhoods` and saved on the interval | done | P0 |
+| Public auto-scaling | Server creates as needed | On-demand creation | `FindNeighborhoodFor` opens a public neighbourhood when the player's faction has no free plot left, up to `Housing.Neighborhood.PopulationCap` | done | P1 |
+| Guild neighborhood | GM creates, roster driven | `Guild` API + `GuildScript` hooks | `GetOrCreateGuildWing` creates it from the guild master; `HousingGuildScript::OnRemoveMember` force-sells the member's plot and `OnDisband` dissolves the village | M | P2 |
+| Guild attached instances | Unlimited for guilds | Loop over slots | `Housing.Guild.Wings`: when the guild's village is full, `GetOrCreateGuildWing` opens another slot instead of turning members away | M | P3 |
+| Charter neighborhood | Player charter, permissions | Custom membership table | `FoundNeighborhood` writes `character_housing_neighborhood` plus a founder row in `character_housing_neighbor_member`; ranks 3/2/1 with `CanManage`, `InviteToNeighborhood`, `SetMemberRank`, `RemoveFromNeighborhood` | M | P2 |
+| Minimum occupancy + dissolution | Enforced | Periodic sweep | `RunDissolutionSweep` on the lifecycle timer: a private or guild neighbourhood with no residents and no owned plots is dissolved after `Housing.Neighborhood.DissolveGraceDays`. `Housing.Neighborhood.MinResidents = 0` (default) keeps it off | S | P2 |
+| Semi-procedural naming | Generated names | - | `GenerateNeighborhoodName` draws from `housing_neighborhood_name` for the faction and appends a number so two foundations cannot collide | S | P1 |
+| Permissions: plot vs house x audience | 5 audiences x 2 spaces | Bitmask | `guest_flags` is an audience x space bitmask: `CanEdit` and `CheckAccess` read the yard and the interior separately, and `HousingAccess` orders them from `none` to `owner` | M | P1 |
+| Immediate ejection on permission change | Frequent re-check | Tick re-evaluation | `EnforceAccess` runs on the 500 ms housing tick on the plot a player is standing in: the plot phases are removed and the player is teleported to the town centre | S | P1 |
+| Sanctuary, no PvP | Yes | `SetPvP(false)` / zone flag | `EnforceBiomeRules`, re-asserted every two seconds while on a housing map, because a player can re-flag inside | S | P1 |
+| Neighborhood vendors | Themed NPCs | Creature + vendor lists | `npc_housing_vendor` (`HousingNpc.cpp`) lists `housing_vendor_stock` ten lines a page, quotes `GetPurchasePrice` and sells through `BuyDecor`. It resolves its shop by creature entry, then by name, so a renamed NPC still works | done | P1 |
+| Smugglers | Horde decor to Alliance | Vendor + cross-faction stock | `housing_vendor.role = 3`; the smuggler's window ignores the faction mask on its own stock and `BuyDecor` accepts a cross-faction piece only from a smuggler, at the price plus a quarter | S | P2 |
+| Amenities (stage, beer garden, moonwell) | Static + interactive | GOs | `housing_amenity` rows carry a position, a game object entry and a creature entry; `SpawnNeighborhoodContent` phases both in and the addon draws the pins from `C:VAREA` | M | P2 |
 
 ### 2.6 Endeavors
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Monthly rotation | ~monthly | World timer | WorldScript timer, per-neighborhood `endeavorId` + `rotationEnd` | M | P2 |
-| Task list across content | Crafting, gather, quest, dungeon, raid, pet battles | Server events all exist | `housing_endeavor_task` table: type + target + required count; hooks on craft, loot, quest complete, boss kill, pet battle win | L | P2 |
-| Scaling by neighborhood size | Yes | Formula | `required = base * clamp(activeResidents / 10, 0.5, 3.0)` | S | P2 |
-| Neighborhood Favor bar | Progress | Worldstate | `SendUpdateWorldState` + per-neighborhood progress stored in DB | M | P2 |
-| Themed NPCs arrive on completion | Yes | Creature spawns | Spawn vendor set tied to `endeavorId`, phased in on completion | M | P2 |
-| Visual changes to the hub | Yes | GO spawns | Spawn themed props from `housing_endeavor_props` | M | P3 |
-| Coffer | Loot once | GO + loot | `Loot` on a chest GO, guarded by `character_housing_endeavor_claim` | S | P2 |
-| Active Endeavor per character | Yes | Player field | `character_housing.endeavorId` per character | S | P2 |
-| Player-chosen Endeavor in private | Yes | Gossip/UI | Steward gossip when the neighborhood is private | S | P3 |
-| Milestone-gated stock | Retail: "Reach the Nth milestone of the endeavor" | Integer column + one comparison | `housing_endeavor_reward.milestone`; `GetVendorStock` hides rows above the neighborhood's current milestone | S | P2 |
-| Currency | Endeavor currency | Any currency id | Reuse **War Resources (1560)** + **Community Coupons (3363)** - both exist in 8.3.7 and retail itself reuses old currencies (doc 01 sec.10) | S | P2 |
+| Monthly rotation | ~monthly | World timer | `EndeavorMgr::Update` runs the rotation: an expired Endeavor is finished, milestones recomputed, and the next one started | M | P2 |
+| Task list across content | Crafting, gather, quest, dungeon, raid, pet battles | Server events all exist | `housing_endeavor_task` (type, target, required). Seven task types are defined - creature kill, boss kill, quest, loot, craft, pet battle and delivery - and five of them have a hook: kill, boss, quest, pet battle and the hand-delivered `Deliver`. Loot and craft are defined but never emitted, because this core has no item-gained hook; they are left in the schema for a core that grows one | L | P2 |
+| Scaling by neighborhood size | Yes | Formula | `ScaledRequirement`: `base * clamp(residents / 10, 0.5, 3.0)` | S | P2 |
+| Neighborhood Favor bar | Progress | Worldstate | `SendFavor` sends worldstate 61200 as a 0-1000 bar, plus the milestone as 61201 | M | P2 |
+| Themed NPCs arrive on completion | Yes | Creature spawns | `SpawnEndeavorTheming` spawns the Endeavor's vendors and props in the neighbourhood phase as the milestones land | M | P2 |
+| Visual changes to the hub | Yes | GO spawns | Same call: the props come from the Endeavor's own rows, so a finished Endeavor changes what the town centre looks like | M | P3 |
+| Coffer | Loot once | GO + loot | `go_housing_coffer` and `EndeavorMgr::Claim`, one row per account per milestone in `character_housing_endeavor_claim` | S | P2 |
+| Active Endeavor per character | Yes | Player field | `character_housing.endeavor_id` per character, defaulting to the neighbourhood's | S | P2 |
+| Player-chosen Endeavor in private | Yes | Gossip/UI | The Steward offers "Choose what we work on" to the founder of a private neighbourhood; `.housing choose <id>` does it without an NPC | S | P3 |
+| Milestone-gated stock | Retail: "Reach the Nth milestone of the endeavor" | Integer column + one comparison | `housing_vendor_stock.milestone`; `IsStockAvailable` hides the row in the catalogue and the vendor window, and `BuyDecor` checks again | S | P2 |
+| Currency | Endeavor currency | Any currency id | War Resources (1560) and Community Coupons (3363), both real 8.3.7 currencies, paid through `ModifyCurrency` (doc 01 sec.10) | S | P2 |
 
 ### 2.7 Blueprints and sharing
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Export a room / build / exterior to a code | Client-generated | Server can serialise | `C:BP_EXPORT` -> server compresses the decor list into a base-62 code (doc 06 sec.3) | L | P3 |
-| Import a code | Client | Server can deserialise | `C:BP_IMPORT <code>` -> validate budget/faction, insert placements | L | P3 |
-| Faction restrictions for full builds | Yes | Columns | `faction` in the code header + `housing_shell.faction` | S | P3 |
-| Room-only sharing faction agnostic | Yes | Same | Room codes carry no faction byte | S | P3 |
-| Dye consumption list | Yes | Derived | Dyes are part of the code; importer is told which are needed | M | P3 |
+| Export a room / build / exterior to a code | Client-generated | Server can serialise | `HousingBlueprint`: `PHP1:<base62>` with a CRC32 checksum; `C:BPEXP` returns `S:BPCODE` | L | P3 |
+| Import a code | Client | Server can deserialise | `C:BPIMP <code>`: checksum, budget, faction and catalogue, then places what fits and reports what did not | L | P3 |
+| Faction restrictions for full builds | Yes | Columns | The code header carries the faction; `BPIMP` refuses a build for the other side, and `housing_shell.faction_mask` gates the exterior | S | P3 |
+| Room-only sharing faction agnostic | Yes | Same | The room kind in the code header has no faction byte | S | P3 |
+| Dye consumption list | Yes | Derived | Dyes travel in the code as the variant id; the importer names the pieces it will skip because the variant does not exist on the realm | M | P3 |
 
 ### 2.8 UI
 
 | Feature | Retail | 8.3.7 capability | Implementation | Effort | Pri |
 | --- | --- | --- | --- | --- | --- |
-| Housing Dashboard | Native, `H` | Addon | `PsychoHouse` main frame: house, Endeavors, catalogue, finder tabs | L | P1 |
-| Placement gizmo | Native | Addon + server | Addon placement mode, server clamps and confirms (prototype protocol) | L | P2 |
-| Dye UI | Native | Addon | Colour grid per group; server applies | M | P3 |
-| Catalogue with 3D previews | Native | Addon dressup can render items, **not** GO models | Catalogue shows the GO's icon and name; a real preview needs client model rendering which addons cannot do for GOs | - | n/a |
-| Map of the neighborhood with plot pins | Native | Addon map + server data | Addon-drawn grid from `C:PLOTS` + pins from amenity data (prototype) | M | P2 |
-| Comms fallback | n/a | Gossip + commands | Every addon action has a `.house` equivalent (prototype already does) | M | P1 |
+| Housing Dashboard | Native, `H` | Addon | `HousingUI`: nine tabs - House, Catalogue, Placed, Dyes, Map, Neighbours, Endeavors, Blueprints, Guide - on the rail, with a launcher button beside the minimap | L | P1 |
+| Placement gizmo | Native | Addon + server | Placement mode in the Placed tab, with grid snapping, and the server clamps and confirms every move | L | P2 |
+| Dye UI | Native | Addon | The Dyes tab: six swatches and a strip button, applied to the placement selected in the Placed tab | M | P3 |
+| Catalogue with 3D previews | Native | Addon dressup can render items, **not** GO models | The catalogue shows the object's icon and name. A model preview would need the client to render a game object, which no addon can ask it to do | - | n/a |
+| Map of the neighborhood with plot pins | Native | Addon map + server data | The Map tab draws one row per plot from `C:PLOTS` with owner and whether the door is open, and clicking a row inspects that plot | M | P2 |
+| Comms fallback | n/a | Gossip + commands | Every addon action has a `.housing` equivalent (forty-one commands), and every one of those is reachable from the four NPCs and the four game objects | M | P1 |
 
 ## 3. What I am explicitly not porting
 

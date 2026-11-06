@@ -23,6 +23,8 @@ void AddSC_housing_world_script();
 void AddSC_housing_player_script();
 void AddSC_housing_guild_script();
 void AddSC_housing_commands();
+void AddSC_housing_npcs();
+void AddSC_housing_go_scripts();
 
 void AddHousingScripts()
 {
@@ -30,4 +32,6 @@ void AddHousingScripts()
     AddSC_housing_player_script();
     AddSC_housing_guild_script();
     AddSC_housing_commands();
+    AddSC_housing_npcs();
+    AddSC_housing_go_scripts();
 }

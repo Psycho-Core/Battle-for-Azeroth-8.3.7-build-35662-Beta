@@ -580,6 +580,11 @@ void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string
         if (info.SourceType == SourceVendor && info.Price == 0 && info.Currency == 0)
             continue;
 
+        // Milestone-gated stock is not in the catalogue until the neighbourhood has earned
+        // it: a shelf the player cannot reach is not a shelf.
+        if (!IsStockAvailable(player, info))
+            continue;
+
         visible.push_back(&info);
     }
 
@@ -602,7 +607,7 @@ void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string
         payload += Trinity::StringFormat("S:DECORENTRY|{}|{}|{}|{}|{}|{}|{}|{};",
             info->Id, info->Name, uint32(info->BudgetCost), uint32(info->Placement),
             uint32(info->Surface), HasUnlocked(accountId, info->Id) ? 1u : 0u,
-            info->Price, info->Currency);
+            GetPurchasePrice(player, *info), info->Currency);
     }
 
     payload += Trinity::StringFormat("S:DECOREND|{}|{};", page, end < visible.size() ? 1 : 0);

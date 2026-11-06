@@ -30,13 +30,15 @@ modules/mod-psycho-house/
   drafts/
     midnight-port/       draft A - retail content, retail numbers
     bfa-native/          draft B - 8.3.7 ids only, gold only
-  src/game/Housing/      the C++ core the drafts copy
-  src/scripts/Housing/   commands, player/world hooks, loader
+  src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
+                         neighbourhoods, the houses, the Endeavor engine, the four NPC
+                         scripts and the four gameobject scripts
+  src/scripts/Housing/   commands (41 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
-  addon/HousingUI/       the client addon: Core.lua (transport) and Menu.lua (the
-                         seven-tab housing window)
+  addon/HousingUI/       the client addon: Core.lua (transport, grid snapping) and
+                         Menu.lua (the nine-tab housing window)
   legacy-prototype/      the original prototype notes and patches, kept verbatim as
                          history - the numbered documents are the current set
   tools/housing/         scrapers, indexers, the draft builder, the installer,
@@ -149,6 +151,35 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twentieth revision
+
+The question this time was "is everything there". So the answer had to be built, not written:
+doc 02's feature matrix was walked row by row against `src/`, and every row without a
+function behind it got one. Eleven of the sections in that matrix were describing code that
+did not exist.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 98 | `HousingResult` declared `NeighborhoodFull` twice, at 17 and at 33. Two enumerators with one name is a compile error, and it had been in the header for four revisions because no compiler has run over this tree | The second declaration is gone. Values 34-38, added this revision, keep the gap so nothing that logged a numeric code changed meaning |
+| 99 | `housing_vendor_stock.milestone` was in the schema, in the drafts and in doc 02, and `LoadVendors` selected three columns out of four. Milestone-gated stock was gated by a field that was always 0, so the whole mechanic did nothing | The loader reads the column, and gating moved into `IsStockAvailable`, which the catalogue, the vendor window and `BuyDecor` all call - a shelf the player cannot reach is not shown, and buying blind is refused |
+| 100 | There was no vendor NPC. `npc_housing_vendor` did not exist, so the stock table could only be bought from the addon catalogue; walking up to Perry Winkles and talking to him did nothing, which is the opposite of what doc 09 promises | `src/game/Housing/HousingNpc.cpp` gained the fourth NPC: ten lines a page, prices from the same function the purchase uses, the shop resolved by creature entry and then by name |
+| 101 | `BuyDecor` ignored `housing_vendor_stock.price` and refused every cross-faction piece, so the smuggler's whole reason to exist was a vendor row with `role = 3` and no behaviour | `GetPurchasePrice` is the single answer: the stock override wins over the decor row, and a smuggler's stock is buyable across factions at that price plus a quarter. The gossip, the catalogue and the charge all call it |
+| 102 | Nothing in the module was a game object script. The cornerstone, the notice board, the coffer and the portals were rows with positions and no behaviour - the matrix claimed all four | New `src/game/Housing/HousingGo.cpp`: `go_housing_cornerstone` (buy, inspect, move in, sell), `go_housing_bulletin` (residents, open doors), `go_housing_coffer` (status, delivery, milestone payout in order), `go_housing_portal` (out of the neighbourhood, or back into it). Each finds its plot from its own position through the new `HousingMgr::FindPlotAt`, and returns nothing rather than the wrong house |
+| 103 | Ejection on permission change was claimed and absent. A guest whose access was taken away kept standing in the yard until they left or relogged | `EnforceAccess` on the 500 ms housing tick: the plot phases come off, the viewer count is released and the player is teleported to the town centre |
+| 104 | Dissolution was described twice in doc 02 and implemented never - and it described a config key, `Housing.Private.GraceDays`, that does not exist | `RunDissolutionSweep` on the lifecycle timer, on `Housing.Neighborhood.MinResidents` and `Housing.Neighborhood.DissolveGraceDays`, skipping public neighbourhoods because the auto-scaler owns those. The timer is recorded per neighbourhood, so a street that fills up again stops counting |
+| 105 | The four "systems" at the end of the matrix - Arcanostorage, Armillary, gryphon, rooms - were prose. There was no weekly Sphere, no night mode, no travel service and no room purchase path | `OpenArcanostorage`, `ToggleArmillary`, `CallGryphon`, `CanBuyRoom`/`BuyRoom`/`GetRoomsForPlot`, all on config keys, all reachable from the Coffer NPC, the Contractor NPC, the addon and a command. `character_housing` gained `shell_id`, `rooms_owned` and `night_mode` so the state survives a restart |
+| 106 | Foundations, charters and guild wings: `FoundNeighborhood`, `InviteToNeighborhood`, `SetMemberRank`, `RemoveFromNeighborhood`, `LeaveNeighborhood`, `GetOrCreateGuildWing` were all missing while doc 02 marked charter neighbourhoods as "already in the prototype" | All written, with ranks 3/2/1 and `CanManage` deciding who may promote whom. A founder cannot walk out on residents, a guild village is left by leaving the guild, and a guild that outgrows its street gets a wing |
+| 107 | Decor from quests and achievements had no path. `source_type` 1 and 2 were read by the catalogue and granted by nothing | `GrantSourceDecor` on quest completion, and `SyncAchievementDecor` at login for the source with no hook in this core. Both are idempotent, both pay house XP only for a piece that was not already owned |
+| 108 | The addon sent `C:ENDTASK`, which no server code dispatches, and its guide still described blueprints as "no opcode yet" three revisions after `C:BPEXP` shipped | Both corrected, and the guide now lists every opcode the module actually has, including the twelve that arrived this revision |
+| 109 | The Dyes tab and the Map tab did not exist, though doc 02 lists both and a dye system shipped two revisions ago with no way to reach it from the window | Nine tabs now: Dyes (six swatches, strip, on the placement selected in Placed) and Map (one row per plot, owner, door state, click to inspect) |
+| 110 | Snap-to-grid was in the matrix as client-side and was in the client nowhere; placements went out at whatever precision the frame produced | `H.SnapValue`, `H.SnapAngle` and `H.SnapScale` in the addon: half a yard, fifteen degrees, a tenth of a scale, `/housing snap on` and `/housing snap off` to change the preference. The server is untouched by design, which is why the snap can be a preference |
+| 111 | Neither draft's `conf` had been compared with the C++ in any revision. Nine keys the code reads were undocumented, four `PsychoHouse.*` keys an unrelated draft reads were described as the module's, and eight keys were listed under a header saying the code did not read them - all of which it did | Both dists rewritten from the code's own list, and `verify_drafts.py` now compares the key sets in both directions and fails on either kind of drift |
+| 112 | 1 000 lines of this module had never answered "click on what". `housing_vendor`, `housing_amenity` and the NPC scripts existed in the database and in `src/`, and no creature or object on a realm was bound to any of them | `sql/world` carries the role binding: contractors by name, the Architect as the coffer, the stewards where they exist, and every `housing_vendor` row into `npc_housing_vendor` in one join, so a shop added later is bound by being added. Every statement is an `UPDATE ... WHERE ScriptName = ''`, so nothing is overwritten and nothing is created |
+
+What this revision did not do, said plainly: nothing here was compiled, and no SQL was run
+against a server. Four hundred lines of new C++ have been read against the headers it calls,
+not built. That limit is what doc 11 section 3 is for and it has not changed.
 
 ## Audit pass, nineteenth revision
 

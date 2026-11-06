@@ -52,3 +52,35 @@ INSERT INTO `housing_neighborhood_name` (`faction`, `name`) VALUES
 (1, 'Redrock'), (1, 'Darkspear Landing'), (1, 'Bonefire'), (1, 'Warcamp'),
 (1, 'Sunveil'), (1, 'Grimhollow'), (1, 'Ashfall'), (1, 'Wolfsbane');
 
+-- ---------------------------------------------------------------------------
+-- NPC roles.
+--
+-- An NPC only answers gossip if its `creature_template.ScriptName` names one of the module's
+-- scripts, so this is the half of the NPC work that lives in the world database. Every
+-- statement is written as an UPDATE by name: a realm that has the creature gets the
+-- behaviour, a realm that does not loses nothing, and no creature is created or deleted.
+--
+-- The contractors are the two retail General Contractors. The Architect takes the coffer,
+-- the sphere and the armillary, which is what retail gives that NPC. The stewards are bound
+-- where they exist; where they do not, the commands do the same job.
+-- ---------------------------------------------------------------------------
+
+UPDATE `creature_template` SET `ScriptName` = 'npc_housing_contractor'
+ WHERE `name` IN ('Jorvan Longmoor', 'Rotha')
+   AND (`ScriptName` = '' OR `ScriptName` = 'npc_housing_contractor');
+
+UPDATE `creature_template` SET `ScriptName` = 'npc_housing_coffer'
+ WHERE `name` IN ('The Last Architect')
+   AND (`ScriptName` = '' OR `ScriptName` = 'npc_housing_coffer');
+
+UPDATE `creature_template` SET `ScriptName` = 'npc_housing_steward'
+ WHERE `name` IN ('Lyssabel Dawnpetal', 'Tocho Cloudhide')
+   AND (`ScriptName` = '' OR `ScriptName` = 'npc_housing_steward');
+
+-- Every decor vendor in `housing_vendor`, in one statement, so a shop added later is bound
+-- by the act of adding it.
+UPDATE `creature_template` ct
+  JOIN `housing_vendor` hv ON hv.`name` = ct.`name`
+   SET ct.`ScriptName` = 'npc_housing_vendor'
+ WHERE ct.`ScriptName` = '';
+

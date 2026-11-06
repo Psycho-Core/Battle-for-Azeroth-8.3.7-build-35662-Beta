@@ -252,6 +252,10 @@ end
 -- ---- finder, visiting, storage, progression, Endeavors, codes -----------------
 
 H.finder = {}
+H.rooms = {}
+H.roomsOwned = 0
+H.nightMode = false
+H.gryphon = 0
 H.storage = {}
 H.shells = {}
 H.portals = {}
@@ -320,7 +324,60 @@ end
 H.handlers["PLACEAT"] = function(fields)
     if fields[3] == "0" then
         Print("placed in front of you (placement " .. tostring(fields[4]) .. ")")
+    else
+        Print("|cffff5555could not place: code " .. tostring(fields[3]) .. "|r")
     end
+end
+
+H.selectedPlacement = nil
+
+-- ---------------------------------------------------------------------------
+-- Grid snapping
+--
+-- Basic mode is a client-side convenience: the server takes whatever numbers it is given and
+-- clamps them to the plot, so snapping costs nothing on the server side and can be turned off
+-- without the server knowing.
+-- ---------------------------------------------------------------------------
+
+H.snap = {
+    enabled = true,
+    grid = 0.5,                 -- yards
+    angle = math.pi / 12,       -- 15 degrees
+    scaleStep = 0.1,
+}
+
+function H.SnapValue(value)
+    if not H.snap.enabled then
+        return value
+    end
+    return math.floor(value / H.snap.grid + 0.5) * H.snap.grid
+end
+
+function H.SnapAngle(value)
+    if not H.snap.enabled then
+        return value
+    end
+    local turn = math.pi * 2
+    local wrapped = value % turn
+    return math.floor(wrapped / H.snap.angle + 0.5) * H.snap.angle
+end
+
+function H.SnapScale(value)
+    if not H.snap.enabled then
+        return value
+    end
+    return math.floor(value / H.snap.scaleStep + 0.5) * H.snap.scaleStep
+end
+
+H.handlers["ROOM"] = function(fields)
+    H.rooms[#H.rooms + 1] = {
+        id = tonumber(fields[2]), name = fields[3], cost = tonumber(fields[4]),
+        level = tonumber(fields[5]), state = tonumber(fields[6]),
+    }
+end
+
+H.handlers["ROOMS"] = function(fields)
+    H.roomsOwned = tonumber(fields[2])
 end
 
 H.handlers["BPCODE"] = function(fields)
@@ -474,7 +531,17 @@ SlashCmdList["HOUSING"] = function(input)
             Print("usage: /housing place <decorId> <x> <y> <z> <o> <scale> <indoor>")
         else
             Send(string.format("C:PLACE|%s|%.3f|%.3f|%.3f|%.3f|%.3f|%s",
-                decorId, tonumber(x), tonumber(y), tonumber(z), tonumber(o), tonumber(scale), indoor))
+                decorId, H.SnapValue(tonumber(x)), H.SnapValue(tonumber(y)),
+                H.SnapValue(tonumber(z)), H.SnapAngle(tonumber(o)),
+                H.SnapScale(tonumber(scale)), indoor))
+        end
+    elseif command == "snap" then
+        if rest == "on" or rest == "off" then
+            H.snap.enabled = (rest == "on")
+            Print("grid snapping " .. rest)
+        else
+            Print("grid snapping is " .. (H.snap.enabled and "on" or "off") ..
+                " - /housing snap on | off")
         end
     elseif command == "move" then
         local id, x, y, z, o, scale =
@@ -483,7 +550,9 @@ SlashCmdList["HOUSING"] = function(input)
             Print("usage: /housing move <placementId> <x> <y> <z> <o> <scale>")
         else
             Send(string.format("C:MOVE|%s|%.3f|%.3f|%.3f|%.3f|%.3f",
-                id, tonumber(x), tonumber(y), tonumber(z), tonumber(o), tonumber(scale)))
+                id, H.SnapValue(tonumber(x)), H.SnapValue(tonumber(y)),
+                H.SnapValue(tonumber(z)), H.SnapAngle(tonumber(o)),
+                H.SnapScale(tonumber(scale))))
         end
     elseif command == "remove" then
         Send("C:REMOVE|" .. rest)
@@ -518,6 +587,25 @@ SlashCmdList["HOUSING"] = function(input)
         else
             Send("C:VISIT|" .. neighborhood .. "|" .. plot)
         end
+    elseif command == "found" then
+        Send("C:FOUND")
+    elseif command == "leavehood" then
+        Send("C:LEAVENB")
+    elseif command == "movehouse" then
+        Send("C:MOVEHOUSE|" .. rest)
+    elseif command == "gryphon" then
+        Send("C:GRYPHON")
+    elseif command == "room" then
+        Send("C:ROOM|" .. rest)
+    elseif command == "rooms" then
+        H.rooms = {}
+        Send("C:ROOMS")
+    elseif command == "arcane" then
+        Send("C:ARCANE")
+    elseif command == "armillary" then
+        Send("C:ARMILLARY")
+    elseif command == "favor" then
+        Send("C:FAVOR")
     elseif command == "at" then
         local decorId, metres, indoor = string.match(rest, "^(%d+)%s*(%d*)%s*(%d*)$")
         if not decorId then

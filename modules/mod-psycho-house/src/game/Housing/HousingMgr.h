@@ -63,6 +63,10 @@ namespace Housing
     public:
         static HousingMgr* instance();
 
+        /// Human-readable name for a result code. The addon mirrors the numbers, but an NPC
+        /// and a chat command have to say something a player can read.
+        static char const* ResultName(HousingResult result);
+
         // ---- lifecycle -------------------------------------------------------
 
         void LoadConfig();
@@ -142,6 +146,13 @@ namespace Housing
         HousingResult RemoveDecor(Player* player, uint64 placementId);
         HousingResult BuyDecor(Player* player, uint32 decorId);
 
+        /// What a piece actually costs this player: the stock override, plus the smuggler's
+        /// mark-up for a piece their faction cannot buy at home.
+        uint32 GetPurchasePrice(Player* player, DecorInfo const& info) const;
+
+        /// Whether the neighbourhood has passed the milestone that puts a piece on the shelf.
+        bool IsStockAvailable(Player* player, DecorInfo const& info) const;
+
         bool HasUnlocked(uint32 accountId, uint32 decorId);
         void LoadCollection(uint32 accountId);
 
@@ -160,6 +171,15 @@ namespace Housing
         uint8 GetLevelForHousing(uint32 housingId) const;
         uint32 GetXpForHousing(uint32 housingId) const;
         void GrantHouseXp(Player* player, uint32 xp);
+
+        /// Grant every piece of decor whose `source_type`/`source_id` names this quest or
+        /// achievement. A piece already owned is skipped, so a repeatable quest cannot be
+        /// farmed for storage copies.
+        void GrantSourceDecor(Player* player, uint8 sourceType, uint32 sourceId);
+
+        /// Grant the decor a character has already earned achievements for. Runs at login,
+        /// because this core has no achievement-complete hook.
+        void SyncAchievementDecor(Player* player);
         HousingResult LevelUpWithGold(Player* player);
         HousingResult ApplyShell(Player* player, uint32 shellId);
 
@@ -226,18 +246,71 @@ namespace Housing
         /// holds more residents than Housing.Neighborhood.PopulationCap.
         void RunLifecycle();
 
+        /// A private or guild neighbourhood that has held nobody for the grace period is
+        /// dissolved: its plots are sold, its members are told, and its slot goes back.
+        void RunDissolutionSweep();
+
         uint32 GetNeighborhoodPopulation(HousingNeighborhood* neighborhood) const;
         uint32 GetPopulationCap() const { return _populationCap; }
         uint32 GetEvictGraceDays() const { return _graceDays; }
 
         /// Join a neighbourhood that is open to the player's faction. Refuses when it is full.
         HousingResult JoinNeighborhood(Player* player, uint32 neighborhoodId);
+        HousingResult LeaveNeighborhood(Player* player);
+
+        /// Found a neighbourhood: a private one for a handful of friends, or a guild one when
+        /// the player leads a guild. The first plot is theirs only after they buy it.
+        HousingResult FoundNeighborhood(Player* player);
+
+        /// Membership administration. Rank 3 is the founder, 2 an officer, 1 a resident.
+        HousingResult InviteToNeighborhood(Player* player, std::string const& name);
+        HousingResult SetMemberRank(Player* player, std::string const& name, uint8 rank);
+        HousingResult RemoveFromNeighborhood(Player* player, std::string const& name);
+
+        /// Move the house to another free plot in the same neighbourhood, keeping every piece
+        /// of furniture, the level and the exterior. Retail's "move house" is free; so is this.
+        HousingResult MoveHouse(Player* player, uint8 plotIndex);
+
+        /// The Steward's gryphon: a paid, cooled-down flight to the player's own plot.
+        HousingResult CallGryphon(Player* player);
+
+        /// A guild that outgrows one neighbourhood gets a second one attached to it: same
+        /// guild, own slot, own plots. Returns the wing's neighbourhood.
+        HousingNeighborhood* GetOrCreateGuildWing(uint64 guildId, uint8 faction);
+
+        /// Rooms bought at the Contractor: a room is an area of the interior and a budget.
+        HousingResult CanBuyRoom(Player* player, uint32 roomId) const;
+        HousingResult BuyRoom(Player* player, uint32 roomId);
+        std::vector<RoomInfo> GetRoomsForPlot(HousingPlot* plot) const;
+
+        /// The weekly Arcanostorage Sphere: level 10, one roll per account per week.
+        HousingResult OpenArcanostorage(Player* player);
+
+        /// The Hearthlight Armillary: level 6, toggles the plot between day and night.
+        HousingResult ToggleArmillary(Player* player);
+
+        /// Endeavor favour: the neighbourhood's progress as a 0-1000 bar, sent as a worldstate.
+        void SendFavor(Player* player, uint32 neighborhoodId);
+        uint32 GetFavor(uint32 neighborhoodId) const;
+
+        /// How many of the Endeavor's tasks must be done for one unit of progress, scaled by
+        /// how many people actually live in the neighbourhood.
+        uint32 ScaledRequirement(uint32 baseRequired, uint32 neighborhoodId) const;
+
+        /// Spawn the Endeavor's themed props and NPCs in the neighbourhood's phase once it is
+        /// complete, so a finished Endeavor changes what the town centre looks like.
+        void SpawnEndeavorTheming(HousingNeighborhood* neighborhood, Map* map, uint32 endeavorId,
+            uint8 milestone);
 
         // ---- maintenance -----------------------------------------------------
 
         void SaveAll();
         void ForceSellPlot(HousingPlot* plot);
         std::string BuildAuditReport();
+
+        /// The plot standing at a world position, give or take a radius. A gameobject script
+        /// knows nothing but where its object is, so the plot has to be found from that.
+        HousingPlot* FindPlotAt(uint32 mapId, float x, float y, float radius = 30.0f);
 
     private:
         HousingMgr();
@@ -259,6 +332,15 @@ namespace Housing
         uint32 _graceDays;          // days a house sits in the archive before it is sold
         uint32 _populationCap;      // residents per neighbourhood, 0 = no cap
         uint32 _lifecycleTimer;
+        uint32 _gryphonCost;        // gold, paid to the Steward
+        uint32 _gryphonCooldown;    // seconds
+        uint32 _minResidents;       // for dissolving a private/guild neighbourhood
+        uint32 _dissolveGraceDays;
+        uint32 _arcaneLevel;        // house level needed for the Sphere
+        uint32 _arcaneCooldownDays;
+        uint32 _armillaryLevel;
+        bool _guildWings;
+        uint32 _cornerstoneEntry;   // plot stone, 0 = no stone
 
         // world data
         std::map<uint32, BiomeInfo> _biomes;
@@ -281,6 +363,9 @@ namespace Housing
         std::map<uint32, std::map<uint32, uint32>> _storage;            // accountId -> decorId -> count
         std::set<uint32> _storageLoaded;
         std::map<uint8, std::pair<uint32, uint32>> _reservations;       // plotIndex -> account, expiry
+        std::map<uint32, uint32> _gryphonUsed;                          // accountId -> ms stamp
+        std::map<uint32, uint32> _arcaneUsed;                           // accountId -> unix stamp
+        std::map<uint32, uint32> _emptySince;                           // neighborhoodId -> unix stamp
         std::set<uint32> _contentSpawned;                               // neighborhoods whose static content is up
 
         // runtime state
@@ -313,6 +398,10 @@ namespace Housing
         void LoadVariants();
         void LoadDecorCreatures();
 
+        /// A name for a new neighbourhood, drawn from the faction's pool with a number
+        /// appended so two foundations cannot collide.
+        std::string GenerateNeighborhoodName(uint8 faction);
+
         /// Derive the spawn of a plot when the template has none (anchor mode).
         void BuildAnchorLayout();
         Position AnchorForPlot(uint8 plotIndex) const;
@@ -321,12 +410,16 @@ namespace Housing
         Position PlotSpawn(HousingPlot* plot, Player* player);
         Position AnchorForAmenity(uint32 index) const;
         void SpawnPlotShell(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
+        void SpawnCornerstone(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
         uint32 GetNeighborhoodPhaseOf(uint32 neighborhoodId) const;
 
         uint16 AllocateSlot();
         void ReleaseSlot(uint16 slot);
 
         void ResolvePlot(Player* player, PlayerState& state);
+
+        /// Throw a player out of a plot they no longer have access to.
+        void EnforceAccess(Player* player, PlayerState& state);
         void ClearPlotPhases(Player* player, PlayerState& state);
         void ApplyPlotPhase(Player* player, HousingPlot* plot);
         void ReleaseViewer(HousingPlot* plot);

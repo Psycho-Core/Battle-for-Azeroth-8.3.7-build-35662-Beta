@@ -165,11 +165,17 @@ four lines and it is the difference between a system that reacts and one that do
 
 ### 4.4 Portal rooms and Steward
 
-- Two static GO portals (Stormwind Wizard's Sanctum, Orgrimmar Pathfinder's Den) with
-  `AreaTriggerScript` or `GameObjectScript` -> `TeleportToNeighborhood`.
-- Steward NPC at each portal: gossip *take me to Founder's Point*, *find me a plot*,
-  *I want to found a neighborhood*.
-- Both are DB rows + one small script file.
+- As shipped: `go_housing_portal` in `src/game/Housing/HousingGo.cpp` is two-way. Inside a
+  neighbourhood it leaves through the `housing_portal` row standing at that object's
+  position; anywhere else it is the door in and puts the player at their town centre. The
+  destinations are `game_tele` names bound by `tools/sql/bind_housing_content.sql`, so a
+  realm without the named place simply has no portal to it.
+- As shipped: `npc_housing_steward` in `src/game/Housing/HousingNpc.cpp` - home, found a
+  neighbourhood, list the free plots, the finder, the gryphon, invite, promote, leave, and
+  choose the Endeavor when the neighbourhood is private.
+- Both are bound by name in `sql/world`: the NPC through `creature_template.ScriptName`, the
+  object through `gameobject_template.ScriptName`. No entry is created and none is
+  overwritten - every binding is an `UPDATE ... WHERE ScriptName = ''`.
 
 ### 4.5 Cornerstone
 
@@ -178,9 +184,16 @@ map has art). Gossip states:
 
 | State | Options |
 | --- | --- |
-| Unclaimed plot | *Buy this plot for 1 000g*, *Move my house here* (if already owning a plot in this neighborhood) |
-| Own plot | *Rename*, *Lock/unlock*, *Move house*, *Relinquish* |
-| Someone else's | *This plot is not for sale* (and the owner's name, if they have not locked it) |
+| Unclaimed plot | *I will take this plot*, *What is this place?* |
+| Own plot | *I am selling up* |
+| Someone else's | the owner's name, and *Move my house here* if the player has a house elsewhere |
+
+As shipped, `go_housing_cornerstone` reads the plot from its own position through
+`HousingMgr::FindPlotAt`, and the stone itself is spawned by the module only when
+`Housing.Plot.CornerstoneEntry` names an object that exists in the realm's
+`gameobject_template`. At the default of 0 there is no stone and the plot is bought from the
+Steward, the addon or `.housing buy` - which is deliberate: retail's cornerstone is an object
+no 8.3.7 entry corresponds to, and inventing one would spawn nothing on every realm.
 
 ### 4.6 The facility shop
 
