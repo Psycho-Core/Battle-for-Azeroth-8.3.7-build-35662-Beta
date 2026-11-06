@@ -568,12 +568,6 @@ BiomeInfo const* HousingMgr::GetBiome(uint32 id) const
     return itr != _biomes.end() ? &itr->second : nullptr;
 }
 
-PlotTemplate const* HousingMgr::GetPlotTemplate(uint32 mapId, uint8 index) const
-{
-    auto const itr = _plotTemplates.find(PlotKey(mapId, index));
-    return itr != _plotTemplates.end() ? &itr->second : nullptr;
-}
-
 DecorInfo const* HousingMgr::GetDecor(uint32 id) const
 {
     auto const itr = _decor.find(id);
@@ -621,15 +615,6 @@ HousingNeighborhood* HousingMgr::GetNeighborhood(uint32 id)
 {
     auto const itr = _neighborhoods.find(id);
     return itr != _neighborhoods.end() ? itr->second.get() : nullptr;
-}
-
-HousingNeighborhood* HousingMgr::GetNeighborhoodBySlot(uint16 slot)
-{
-    for (auto const& entry : _neighborhoods)
-        if (entry.second->GetSlot() == slot)
-            return entry.second.get();
-
-    return nullptr;
 }
 
 uint16 HousingMgr::AllocateSlot()
@@ -729,9 +714,27 @@ HousingNeighborhood* HousingMgr::FindNeighborhoodFor(Player* player)
             if (entry.second->FindPlotOfAccount(player->GetSession()->GetAccountId()) == owned)
                 return entry.second.get();
 
+    uint8 const faction = player->GetTeamId() == TEAM_ALLIANCE ? FactionAlliance : FactionHorde;
+
+    // A guild that already has a village is where its members belong, and a village that is
+    // full opens a wing rather than sending the member to a public street. A guild with no
+    // village is not given one here: that is the guild master's decision, made once with
+    // `.housing create guild`, and a street that appears because somebody logged in would be
+    // a street nobody asked for.
+    if (uint64 const guildId = player->GetGuildId())
+    {
+        bool hasVillage = false;
+        for (auto const& entry : _neighborhoods)
+            if (entry.second->GetType() == NeighborhoodGuild && entry.second->GetGuildId() == guildId)
+                hasVillage = true;
+
+        if (hasVillage)
+            if (HousingNeighborhood* wing = GetOrCreateGuildWing(guildId, faction))
+                return wing;
+    }
+
     // Fall back to the emptiest public neighbourhood of the player's faction, then create
     // a new one when every public neighbourhood is full.
-    uint8 const faction = player->GetTeamId() == TEAM_ALLIANCE ? FactionAlliance : FactionHorde;
 
     HousingNeighborhood* best = nullptr;
     for (auto const& entry : _neighborhoods)
@@ -805,6 +808,7 @@ void HousingMgr::OnPlayerLogin(Player* player)
 
     LoadCollection(player->GetSession()->GetAccountId());
     SyncAchievementDecor(player);
+    CheckIntroQuestProgress(player);
 }
 
 /*
@@ -1100,6 +1104,9 @@ void HousingMgr::ResolvePlot(Player* player, PlayerState& state)
     if (!plot->IsOwned())
         return;
 
+    // Walking onto somebody's plot is a visit, and twenty of them is a milestone.
+    state.VisitedPlots.insert(neighborhood->GetId() * 256u + uint32(found));
+
     ++_houseViewers[plot->GetHousingId()];
 
     if (HousingHouse* house = plot->GetHouse())
@@ -1282,6 +1289,7 @@ HousingResult HousingMgr::BuyPlot(Player* player, HousingNeighborhood* neighborh
     TC_LOG_INFO("housing", "Account %u bought plot %u in neighbourhood %u (house " UI64FMTD ") for %u gold",
         accountId, uint32(plotIndex), neighborhood->GetId(), uint64(housingId), plot->GetPrice());
 
+    CheckIntroQuestProgress(player);
     return Ok;
 }
 
@@ -1672,6 +1680,7 @@ HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, fl
         house->SpawnPlacement(*placement, player->GetMap(), phase, plot->GetOwnerGuid());
     }
 
+    CheckIntroQuestProgress(player);
     return Ok;
 }
 
@@ -1920,11 +1929,6 @@ uint8 HousingMgr::GetGuestFlags(uint32 housingId, uint32 accountId)
     std::map<uint32, uint8> const& guests = LoadGuests(housingId);
     auto const itr = guests.find(accountId);
     return itr != guests.end() ? itr->second : 0;
-}
-
-bool HousingMgr::IsGuest(uint32 housingId, uint32 accountId)
-{
-    return (GetGuestFlags(housingId, accountId) & 0x01) != 0;
 }
 
 void HousingMgr::AddGuest(uint32 housingId, uint32 accountId, uint8 flags)

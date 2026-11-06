@@ -12,6 +12,8 @@
 #include "DatabaseEnv.h"
 #include "HousingMgr.h"
 #include "Log.h"
+#include "Map.h"
+#include "MapManager.h"
 #include "Player.h"
 #include "Util.h"
 
@@ -290,6 +292,13 @@ namespace Housing
         }
     }
 
+    uint32 EndeavorMgr::GetRequired(uint32 neighborhoodId, EndeavorTask const& task) const
+    {
+        // A street of forty has to work four times as hard for the same milestone as a street
+        // of ten, or an Endeavor is over the moment a big neighbourhood looks at it.
+        return sHousingMgr->ScaledRequirement(task.Required, neighborhoodId);
+    }
+
     void EndeavorMgr::OnEvent(Player* player, uint8 type, uint32 target, uint32 count)
     {
         if (!player || !count || _states.empty())
@@ -312,12 +321,14 @@ namespace Housing
             if (task.Type != type || !task.Target || task.Target != target)
                 continue;
 
+            uint32 const required = GetRequired(neighborhoodId, task);
+
             uint32& progress = itr->second.Progress[task.Id];
-            if (progress >= task.Required)
+            if (progress >= required)
                 continue;
 
-            progress = std::min(task.Required, progress + count);
-            if (progress >= task.Required)
+            progress = std::min(required, progress + count);
+            if (progress >= required)
                 CompleteTask(neighborhoodId, task.Id);
             else
                 SaveNeighborhood(neighborhoodId);
@@ -390,6 +401,22 @@ namespace Housing
 
         itr->second.Milestone = milestone;
         SaveNeighborhood(neighborhoodId);
+
+        // The milestone is what the hub is themed by, so the props go up as it moves, and
+        // everybody standing in the street is told rather than having to read a command.
+        for (auto const& entry : sHousingMgr->GetNeighborhoods())
+        {
+            if (entry.first != neighborhoodId)
+                continue;
+
+            sHousingMgr->BroadcastEndeavorMilestone(entry.second.get(), milestone);
+
+            if (Map* map = sMapMgr->FindMap(entry.second->GetMapId(), 0))
+                sHousingMgr->SpawnEndeavorTheming(entry.second.get(), map,
+                    itr->second.EndeavorId, milestone);
+
+            break;
+        }
 
         if (milestone >= 4)
         {

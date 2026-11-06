@@ -226,15 +226,27 @@ namespace
             return false;
 
         uint64 placementId = 0;
-        uint32 group = 0;
         uint32 color = 0;
 
+        // Group is optional: retail has one dye group per piece, so the group a player means
+        // is the piece's own, and asking them to type it is asking them to know a column.
         std::istringstream stream(args);
-        if (!(stream >> placementId >> group >> color))
+        std::string first;
+        std::string second;
+        std::string third;
+
+        if (!(stream >> first >> second))
         {
-            handler->PSendSysMessage("Usage: .housing dye <placement> <group> <colour>");
+            handler->PSendSysMessage("Usage: .housing dye <placement> <colour> [group]");
             return true;
         }
+
+        stream >> third;
+
+        placementId = uint64(strtoull(first.c_str(), nullptr, 10));
+        color = uint32(atoi(second.c_str()));
+
+        uint32 const group = third.empty() ? 1 : uint32(atoi(third.c_str()));
 
         handler->PSendSysMessage("Dye: {}", ResultText(
             sHousingMgr->DyeDecor(player, placementId, uint8(group), uint8(color))));
@@ -434,6 +446,143 @@ namespace
     }
 }
 
+namespace
+{
+    // ---- neighbourhood membership, which had a manager and no way in ------------
+    //
+    // InviteToNeighborhood, SetMemberRank and RemoveFromNeighborhood were written and
+    // reachable from nothing: the Steward's gossip told the player to type a command that
+    // did not exist. This is that command.
+
+    static bool HandleMilestonesCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        std::string const report = sHousingMgr->BuildMilestoneReport(player);
+        std::string line;
+
+        handler->SendSysMessage("Collection milestones:");
+
+        for (char const ch : report)
+        {
+            if (ch != '\n')
+            {
+                line += ch;
+                continue;
+            }
+
+            if (!line.empty())
+                handler->PSendSysMessage("{}", line);
+            line.clear();
+        }
+
+        return true;
+    }
+
+    static bool HandleDyeListCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        auto const& palette = sHousingMgr->GetDyes();
+
+        if (palette.empty())
+        {
+            handler->SendSysMessage("No dye palette: `housing_dye` is empty on this realm.");
+            return true;
+        }
+
+        handler->SendSysMessage("Colours the workbench can mix:");
+
+        for (auto const& dye : palette)
+            handler->PSendSysMessage("  {} - {} - .housing dye <placement> {}",
+                uint32(dye.first), dye.second, uint32(dye.first));
+
+        return true;
+    }
+
+    static bool HandleNeighborListCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        Housing::HousingNeighborhood* neighborhood = sHousingMgr->FindNeighborhoodFor(player);
+        if (!neighborhood)
+        {
+            handler->SendSysMessage("You are not in a neighbourhood.");
+            return true;
+        }
+
+        handler->PSendSysMessage("'{}' - {} resident(s), {} owned plot(s):",
+            neighborhood->GetName(), uint32(neighborhood->GetMembers().size()),
+            neighborhood->GetOwnedCount());
+
+        for (auto const& member : neighborhood->GetMembers())
+        {
+            std::string const name = sHousingMgr->GetAccountCharacterName(member.first);
+            handler->PSendSysMessage("  {} - rank {}", name.empty() ? "(no character)" : name,
+                uint32(member.second));
+        }
+
+        handler->SendSysMessage("invite <name> | rank <name> <1-2> | del <name>");
+        return true;
+    }
+
+    static bool HandleNeighborInviteCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args || !*args)
+        {
+            handler->SendSysMessage("Usage: .housing neighbor invite <name>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Invite: {}",
+            ResultText(sHousingMgr->InviteToNeighborhood(player, args)));
+        return true;
+    }
+
+    static bool HandleNeighborRankCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing neighbor rank <name> <1-2>");
+            return true;
+        }
+
+        std::string const text = args;
+        std::string::size_type const split = text.find_last_of(' ');
+
+        if (split == std::string::npos)
+        {
+            handler->SendSysMessage("Usage: .housing neighbor rank <name> <1-2>");
+            return true;
+        }
+
+        std::string const name = text.substr(0, split);
+        uint8 const rank = uint8(atoi(text.substr(split + 1).c_str()));
+
+        handler->PSendSysMessage("Rank: {}",
+            ResultText(sHousingMgr->SetMemberRank(player, name, rank)));
+        return true;
+    }
+
+    static bool HandleNeighborRemoveCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args || !*args)
+        {
+            handler->SendSysMessage("Usage: .housing neighbor del <name>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Removed: {}",
+            ResultText(sHousingMgr->RemoveFromNeighborhood(player, args)));
+        return true;
+    }
+}
+
 class housing_commandscript : public CommandScript
 {
 public:
@@ -446,6 +595,14 @@ public:
             { "add",  0, false, &HandleGuestAddCommand, "" },
             { "del",  0, false, &HandleGuestDelCommand, "" },
             { "",     0, false, &HandleGuestListCommand, "" },
+        };
+
+        static std::vector<ChatCommand> neighborCommandTable =
+        {
+            { "invite", 0, false, &HandleNeighborInviteCommand, "Invite somebody to the neighbourhood" },
+            { "rank",   0, false, &HandleNeighborRankCommand,   "Promote or demote a resident" },
+            { "del",    0, false, &HandleNeighborRemoveCommand, "Remove a resident" },
+            { "",       0, false, &HandleNeighborListCommand,   "Who lives here" },
         };
 
         static std::vector<ChatCommand> housingCommandTable =
@@ -484,6 +641,9 @@ public:
             { "claim",    0, false, &HandleClaimCommand,      "Claim a milestone reward" },
             { "choose",   0, false, &HandleChooseEndeavorCommand, "Choose the Endeavor in a private neighbourhood" },
             { "guest",    0, false, &HandleGuestListCommand,  "Manage plot guests", guestCommandTable },
+            { "neighbor", 0, false, &HandleNeighborListCommand, "Manage neighbourhood membership", neighborCommandTable },
+            { "dyes",     0, false, &HandleDyeListCommand,     "Colours the dye station can mix" },
+            { "milestones", 0, false, &HandleMilestonesCommand, "What this house has earned" },
             { "audit",    rbac::RBAC_PERM_COMMAND_GM, false, &HandleAuditCommand,    "Audit housing state" },
             { "save",     rbac::RBAC_PERM_COMMAND_GM, false, &HandleSaveCommand,     "Flush housing state" },
             { "reload",   rbac::RBAC_PERM_COMMAND_GM, false, &HandleReloadCommand,   "Reload housing data" },

@@ -16,7 +16,9 @@
  */
 
 #include "HousingDecor.h"
+
 #include "Creature.h"
+#include "MotionMaster.h"
 #include "GameObject.h"
 #include "Log.h"
 #include "Map.h"
@@ -84,8 +86,15 @@ Creature* SpawnDecorCreature(DecorPlacement& placement, PetBedInfo const& pet, M
 
     PhasingHandler::AddPhase(summon, phaseId, false);
 
+    // A pet is furniture with an opinion. It must not be attackable, and a roaming one has to
+    // be given somewhere to roam: SetHomePosition alone is a coordinate, not a movement.
+    summon->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+
     if (pet.Roaming && pet.Radius > 0.0f)
+    {
         summon->SetHomePosition(pos);
+        summon->GetMotionMaster()->MoveRandom(pet.Radius);
+    }
     else
         summon->SetWalk(false);
 

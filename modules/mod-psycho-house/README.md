@@ -33,7 +33,7 @@ modules/mod-psycho-house/
   src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
                          neighbourhoods, the houses, the Endeavor engine, the four NPC
                          scripts and the four gameobject scripts
-  src/scripts/Housing/   commands (41 of them), player/world/guild hooks, loader
+  src/scripts/Housing/   commands (43 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
@@ -151,6 +151,24 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twenty-first revision
+
+The twenty pass asked "is there a function for every row" and answered it. This one asked a
+harder question, the one a matrix cannot ask: **can a player reach it**. Four subsystems were
+written, correct, and called by nothing.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 113 | Neighbourhood membership had three working methods and no way in: `InviteToNeighborhood`, `SetMemberRank` and `RemoveFromNeighborhood` were reachable from nothing. The Steward's gossip told the player to type `.housing neighbor invite <name>`, a command that did not exist | `.housing neighbor` with invite, rank and del subcommands and a roster listing (`invite <name>`, `rank <name> <1-2>`, `del <name>`), and the Steward's "Who lives here?" prints the residents with their ranks, resolved from account ids to character names |
+| 114 | `EndeavorMgr::ScaledRequirement` was written, described in doc 02 as the scaling formula, and called by nothing - a street of forty worked exactly as hard as a street of ten | `EndeavorMgr::GetRequired` applies it at the moment a task counts, so the scale is the live resident count rather than a number frozen at load |
+| 115 | `SpawnEndeavorTheming` and the milestone broadcast were the same: written, correct, unreachable. A finished Endeavor changed nothing in the hub and told nobody | `RecomputeMilestone` spawns the theming and broadcasts the favour and milestone worldstates to everybody standing in the street, with a notification |
+| 116 | The four introduction quests - 900100 to 900103 - were rows with no giver, no objective hook and no turn-in. Nothing in the game could offer them, so the content that explains housing to a new player was unreachable and its rewards were unearnable | The Steward offers the next quest in the chain and accepts the turn-in; the objective is a module event and is marked where it happens - a plot bought, three pieces placed, level 2 reached - and re-checked at login for a character who already meets it |
+| 117 | Doc 04's seven achievement conditions had no implementation at all, and 8.3.7 has no achievement DBC entry to put them in | `BuildMilestoneReport` reads all seven out of state the module already keeps, prints them on the Steward and on `.housing milestones`. Nothing new is stored, so a milestone cannot drift from the thing it describes |
+| 118 | The dye station in doc 09 did not exist, the addon's Dyes tab offered six invented colour names, and `DyeDecor` only took effect on the next login | `npc_housing_dyecrafter` sells the palette the realm actually has (`housing_dye`), the addon's tab is built from `C:DYES` instead of a hardcoded list, and `DyeDecor` despawns and respawns the piece so the colour is there when the player turns round |
+| 119 | A pet bed with `roaming = 1` never roamed - the code set a home position and left the creature standing on it - and decor creatures were attackable | `MoveRandom(radius)` for a roaming pet, and every decor creature is both the immune-to-player and immune-to-NPC flags |
+| 120 | A guild village could never grow: `GetOrCreateGuildWing` existed and nothing called it, so a guild of two hundred queued behind fifty-five plots | `FindNeighborhoodFor` routes a guild member to their guild's village and opens a wing when it is full. A guild with no village still gets none - that stays the guild master's decision |
+| 121 | Four manager methods were dead code (`GetNeighborhoodBySlot`, `IsGuest`, `HasVariants`, `SendLine`, plus `GetPlotTemplate` and five accessors nothing read), and no checker could see the class of defect behind findings 113 to 115 | All removed, and `check_cpp.py` gained a `reachable` rule: every `HousingMgr::` method must be called from somewhere, with the core's own `Handlers/` as a second call corpus for the one entry point the core calls. Mutation-tested by deleting the single call site of `InviteToNeighborhood`, which it named |
 
 ## Audit pass, twentieth revision
 

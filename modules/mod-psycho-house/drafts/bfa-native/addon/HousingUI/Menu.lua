@@ -789,9 +789,16 @@ Menu.onShow["map"] = function()
 end
 
 Menu.onShow["dye"] = function()
-    if not H.selectedPlacement then
+    if not Menu.selectedPlacement then
         H.Print("pick a placement in the Placed tab to dye it")
     end
+
+    if not H.dyesReady or #(H.dyes or {}) == 0 then
+        H.dyes = {}
+        H.Send("C:DYES")
+    end
+
+    BuildDyeButtons()
 end
 
 -- ---------------------------------------------------------------------------
@@ -883,7 +890,7 @@ local GUIDE_LINES = {
     "|cffffd100Progression|r C:LEVELUP, C:ENDEAVOR, C:DELIVER, C:CLAIM <milestone>",
     "|cffffd100Devices|r    C:ARCANE (weekly Sphere), C:ARMILLARY (level 6 lights)",
     "|cffffd100Travel|r     C:GRYPHON (gold + cooldown), C:PORTALS, C:GOPORTAL <id>",
-    "|cffffd100Dyes|r      C:DYE <placementId> <0-6>, 0 strips the dye",
+    "|cffffd100Dyes|r      C:DYES -> S:DYE per colour the server has; C:DYE <placement> <colour> [group], 0 strips it",
     "|cffffd100Blueprints|r C:BPIMP <code>, C:BPEXP -> S:BPCODE, C:RESTORE",
     "|cffffd100Place at|r   C:PLACEAT <plot> <decorId>, C:BUILDMODE <0|1>",
 }

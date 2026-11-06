@@ -59,7 +59,11 @@ namespace Housing
             StewardInvite     = GOSSIP_ACTION_INFO_DEF + 6,
             StewardLeave      = GOSSIP_ACTION_INFO_DEF + 7,
             StewardRank       = GOSSIP_ACTION_INFO_DEF + 8,
-            StewardEndeavor   = GOSSIP_ACTION_INFO_DEF + 9   // private neighbourhoods only
+            StewardEndeavor   = GOSSIP_ACTION_INFO_DEF + 9,  // private neighbourhoods only
+            StewardMembers    = GOSSIP_ACTION_INFO_DEF + 10,
+            StewardMilestones = GOSSIP_ACTION_INFO_DEF + 11,
+            StewardTakeQuest  = GOSSIP_ACTION_INFO_DEF + 12,
+            StewardHandIn     = GOSSIP_ACTION_INFO_DEF + 13
         };
 
         enum ContractorAction : uint32
@@ -140,11 +144,26 @@ namespace Housing
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Which houses can I visit?", GOSSIP_SENDER_MAIN, StewardFinder);
             AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Fly me to my plot.", GOSSIP_SENDER_MAIN, StewardGryphon);
 
+            if (neighborhood && neighborhood->GetType() != NeighborhoodPublic)
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Who lives here?", GOSSIP_SENDER_MAIN, StewardMembers);
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "What have I earned?", GOSSIP_SENDER_MAIN, StewardMilestones);
+
+            // The introduction chain has no giver in the world database, so the Steward is
+            // the giver: one option to take the next quest, one to hand it in.
+            if (uint32 const next = sHousingMgr->GetIntroQuestFor(player))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                    Trinity::StringFormat("Tell me about the deed again. (quest {})", next),
+                    GOSSIP_SENDER_MAIN, StewardTakeQuest);
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "I have finished what was asked.",
+                GOSSIP_SENDER_MAIN, StewardHandIn);
+
             player->PlayerTalkClass->SendGossipMenu(1, creature->GetGUID());
             return true;
         }
 
-        bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 action) override
+        bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
         {
             if (!player)
                 return false;
@@ -223,6 +242,57 @@ namespace Housing
                     break;
                 case StewardLeave:
                     Say(player, sHousingMgr->LeaveNeighborhood(player), "You have left the neighbourhood.");
+                    break;
+                case StewardMembers:
+                {
+                    HousingNeighborhood* neighborhood = sHousingMgr->FindNeighborhoodFor(player);
+                    if (!neighborhood)
+                        break;
+
+                    ChatHandler list(player->GetSession());
+                    list.PSendSysMessage("'{}' - {} resident(s):", neighborhood->GetName(),
+                        uint32(neighborhood->GetMembers().size()));
+
+                    for (auto const& member : neighborhood->GetMembers())
+                    {
+                        std::string const name = sHousingMgr->GetAccountCharacterName(member.first);
+                        list.PSendSysMessage("  {} - rank {}", name.empty() ? "(nobody online)" : name,
+                            uint32(member.second));
+                    }
+
+                    list.SendSysMessage("Promote with .housing neighbor rank <name> <1-2>, "
+                        "remove with .housing neighbor del <name>.");
+                    break;
+                }
+                case StewardMilestones:
+                {
+                    ChatHandler earned(player->GetSession());
+                    earned.SendSysMessage("What this house has earned:");
+
+                    std::string const report = sHousingMgr->BuildMilestoneReport(player);
+                    std::string line;
+                    for (char const ch : report)
+                    {
+                        if (ch == '\n')
+                        {
+                            if (!line.empty())
+                                earned.PSendSysMessage("{}", line);
+                            line.clear();
+                        }
+                        else
+                            line += ch;
+                    }
+                    break;
+                }
+                case StewardTakeQuest:
+                    if (sHousingMgr->OfferIntroQuest(player, creature))
+                        Say(player, Ok, "Take it. The deed is yours.");
+                    else
+                        Say(player, Ok, "Nothing left for me to hand over.");
+                    break;
+                case StewardHandIn:
+                    Say(player, sHousingMgr->TurnInIntroQuest(player) ? Ok : NotReady,
+                        "Done. That is one more thing off the list.");
                     break;
                 default:
                     break;
@@ -602,6 +672,114 @@ namespace Housing
             player->PlayerTalkClass->SendGossipMenu(1, creature->GetGUID());
         }
     };
+
+    // -------------------------------------------------------------------------
+    // Dye station
+    // -------------------------------------------------------------------------
+
+    /*
+     * The Dye Crafter from doc 09 - Helmi Cooper and Haleth Turnwater. Retail's dye station
+     * is an NPC that recolours a piece you own; here the palette is `housing_dye`, filled by
+     * the bind script from the colour words the realm's own game objects actually use, and a
+     * colour only appears in the menu when a piece in this house has a variant for it.
+     *
+     * The piece is the last one placed, which is the one a player is looking at when they go
+     * to dye it. `.housing dye <placement> <colour>` still does any piece by id.
+     */
+    class npc_housing_dyecrafter : public CreatureScript
+    {
+    public:
+        npc_housing_dyecrafter() : CreatureScript("npc_housing_dyecrafter") { }
+
+        bool OnGossipHello(Player* player, Creature* creature) override
+        {
+            if (!sHousingMgr->IsEnabled())
+                return false;
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "What colours are there?", GOSSIP_SENDER_MAIN, DyeList);
+
+            // One line per colour the realm can actually make. An empty palette says so
+            // rather than showing a menu that cannot do anything.
+            auto const& palette = sHousingMgr->GetDyes();
+
+            if (palette.empty())
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "There is nothing to dye with yet.",
+                    GOSSIP_SENDER_MAIN, DyeNothing);
+            else
+                for (auto const& dye : palette)
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                        Trinity::StringFormat("Dye it {}.", dye.second),
+                        GOSSIP_SENDER_MAIN, DyeFirst + dye.first);
+
+            player->PlayerTalkClass->SendGossipMenu(1, creature->GetGUID());
+            return true;
+        }
+
+        bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 action) override
+        {
+            if (!player)
+                return false;
+
+            player->PlayerTalkClass->ClearMenus();
+            ChatHandler handler(player->GetSession());
+
+            if (action == DyeList || action == DyeNothing)
+            {
+                auto const& palette = sHousingMgr->GetDyes();
+
+                if (palette.empty())
+                {
+                    handler.SendSysMessage("No dye palette on this realm: `housing_dye` is empty.");
+                    player->PlayerTalkClass->SendCloseGossip();
+                    return true;
+                }
+
+                handler.SendSysMessage("Colours the workbench can mix:");
+
+                for (auto const& dye : palette)
+                    handler.PSendSysMessage("  {} - {} - .housing dye <placement> {}", uint32(dye.first), dye.second, uint32(dye.first));
+
+                handler.SendSysMessage("Placed pieces are listed in the window's Placed tab, or with .housing placed.");
+                player->PlayerTalkClass->SendCloseGossip();
+                return true;
+            }
+
+            // Anything else is a colour: the id is the palette id, offset from the first.
+            uint8 const colour = uint8(action - DyeFirst);
+
+            if (!sHousingMgr->GetDyeName(colour))
+            {
+                player->PlayerTalkClass->SendCloseGossip();
+                return true;
+            }
+
+            HousingPlot* plot = sHousingMgr->GetPlotForEdit(player);
+            HousingHouse* house = plot ? plot->GetHouse() : nullptr;
+
+            if (!house || house->GetPlacements().empty())
+            {
+                handler.SendSysMessage("Put something down first - there is nothing to dye.");
+                player->PlayerTalkClass->SendCloseGossip();
+                return true;
+            }
+
+            HousingResult const result = sHousingMgr->DyeDecor(player,
+                house->GetPlacements().back().Id, 1, colour);
+
+            Say(player, result, "That is the colour.");
+
+            if (result != Ok)
+                handler.SendSysMessage("The last piece placed has no dyed appearance for that colour.");
+
+            player->PlayerTalkClass->SendCloseGossip();
+            return true;
+        }
+
+    private:
+        static constexpr uint32 DyeList = GOSSIP_ACTION_INFO_DEF + 1;
+        static constexpr uint32 DyeNothing = GOSSIP_ACTION_INFO_DEF + 2;
+        static constexpr uint32 DyeFirst = GOSSIP_ACTION_INFO_DEF + 100;   // + palette id
+    };
 }
 
 void AddSC_housing_npcs()
@@ -610,4 +788,5 @@ void AddSC_housing_npcs()
     new Housing::npc_housing_contractor();
     new Housing::npc_housing_coffer();
     new Housing::npc_housing_vendor();
+    new Housing::npc_housing_dyecrafter();
 }

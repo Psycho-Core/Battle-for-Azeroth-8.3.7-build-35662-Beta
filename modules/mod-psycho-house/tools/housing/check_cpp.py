@@ -11,6 +11,9 @@ questions that do not need one:
               chars and comments
   declares    every method declared in a module header has a definition, and every
               Class::Method definition belongs to a class the headers declare
+  reachable   every HousingMgr method is called from somewhere. A manager full of methods
+              nothing calls is a feature the documents describe and the game never reaches -
+              that is exactly how the neighbourhood command went missing
   fields      every `fields[N]` index is inside the column count of the SELECT that
               produced it - the classic way a loader reads the wrong column or reads past
               the end of a row
@@ -150,6 +153,47 @@ def check_definitions(cpp_files, declared, repo):
             elif method not in declared[cls]:
                 fail(os.path.relpath(path, HERE),
                      "{}::{} is defined but not declared in {}.h".format(cls, method, cls))
+
+
+def core_calls(repo):
+    """Symbols the core itself calls, from its handlers.
+
+    `HousingMgr::HandleAddonMessage` is reached from `HandleChatAddonMessage` in the core,
+    which is the one place the core knows the module exists. A module-local checker cannot
+    see that call, so the core's handlers are read as a second call corpus.
+    """
+    text = ""
+    handlers = os.path.join(repo, "src", "server", "game", "Handlers")
+
+    if not os.path.isdir(handlers):
+        return text
+
+    for name in sorted(os.listdir(handlers)):
+        if name.endswith(".cpp"):
+            with open(os.path.join(handlers, name), encoding="utf-8", errors="replace") as handle:
+                text += handle.read()
+
+    return text
+
+
+def check_reachable(cpp_files, repo):
+    """Every method the manager defines has to be called from somewhere else.
+
+    The neighbours' invite / rank / remove were written, correct, and called by nothing: the
+    Steward's gossip told the player to type a command that did not exist. A checker that
+    only asks "is it defined" cannot see that, so this one asks "does anything use it".
+    """
+    corpus = "\n".join(cpp_files.values()) + core_calls(repo)
+    defined = set()
+
+    for text in cpp_files.values():
+        for match in re.finditer(r"\bHousingMgr::(\w+)\s*\(", text):
+            defined.add(match.group(1))
+
+    for name in sorted(defined):
+        # the definition itself is one occurrence; a call site anywhere is a second
+        if len(re.findall(r"\b" + name + r"\b", corpus)) <= 1:
+            fail("src", "HousingMgr::{} is defined and never called".format(name))
 
 
 QUERY = re.compile(r"(?:WorldDatabase|CharacterDatabase|LoginDatabase)\.P?Query\(\s*"
@@ -297,6 +341,7 @@ def main():
 
     declared = declarations(headers)
     check_definitions(cpp_files, declared, args.repo)
+    check_reachable(cpp_files, args.repo)
 
     tables = module_schema()
     for path, text in list(cpp_files.items()) + list(headers.items()):
