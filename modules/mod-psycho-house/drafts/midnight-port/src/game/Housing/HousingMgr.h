@@ -214,6 +214,11 @@ namespace Housing
         /// which the bind script fills by looking at which colour words actually appear in
         /// front of a furniture name - there is no invented colour list here.
         std::map<uint8, std::string> const& GetDyes() const { return _dyes; }
+
+        /// Every key LoadConfig read, with the value it ended up with after clamping. A setting
+        /// that is only in a file is a setting nobody can check; this is what `.housing config`
+        /// prints, and it is the same map the loader filled, not a second reading of the file.
+        std::vector<std::pair<std::string, std::string>> const& GetConfigSnapshot() const { return _configValues; }
         std::string const* GetDyeName(uint8 id) const;
 
         // ---- travel, finder, visit, reservation ------------------------------
@@ -372,6 +377,7 @@ namespace Housing
         std::map<uint32, ShellInfo> _shells;
         std::map<uint32, RoomInfo> _rooms;
         std::map<uint8, std::string> _dyes;
+        std::vector<std::pair<std::string, std::string>> _configValues;
         std::map<uint32, HousingPortal> _portals;
         std::vector<HousingPortal> _portalList;
         std::map<uint32, DecorVariant> _variants;                       // (decor << 16) | group << 8 | colour

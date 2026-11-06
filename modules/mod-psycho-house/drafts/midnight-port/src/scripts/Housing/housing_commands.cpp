@@ -29,6 +29,7 @@ EndScriptData */
 #include "Player.h"
 #include "RBAC.h"
 #include "ScriptMgr.h"
+#include "StringFormat.h"
 #include "WorldSession.h"
 
 #include <algorithm>
@@ -647,6 +648,7 @@ public:
             { "audit",    rbac::RBAC_PERM_COMMAND_GM, false, &HandleAuditCommand,    "Audit housing state" },
             { "save",     rbac::RBAC_PERM_COMMAND_GM, false, &HandleSaveCommand,     "Flush housing state" },
             { "reload",   rbac::RBAC_PERM_COMMAND_GM, false, &HandleReloadCommand,   "Reload housing data" },
+            { "config",   rbac::RBAC_PERM_COMMAND_GM, false, &HandleConfigCommand,   "Every housing setting and the value it took" },
             { "create",   rbac::RBAC_PERM_COMMAND_GM, false, &HandleCreateCommand,   "Create a neighbourhood" },
             { "dissolve", rbac::RBAC_PERM_COMMAND_GM, false, &HandleDissolveCommand, "Dissolve a neighbourhood" },
             { "forcesell", rbac::RBAC_PERM_COMMAND_GM, false, &HandleForceSellCommand, "Force sell a plot" },
@@ -660,15 +662,53 @@ public:
         return commandTable;
     }
 
+    /*
+     * The help text used to be six hand-written lines, which meant the six a player was told
+     * about were the six somebody remembered, and the other thirty-seven were not mentioned
+     * anywhere in the client. It is now read out of the command table itself: whatever the
+     * server dispatches is what this prints, so the two cannot disagree.
+     */
     static bool HandleHousingCommand(ChatHandler* handler, char const* /*args*/)
     {
-        handler->SendSysMessage("Player housing commands:");
-        handler->SendSysMessage("  .housing list | info <plot> | buy <plot> | sell | enter <plot>");
-        handler->SendSysMessage("  .housing home | leave | interior <enter|exit> | tier <n> | name <text> | lock <on|off>");
-        handler->SendSysMessage("  .housing decor [category] [page] | buydecor <id> | placed");
-        handler->SendSysMessage("  .housing place <decorId> <x> <y> <z> <o> <scale> <indoor>");
-        handler->SendSysMessage("  .housing move <placementId> <x> <y> <z> <o> <scale> | remove <placementId>");
-        handler->SendSysMessage("  .housing dir [page] | guest add <name> [flags] | guest del <name>");
+        for (ChatCommand const& outer : ChatHandler::getCommandTable())
+        {
+            if (std::string(outer.Name) != "housing")
+                continue;
+
+            handler->PSendSysMessage("Housing commands ({}):", uint32(outer.ChildCommands.size()));
+
+            for (ChatCommand const& row : outer.ChildCommands)
+            {
+                std::string line = Trinity::StringFormat("  .housing {}", std::string(row.Name));
+
+                if (!row.ChildCommands.empty())
+                {
+                    line += " <";
+
+                    for (std::size_t i = 0; i < row.ChildCommands.size(); ++i)
+                    {
+                        if (i)
+                            line += "|";
+
+                        line += row.ChildCommands[i].Name;
+                    }
+
+                    line += ">";
+                }
+
+                line += " - ";
+                line += row.Help;
+
+                if (row.Permission)
+                    line += " [GM]";
+
+                handler->SendSysMessage(line.c_str());
+            }
+
+            return true;
+        }
+
+        handler->SendSysMessage("The housing command table is not registered.");
         return true;
     }
 
@@ -1183,6 +1223,30 @@ public:
     {
         sHousingMgr->SaveAll();
         handler->SendSysMessage("Housing state flushed.");
+        return true;
+    }
+
+    static bool HandleConfigCommand(ChatHandler* handler, char const* args)
+    {
+        std::string const filter = args ? args : "";
+        auto const& snapshot = sHousingMgr->GetConfigSnapshot();
+
+        if (snapshot.empty())
+        {
+            handler->SendSysMessage("No housing settings have been read - check Housing.Enable and the log.");
+            return true;
+        }
+
+        handler->PSendSysMessage("{} housing settings, as LoadConfig kept them:", uint32(snapshot.size()));
+
+        for (auto const& entry : snapshot)
+        {
+            if (!filter.empty() && entry.first.find(filter) == std::string::npos)
+                continue;
+
+            handler->PSendSysMessage("  {} = {}", entry.first, entry.second);
+        }
+
         return true;
     }
 

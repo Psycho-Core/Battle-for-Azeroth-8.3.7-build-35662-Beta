@@ -44,6 +44,7 @@ local TABS = {
     { id = "endeavors", label = "Endeavors" },
     { id = "blueprints", label = "Blueprints" },
     { id = "guide", label = "Guide" },
+    { id = "settings", label = "Settings" },
 }
 
 local MILESTONES = {
@@ -123,8 +124,24 @@ frame:SetMovable(true)
 frame:EnableMouse(true)
 frame:RegisterForDrag("LeftButton")
 frame:SetScript("OnDragStart", frame.StartMoving)
-frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+frame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+
+    -- Where the window sits is a preference like any other, so it goes in the same table as
+    -- the snapping settings rather than being forgotten at logout.
+    local point, _, relativePoint, x, y = self:GetPoint()
+    H.settings.framePoint = { point, relativePoint, math.floor(x + 0.5), math.floor(y + 0.5) }
+    H.SaveSettings()
+end)
 frame:Hide()
+
+frame:SetScale(H.settings.frameScale or 1.0)
+
+if H.settings.framePoint then
+    local stored = H.settings.framePoint
+    frame:ClearAllPoints()
+    frame:SetPoint(stored[1] or "CENTER", UIParent, stored[2] or "CENTER", stored[3] or 0, stored[4] or 0)
+end
 
 local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -14)
@@ -905,6 +922,111 @@ local guideNote = NewLabel(guidePane, "GameFontDisableSmall", "TOPLEFT", 0, -256
 guideNote:SetWidth(540)
 guideNote:SetText("Every one of these has a /housing equivalent. The menu exists so nobody has to " ..
     "type them, not so the transport is hidden.")
+
+-- ---------------------------------------------------------------------------
+-- Settings
+--
+-- The client half of the configuration. These are the values the transport uses before
+-- anything is sent, so they belong to the player and not to the server's conf file, and they
+-- are written to HousingUIDB as soon as they change.
+-- ---------------------------------------------------------------------------
+
+local settingsPane = NewPane("settings")
+
+local settingsHeader = NewLabel(settingsPane, "GameFontNormalLarge", "TOPLEFT", 0, 0)
+settingsHeader:SetText("Client settings")
+
+local settingsNote = NewLabel(settingsPane, "GameFontDisableSmall", "TOPLEFT", 0, -24)
+settingsNote:SetWidth(540)
+settingsNote:SetText("Saved in HousingUIDB, so they survive a reload and a login. The server's " ..
+    "own settings are in mod-psycho-house.conf; .housing config prints them.")
+
+local settingRows = {}
+local rowIndex = 0
+
+-- One row: a caption on the left, the current value in the middle, and two buttons. Every row
+-- reads its value through the getter it is given, so a refresh never has to know the shape of
+-- H.settings.
+local function AddSettingRow(caption, getter, onStep)
+    local y = -60 - (rowIndex * 30)
+    rowIndex = rowIndex + 1
+
+    local label = NewLabel(settingsPane, "GameFontHighlightSmall", "TOPLEFT", 0, y)
+    label:SetWidth(220)
+    label:SetText(caption)
+
+    local value = NewLabel(settingsPane, "GameFontNormal", "TOPLEFT", 230, y)
+    value:SetWidth(150)
+    value:SetJustifyH("RIGHT")
+
+    local minus = NewButton(settingsPane, "-", 28, 392, y + 2, function()
+        onStep(-1)
+        Menu.RefreshSettings()
+    end)
+
+    local plus = NewButton(settingsPane, "+", 28, 428, y + 2, function()
+        onStep(1)
+        Menu.RefreshSettings()
+    end)
+
+    settingRows[#settingRows + 1] = { getter = getter, label = value, minus = minus, plus = plus }
+end
+
+AddSettingRow("Grid snapping", function()
+    return H.settings.snapEnabled and "on" or "off"
+end, function()
+    H.settings.snapEnabled = not H.settings.snapEnabled
+    H.SaveSettings()
+end)
+
+AddSettingRow("Grid size", function()
+    return string.format("%.2f yd", H.settings.grid)
+end, function(direction)
+    H.StepSetting("grid", direction)
+end)
+
+AddSettingRow("Rotation step", function()
+    return string.format("%.1f deg", math.deg(H.settings.angle))
+end, function(direction)
+    H.StepSetting("angle", direction)
+end)
+
+AddSettingRow("Scale step", function()
+    return string.format("%.2f", H.settings.scaleStep)
+end, function(direction)
+    H.StepSetting("scaleStep", direction)
+end)
+
+AddSettingRow("Window scale", function()
+    return string.format("%.2f", H.settings.frameScale)
+end, function(direction)
+    H.StepSetting("frameScale", direction)
+    frame:SetScale(H.settings.frameScale)
+end)
+
+function Menu.RefreshSettings()
+    for _, row in ipairs(settingRows) do
+        row.label:SetText(row.getter())
+    end
+end
+
+NewButton(settingsPane, "Reset to defaults", 150, 0, -240, function()
+    H.ResetSettings()
+    frame:SetScale(H.settings.frameScale)
+    Menu.RefreshSettings()
+end)
+
+NewButton(settingsPane, "Centre the window", 150, 160, -240, function()
+    H.settings.framePoint = nil
+    H.SaveSettings()
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER")
+end)
+
+Menu.onShow = Menu.onShow or {}
+Menu.onShow.settings = function()
+    Menu.RefreshSettings()
+end
 
 -- ---------------------------------------------------------------------------
 -- Launcher button

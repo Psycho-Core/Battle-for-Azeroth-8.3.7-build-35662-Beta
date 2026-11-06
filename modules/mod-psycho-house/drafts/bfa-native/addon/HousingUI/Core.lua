@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.3.0"
+H.version = "0.5.0"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -340,34 +340,98 @@ H.selectedPlacement = nil
 -- without the server knowing.
 -- ---------------------------------------------------------------------------
 
-H.snap = {
-    enabled = true,
+-- Client settings.
+--
+-- The server has a conf file; this is the client's equivalent, and for the same reason: a
+-- preference that is retyped every session is not a preference. Everything here lives in
+-- HousingUIDB, which the .toc already declares, and one table holds it so there is one place
+-- to read and one place to write.
+--
+-- There is deliberately no second copy: SnapValue reads H.settings directly rather than a
+-- mirrored H.snap table, because two copies of one setting is how a UI ends up showing a
+-- grid size the code is not using.
+local DEFAULTS = {
+    snapEnabled = true,
     grid = 0.5,                 -- yards
     angle = math.pi / 12,       -- 15 degrees
     scaleStep = 0.1,
+    frameScale = 1.0,
+    framePoint = nil,           -- {"TOPLEFT", x, y} once the window has been moved
 }
 
+local LIMITS = {
+    grid = { 0.25, 2.0, 0.25 },
+    angle = { math.pi / 36, math.pi / 4, math.pi / 36 },
+    scaleStep = { 0.05, 0.5, 0.05 },
+    frameScale = { 0.8, 1.3, 0.05 },
+}
+
+H.settings = {}
+
+function H.LoadSettings()
+    HousingUIDB = HousingUIDB or {}
+    local stored = HousingUIDB.settings or {}
+
+    for key, value in pairs(DEFAULTS) do
+        if stored[key] == nil then
+            H.settings[key] = value
+        else
+            H.settings[key] = stored[key]
+        end
+    end
+end
+
+function H.SaveSettings()
+    HousingUIDB = HousingUIDB or {}
+    HousingUIDB.settings = H.settings
+end
+
+function H.ResetSettings()
+    for key, value in pairs(DEFAULTS) do
+        H.settings[key] = value
+    end
+    H.SaveSettings()
+end
+
+-- Nudge a bounded setting by one step and clamp it. Returning the new value keeps the menu
+-- from having to know the limits.
+function H.StepSetting(key, direction)
+    local limit = LIMITS[key]
+    if not limit then
+        return H.settings[key]
+    end
+
+    local low, high, step = limit[1], limit[2], limit[3]
+    local value = (H.settings[key] or low) + (step * direction)
+    value = math.max(low, math.min(high, value))
+    H.settings[key] = value
+    H.SaveSettings()
+    return value
+end
+
+H.LoadSettings()
+
 function H.SnapValue(value)
-    if not H.snap.enabled then
+    if not H.settings.snapEnabled then
         return value
     end
-    return math.floor(value / H.snap.grid + 0.5) * H.snap.grid
+    return math.floor(value / H.settings.grid + 0.5) * H.settings.grid
 end
 
 function H.SnapAngle(value)
-    if not H.snap.enabled then
+    if not H.settings.snapEnabled then
         return value
     end
     local turn = math.pi * 2
     local wrapped = value % turn
-    return math.floor(wrapped / H.snap.angle + 0.5) * H.snap.angle
+    return math.floor(wrapped / H.settings.angle + 0.5) * H.settings.angle
 end
 
 function H.SnapScale(value)
-    if not H.snap.enabled then
+    if not H.settings.snapEnabled then
         return value
     end
-    return math.floor(value / H.snap.scaleStep + 0.5) * H.snap.scaleStep
+    return math.floor(value / H.settings.scaleStep + 0.5) * H.settings.scaleStep
 end
 
 H.dyes = H.dyes or {}
@@ -551,12 +615,18 @@ SlashCmdList["HOUSING"] = function(input)
         Send("C:DYES")
     elseif command == "snap" then
         if rest == "on" or rest == "off" then
-            H.snap.enabled = (rest == "on")
-            Print("grid snapping " .. rest)
+            H.settings.snapEnabled = (rest == "on")
+            H.SaveSettings()
+            Print("grid snapping " .. rest .. ", saved")
         else
-            Print("grid snapping is " .. (H.snap.enabled and "on" or "off") ..
+            Print("grid snapping is " .. (H.settings.snapEnabled and "on" or "off") ..
                 " - /housing snap on | off")
         end
+    elseif command == "settings" then
+        H.Print(string.format("snapping %s, grid %.2f yd, angle %.1f deg, scale step %.2f, window %.2f",
+            H.settings.snapEnabled and "on" or "off", H.settings.grid,
+            math.deg(H.settings.angle), H.settings.scaleStep, H.settings.frameScale))
+        Print("/house lists the same settings with buttons on the Settings tab")
     elseif command == "move" then
         local id, x, y, z, o, scale =
             string.match(rest, "^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")

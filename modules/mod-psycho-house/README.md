@@ -20,6 +20,8 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
+  14-settings-and-commands.md  all 29 server settings, all 44 commands, the six client
+                         settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
                          per-vendor captures
@@ -74,6 +76,7 @@ publish entry ids for the interior quests.
 | 11 | [Verification ledger](11-verification-ledger.md) | Where every number comes from, what the audit checks, what could not be checked here, and the exact size of what is still open. |
 | 12 | [Midnight item port](12-midnight-item-port.md) | Item by item: what a decor id has to be for the module to work, keeping the retail ids, the catalogue-only route, the full port with model and texture conversion, the five DB2 tables, icons, packaging, the order to verify in, and how the housing menus are rebuilt client side. |
 | 13 | [mod-psychohouse design](13-mod-psychohouse-design.md) | The third draft, end to end: one house per character on GM Island, phase allocation in 50000-64999, transient spawns so nothing can be orphaned, the 13 row facility catalogue with prices, the two NPCs, the 78 `creature_template` columns this build's loader reads, a table of what build 35662 provides and what it dropped, and exactly what was checked and what is still open. |
+| 14 | [Settings and commands](14-settings-and-commands.md) | Every server setting with its default, its clamp and whether a reload picks it up; every `.housing` command with its arguments and who may use it; every persisted client preference; the `.housing config` output; and the four lists `check_reference.py` holds in step with the code. |
 | - | [Generated index](generated/source-asset-index.md) | Auto-generated inventory (28 314 named id constants) plus the CSV. |
 
 ## Tools that ship with this
@@ -94,7 +97,8 @@ publish entry ids for the interior quests.
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
-| `tools/housing/audit.py` | Eight checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping. Exits non-zero on a finding. |
+| `tools/housing/audit.py` | Nine checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping, and the settings-and-commands reference. Exits non-zero on a finding. |
+| `tools/housing/check_reference.py` | The four lists that have to agree: conf keys, the keys `LoadConfig` records, and the keys doc 14 lists; the command table and the commands doc 14 lists; the addon's defaults and the client settings doc 14 lists; and that in-game help is read out of the command table rather than typed out. Mutation-tested four ways - a dropped setting row, a renamed command, a renamed client default and a deleted `note` call were each reported. |
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
 | `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL and all three drafts against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
@@ -151,6 +155,23 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twenty-second revision
+
+The twenty-first pass asked whether a feature had been written. This one asked the question
+the user actually asked: is the *package* complete - every system, every feature, every
+setting. Settings turned out to be the weakest layer, because a setting has three places to
+live (the conf file, the code that reads it, the document that explains it) and nothing was
+comparing them.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 122 | Fourteen of the 29 settings were documented nowhere but the conf file's own comments, and there was no single place listing what the realm can change | Doc 14: every setting with its default, its clamp and whether a reload picks it up; every command with its arguments and permission |
+| 123 | Nothing could tell a setting that was being applied from one that was being ignored. `LoadConfig` read 29 keys and forgot every value the moment it had copied it into a field | `LoadConfig` records each key with the value it kept after clamping, `GetConfigSnapshot` returns that record, and `.housing config [filter]` prints it. A key missing from the output was never read |
+| 124 | `.housing` with no argument printed six lines of help for 44 commands, and the six were whichever ones somebody remembered when the text was written | The help walks `ChatHandler::getCommandTable()`, so it prints every dispatched command with its arguments, its help string and a GM marker. It cannot drift, because it is not a second list |
+| 125 | The client had one setting, grid snapping, and it lived in a table that was rebuilt at every login: `/housing snap off` lasted until the next reload | `H.settings`, persisted in `HousingUIDB.settings`, with `H.snap` deleted rather than mirrored - two copies of one setting is how a UI ends up showing a grid size the code is not using |
+| 126 | There was no way to change the client settings except by typing at them, and no Settings pane in the window | A tenth tab: snapping, grid size, rotation step, scale step and window scale, each a value with - and +, plus reset and centre. The window's position and scale are preferences too, so they persist as well |
+| 127 | Four lists had to agree and nothing compared them: conf keys, `LoadConfig`'s keys, doc 14's keys, the command table and doc 14's commands, the addon defaults and doc 14's client keys | `check_reference.py`, run as the audit's ninth check, mutation-tested four ways: a dropped setting row, a renamed command, a renamed client default and a deleted `note` call were each reported |
 
 ## Audit pass, twenty-first revision
 
