@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
  `blueprint`    INT UNSIGNED NOT NULL DEFAULT 0,
  `name`      VARCHAR(64) NOT NULL DEFAULT '',
  `locked`     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ `plotMask`   TINYINT UNSIGNED NOT NULL DEFAULT 63 COMMENT 'audiences allowed on the yard, bit per audience',
+ `houseMask`  TINYINT UNSIGNED NOT NULL DEFAULT 62 COMMENT 'audiences allowed inside, bit per audience',
  `budget_indoor`  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'cached, recomputed on load',
  `budget_outdoor` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'cached, recomputed on load',
  `purchase_time`  INT UNSIGNED NOT NULL DEFAULT 0,

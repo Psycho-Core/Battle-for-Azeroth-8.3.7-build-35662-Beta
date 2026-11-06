@@ -328,6 +328,7 @@ end
 
 Menu.onShow = Menu.onShow or {}
 Menu.onShow.house = function()
+    RefreshPermissions()
     H.Send("C:NEIGHBORHOOD")
     H.amenities = {}
     H.Send("C:VAREA")
@@ -335,6 +336,82 @@ Menu.onShow.house = function()
         H.Send("C:PLOT|" .. H.plotIndex)
     end
 end
+
+-- ---------------------------------------------------------------------------
+-- Permissions
+--
+-- Retail's model: the yard and the interior are separate, each with its own audiences. The
+-- buttons are the six bits the server stores, drawn from the masks the server sent rather
+-- than from anything remembered here.
+-- ---------------------------------------------------------------------------
+
+local permHeader = NewLabel(housePane, "GameFontNormalSmall", "TOPLEFT", 0, -276)
+permHeader:SetText("Who may come in")
+
+local permRows = {}
+local permState = { plot = 0, house = 0 }
+
+local PERM_SPACES = {
+    { id = "plot", space = 0, label = "Yard" },
+    { id = "house", space = 1, label = "Inside" },
+}
+
+for spaceIndex, entry in ipairs(PERM_SPACES) do
+    local label = NewLabel(housePane, "GameFontDisableSmall", "TOPLEFT", 0, -300 - ((spaceIndex - 1) * 46))
+    label:SetText(entry.label)
+    label:SetWidth(50)
+
+    permRows[entry.id] = {}
+
+    for audienceIndex, audience in ipairs(H.AUDIENCES) do
+        local button = NewButton(housePane, audience.label, 78,
+            52 + ((audienceIndex - 1) * 82), -298 - ((spaceIndex - 1) * 46), nil)
+
+        button:SetScript("OnClick", function()
+            -- Flip one bit with arithmetic rather than the bit library: the masks are small
+            -- and the addon already avoids depending on anything outside the default UI.
+            local mask = permState[entry.id] or 0
+            local rest = mask % (audience.bit * 2)
+
+            if rest >= audience.bit then
+                mask = mask - audience.bit
+            else
+                mask = mask + audience.bit
+            end
+
+            H.Send(string.format("C:ACCESS|%d|%d", entry.space, mask))
+            H.Send("C:PLOT|" .. tostring(H.plotIndex or 0))
+        end)
+
+        permRows[entry.id][audience.bit] = button
+    end
+end
+
+local function RefreshPermissions()
+    local plot = H.plotInfo
+    if not plot then
+        return
+    end
+
+    permState.plot = plot.plotMask or 0
+    permState.house = plot.houseMask or 0
+
+    for _, space in ipairs(PERM_SPACES) do
+        local mask = permState[space.id] or 0
+
+        for audienceIndex, audience in ipairs(H.AUDIENCES) do
+            local button = permRows[space.id][audience.bit]
+
+            if math.floor(mask / audience.bit) % 2 == 1 then
+                button:SetButtonState("PUSHED", true)
+            else
+                button:SetButtonState("NORMAL", false)
+            end
+        end
+    end
+end
+
+Menu.RefreshPermissions = RefreshPermissions
 
 local function RefreshHouse()
     local nbr = H.neighbourhood
@@ -980,6 +1057,7 @@ local GUIDE_LINES = {
     "|cffffd100Move|r       C:MOVE <placementId> <x> <y> <z> <o> <scale> [pitch] [roll]",
     "|cffffd100Remove|r     C:REMOVE <placementId>",
     "|cffffd100Guests|r     C:GUESTLIST, C:GUESTADD <name> <flags>, C:GUESTDEL <name>",
+    "|cffffd100Access|r     C:ACCESS <0 yard|1 inside> <mask> -> S:RESULT; the masks come back on S:PLOTINFO",
     "|cffffd100Amenities|r  C:VAREA -> S:VAREA per amenity, S:VAREAEND at the end",
     "|cffffd100Finder|r     C:FINDER -> S:FINDER per open neighbourhood, S:FINDEREND",
     "|cffffd100Visit|r      C:VISIT <neighborhood> <plot>, C:JOIN <neighborhood>, C:RESERVE <plot>",
@@ -1149,6 +1227,8 @@ local function StorePlotInfo(fields)
         budgetOutdoor = tonumber(fields[12]),
         usedIndoor = tonumber(fields[13]),
         usedOutdoor = tonumber(fields[14]),
+        plotMask = tonumber(fields[15]) or 0,
+        houseMask = tonumber(fields[16]) or 0,
     }
 
     H.plotIndex = H.plotInfo.index
@@ -1167,6 +1247,12 @@ H.handlers["PLOTINFO"] = function(fields)
         previousPlotInfo(fields)
     end
     StorePlotInfo(fields)
+
+    -- A mask that changed at the Steward or in another window arrives with the plot, not with
+    -- its own opcode, so the buttons follow the same line the card does.
+    if Menu.RefreshPermissions then
+        Menu.RefreshPermissions()
+    end
 end
 
 H.amenities = H.amenities or {}

@@ -63,7 +63,21 @@ namespace Housing
             StewardMembers    = GOSSIP_ACTION_INFO_DEF + 10,
             StewardMilestones = GOSSIP_ACTION_INFO_DEF + 11,
             StewardTakeQuest  = GOSSIP_ACTION_INFO_DEF + 12,
-            StewardHandIn     = GOSSIP_ACTION_INFO_DEF + 13
+            StewardHandIn     = GOSSIP_ACTION_INFO_DEF + 13,
+
+            // Ten permission toggles: five audiences on the yard, the same five inside. One
+            // named id each, because a gossip id that is arithmetic is a gossip id a switch
+            // cannot name, and an unnamed case is a case nothing can check.
+            StewardYardAnyone      = GOSSIP_ACTION_INFO_DEF + 14,
+            StewardYardNeighbours  = GOSSIP_ACTION_INFO_DEF + 15,
+            StewardYardGuild       = GOSSIP_ACTION_INFO_DEF + 16,
+            StewardYardParty       = GOSSIP_ACTION_INFO_DEF + 17,
+            StewardYardFriends     = GOSSIP_ACTION_INFO_DEF + 18,
+            StewardHouseAnyone     = GOSSIP_ACTION_INFO_DEF + 19,
+            StewardHouseNeighbours = GOSSIP_ACTION_INFO_DEF + 20,
+            StewardHouseGuild      = GOSSIP_ACTION_INFO_DEF + 21,
+            StewardHouseParty      = GOSSIP_ACTION_INFO_DEF + 22,
+            StewardHouseFriends    = GOSSIP_ACTION_INFO_DEF + 23
         };
 
         enum ContractorAction : uint32
@@ -82,6 +96,40 @@ namespace Housing
             CofferArcane      = GOSSIP_ACTION_INFO_DEF + 4,
             CofferArmillary   = GOSSIP_ACTION_INFO_DEF + 5
         };
+
+        /// One permission checkbox: the id the menu sends, the space and the audience bit.
+        struct AccessToggle
+        {
+            uint32 Action;
+            uint8  Space;
+            uint8  Bit;
+            char const* Label;
+            char const* SpaceLabel;
+        };
+
+        // Guests are not on the list: the guest menu owns that bit, and a mask without it would
+        // be a house nobody can be invited to, which SetAccess refuses to store anyway.
+        AccessToggle const kAccessToggles[] = {
+            { StewardYardAnyone,      SpacePlot,  AudienceAnyone,    "Anyone",     "Yard" },
+            { StewardYardNeighbours,  SpacePlot,  AudienceNeighbors, "Neighbours", "Yard" },
+            { StewardYardGuild,       SpacePlot,  AudienceGuild,     "Guild",      "Yard" },
+            { StewardYardParty,       SpacePlot,  AudienceParty,     "Party",      "Yard" },
+            { StewardYardFriends,     SpacePlot,  AudienceFriends,   "Friends",    "Yard" },
+            { StewardHouseAnyone,     SpaceHouse, AudienceAnyone,    "Anyone",     "Inside" },
+            { StewardHouseNeighbours, SpaceHouse, AudienceNeighbors, "Neighbours", "Inside" },
+            { StewardHouseGuild,      SpaceHouse, AudienceGuild,     "Guild",      "Inside" },
+            { StewardHouseParty,      SpaceHouse, AudienceParty,     "Party",      "Inside" },
+            { StewardHouseFriends,    SpaceHouse, AudienceFriends,   "Friends",    "Inside" }
+        };
+
+        bool IsAccessToggle(uint32 action)
+        {
+            for (AccessToggle const& toggle : kAccessToggles)
+                if (toggle.Action == action)
+                    return true;
+
+            return false;
+        }
 
         void Say(Player* player, HousingResult result, char const* ok)
         {
@@ -148,6 +196,26 @@ namespace Housing
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Who lives here?", GOSSIP_SENDER_MAIN, StewardMembers);
 
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "What have I earned?", GOSSIP_SENDER_MAIN, StewardMilestones);
+
+            // The permission checkboxes, for the owner standing at the Steward with no addon.
+            // Guests are shown but not offered: the list is the guest menu's job, and a mask
+            // without the guest bit would be a house nobody can be invited to.
+            if (HousingPlot* owned = sHousingMgr->GetOwnedPlot(player))
+            {
+                if (HousingHouse* ownedHouse = owned->GetHouse())
+                {
+                    for (AccessToggle const& toggle : kAccessToggles)
+                    {
+                        uint8 const mask = ownedHouse->GetAccessMask(HousingSpace(toggle.Space));
+                        bool const allowed = (mask & toggle.Bit) != 0;
+
+                        AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                            Trinity::StringFormat("{}: {} {}", toggle.SpaceLabel, toggle.Label,
+                                allowed ? "allowed" : "blocked"),
+                            GOSSIP_SENDER_MAIN, toggle.Action);
+                    }
+                }
+            }
 
             // The introduction chain has no giver in the world database, so the Steward is
             // the giver: one option to take the next quest, one to hand it in.
@@ -264,6 +332,40 @@ namespace Housing
                         "remove with .housing neighbor del <name>.");
                     break;
                 }
+                case StewardYardAnyone:
+                case StewardYardNeighbours:
+                case StewardYardGuild:
+                case StewardYardParty:
+                case StewardYardFriends:
+                case StewardHouseAnyone:
+                case StewardHouseNeighbours:
+                case StewardHouseGuild:
+                case StewardHouseParty:
+                case StewardHouseFriends:
+                {
+                    if (!IsAccessToggle(action))
+                        break;
+
+                    HousingPlot* owned = sHousingMgr->GetOwnedPlot(player);
+                    HousingHouse* house = owned ? owned->GetHouse() : nullptr;
+
+                    for (AccessToggle const& toggle : kAccessToggles)
+                    {
+                        if (toggle.Action != action || !house)
+                            continue;
+
+                        uint8 mask = house->GetAccessMask(HousingSpace(toggle.Space));
+                        mask ^= toggle.Bit;
+
+                        Say(player, sHousingMgr->SetAccess(player, toggle.Space, mask),
+                            "Permission changed.");
+                        break;
+                    }
+
+                    OnGossipHello(player, creature);
+                    return true;
+                }
+
                 case StewardMilestones:
                 {
                     ChatHandler earned(player->GetSession());
@@ -679,7 +781,7 @@ namespace Housing
 
     /*
      * The Dye Crafter from doc 09 - Helmi Cooper and Haleth Turnwater. Retail's dye station
-     * is an NPC that recolours a piece you own; here the palette is `housing_dye`, filled by
+     * is an NPC that recolours a piece the player owns; here the palette is `housing_dye`, filled by
      * the bind script from the colour words the realm's own game objects actually use, and a
      * colour only appears in the menu when a piece in this house has a variant for it.
      *

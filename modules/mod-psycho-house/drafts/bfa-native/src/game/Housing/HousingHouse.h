@@ -69,6 +69,19 @@ namespace Housing
         bool IsLocked() const { return _locked; }
         void SetLocked(bool locked);
 
+        /// The two permission masks: which audiences may stand on the yard and which may come
+        /// inside. Independent of `locked`, which is a blanket denial on top of them.
+        uint8 GetAccessMask(HousingSpace space) const { return space == SpaceHouse ? _houseMask : _plotMask; }
+        void SetAccessMask(HousingSpace space, uint8 mask)
+        {
+            if (space == SpaceHouse)
+                _houseMask = mask;
+            else
+                _plotMask = mask;
+
+            MarkDirty();
+        }
+
         uint32 GetBudget(bool indoor) const
         {
             return indoor ? BudgetIndoor(_tier) : BudgetOutdoor(_tier);
@@ -137,6 +150,8 @@ namespace Housing
         std::string _name;
         bool _locked;
         bool _nightMode;
+        uint8 _plotMask;
+        uint8 _houseMask;
         uint8 _shellId;
         uint8 _roomsOwned;
         bool _decorLoaded;

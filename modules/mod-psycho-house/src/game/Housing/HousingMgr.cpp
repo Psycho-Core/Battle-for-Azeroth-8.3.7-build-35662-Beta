@@ -29,6 +29,7 @@
 #include "Map.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
+#include "SocialMgr.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "SharedDefines.h"
@@ -525,7 +526,8 @@ void HousingMgr::LoadNeighborhoods()
 
     if (QueryResult result = CharacterDatabase.Query(
         "SELECT `id`, `neighborhoodId`, `plotIndex`, `ownerAccount`, `ownerGuid`, `ownerName`, `tier`, "
-        "`blueprint`, `name`, `locked`, `shell_id`, `rooms_owned`, `night_mode` FROM `character_housing`"))
+        "`blueprint`, `name`, `locked`, `shell_id`, `rooms_owned`, `night_mode`, `plotMask`, "
+        "`houseMask` FROM `character_housing`"))
     {
         do
         {
@@ -560,6 +562,8 @@ void HousingMgr::LoadNeighborhoods()
                 house->SetShellId(fields[10].GetUInt8());
                 house->SetRoomsOwned(fields[11].GetUInt8());
                 house->SetNightMode(fields[12].GetUInt8() != 0);
+                house->SetAccessMask(SpacePlot, fields[13].GetUInt8());
+                house->SetAccessMask(SpaceHouse, fields[14].GetUInt8());
             }
         }
         while (result->NextRow());
@@ -983,8 +987,9 @@ void HousingMgr::EnforceAccess(Player* player, PlayerState& state)
 
     // Access is re-read every half second rather than cached: a guest whose permission was
     // taken away while standing in the yard is moved out on the next tick, and so is anybody
-    // standing in a plot that has just been sold underneath them.
-    if (CheckAccess(player, plot) >= AccessGuest)
+    // standing in a plot that has just been sold underneath them. The yard test, because this
+    // is the yard; the interior has its own mask and its own check when a player walks in.
+    if (CheckSpace(player, plot, SpacePlot) >= AccessNeighbor)
         return;
 
     TC_LOG_INFO("housing", "Ejecting %s from neighbourhood %u plot %u: no access",
@@ -1171,7 +1176,54 @@ void HousingMgr::ResolvePlot(Player* player, PlayerState& state)
 // Access
 // -----------------------------------------------------------------------------
 
-HousingAccess HousingMgr::CheckAccess(Player* player, HousingPlot* plot)
+/*
+ * Which audiences a visitor belongs to, as a bitmask. One relationship can be several: a
+ * guildmate who lives next door and is in the party is three bits, and any one of them passing
+ * the house's mask is enough.
+ */
+uint8 HousingMgr::AudienceBits(Player* player, HousingPlot* plot)
+{
+    uint8 bits = AudienceAnyone;
+
+    if (!player || !plot)
+        return bits;
+
+    uint32 const accountId = player->GetSession()->GetAccountId();
+
+    if (HousingNeighborhood* neighborhood = plot->GetNeighborhood())
+        if (neighborhood->IsMember(accountId))
+            bits |= AudienceNeighbors;
+
+    if (GetGuestFlags(plot->GetHousingId(), accountId) & GuestFlagEnter)
+        bits |= AudienceGuests;
+
+    if (Player* owner = ObjectAccessor::FindPlayerByLowGUID(plot->GetOwnerGuid().GetCounter()))
+    {
+        if (owner->GetGuildId() && owner->GetGuildId() == player->GetGuildId())
+            bits |= AudienceGuild;
+
+        if (owner->GetGroup() && owner->GetGroup() == player->GetGroup())
+            bits |= AudienceParty;
+
+        // The owner is online, so their own friend list can be read as well as the visitor's.
+        if (player->GetSocial() && player->GetSocial()->HasFriend(owner->GetGUID()))
+            bits |= AudienceFriends;
+
+        if (owner->GetSocial() && owner->GetSocial()->HasFriend(player->GetGUID()))
+            bits |= AudienceFriends;
+    }
+    else if (player->GetSocial() && plot->GetOwnerGuid() && player->GetSocial()->HasFriend(plot->GetOwnerGuid()))
+    {
+        // The owner is offline and their list cannot be read, so the visitor's list stands in.
+        // That is more permissive than retail in one direction; the alternative is no friend
+        // audience at all while the owner is away, which is when visitors actually arrive.
+        bits |= AudienceFriends;
+    }
+
+    return bits;
+}
+
+HousingAccess HousingMgr::CheckSpace(Player* player, HousingPlot* plot, HousingSpace space)
 {
     if (!player || !plot)
         return AccessNone;
@@ -1187,18 +1239,32 @@ HousingAccess HousingMgr::CheckAccess(Player* player, HousingPlot* plot)
     if (accountId == plot->GetOwnerAccount())
         return AccessOwner;
 
-    if (GetGuestFlags(plot->GetHousingId(), accountId) & 0x01)
+    uint8 const audience = AudienceBits(player, plot);
+    bool const guest = (audience & AudienceGuests) != 0;
+
+    // A guest is allowed wherever the guest list says so, whatever the mask holds: the list is
+    // the exception mechanism, not another audience competing with the mask.
+    if (guest)
         return AccessGuest;
 
-    if (HousingNeighborhood* neighborhood = plot->GetNeighborhood())
-        if (neighborhood->IsMember(accountId))
-            return AccessNeighbor;
+    HousingHouse const* house = plot->GetHouse();
 
-    if (HousingHouse const* house = plot->GetHouse())
-        if (!house->IsLocked())
-            return AccessNeighbor;
+    // A locked house is a blanket denial: the owner, a guest and a GM get in, nobody else,
+    // whatever the mask says. That is what the lock is for.
+    if (space == SpaceHouse && house && house->IsLocked())
+        return AccessStranger;
+
+    uint8 const mask = house ? house->GetAccessMask(space) : kAudienceAll;
+
+    if (audience & mask)
+        return AccessNeighbor;
 
     return AccessStranger;
+}
+
+HousingAccess HousingMgr::CheckAccess(Player* player, HousingPlot* plot)
+{
+    return CheckSpace(player, plot, SpacePlot);
 }
 
 HousingPlot* HousingMgr::GetOwnedPlot(Player* player)
@@ -1477,6 +1543,35 @@ HousingResult HousingMgr::RenameHouse(Player* player, std::string const& name)
     return Ok;
 }
 
+HousingResult HousingMgr::SetAccess(Player* player, uint8 space, uint8 mask)
+{
+    if (!_enabled)
+        return Disabled;
+
+    if (space > SpaceHouse)
+        return NotAllowedHere;
+
+    HousingPlot* plot = GetOwnedPlot(player);
+    if (!plot || !plot->GetHouse())
+        return NoHouse;
+
+    if (!CanEdit(player, plot))
+        return NotOwner;
+
+    // Anyone and Guests are not removable: a house with neither would be a room its own owner
+    // cannot describe, and a guest list that does not grant entry is not a guest list.
+    mask |= AudienceGuests;
+
+    plot->GetHouse()->SetAccessMask(HousingSpace(space), mask);
+
+    // Applies immediately rather than at the next tick: somebody standing in the yard when the
+    // mask closes is moved out on the same half second, which is what retail does.
+    if (PlayerState* state = GetPlayerState(player))
+        EnforceAccess(player, *state);
+
+    return Ok;
+}
+
 HousingResult HousingMgr::SetLocked(Player* player, bool locked)
 {
     if (!_enabled)
@@ -1627,7 +1722,9 @@ HousingResult HousingMgr::EnterHouse(Player* player, bool enter)
     if (!plot || !plot->IsOwned())
         return NoHouse;
 
-    if (CheckAccess(player, plot) < AccessGuest)
+    // The interior's own mask, not the yard's: a house that is open to neighbours but closed
+    // to strangers has to be able to say so.
+    if (CheckSpace(player, plot, SpaceHouse) < AccessNeighbor)
         return GuestRestricted;
 
     if (enter)

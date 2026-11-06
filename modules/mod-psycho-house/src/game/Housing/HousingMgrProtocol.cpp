@@ -524,13 +524,17 @@ void HousingMgr::HandlePlotInfo(Player* player, PlayerState& state, uint8 plotIn
     uint32 const accountId = player->GetSession()->GetAccountId();
     HousingHouse* house = plot->GetHouse();
 
-    SendChunk(player, Trinity::StringFormat("S:PLOTINFO|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+    // The two masks ride at the end so the addon can draw the permission checkboxes from the
+    // same line that gives it the house card.
+    SendChunk(player, Trinity::StringFormat("S:PLOTINFO|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
         uint32(plotIndex), plot->GetBiomeId(), plot->GetPrice(), uint32(plot->GetSizeClass()),
         uint32(plot->GetStateFor(accountId)), uint32(house ? house->GetTier() : 0),
         plot->GetOwnerName(), house ? house->GetName() : std::string(),
         uint32(house && house->IsLocked() ? 1 : 0),
         house ? house->GetBudget(true) : 0, house ? house->GetBudget(false) : 0,
-        house ? house->GetUsedBudget(true) : 0, house ? house->GetUsedBudget(false) : 0));
+        house ? house->GetUsedBudget(true) : 0, house ? house->GetUsedBudget(false) : 0,
+        uint32(house ? house->GetAccessMask(SpacePlot) : kAudienceDefaultPlot),
+        uint32(house ? house->GetAccessMask(SpaceHouse) : kAudienceDefaultHouse)));
 }
 
 void HousingMgr::HandleDirectory(Player* player, PlayerState& state, uint32 page)

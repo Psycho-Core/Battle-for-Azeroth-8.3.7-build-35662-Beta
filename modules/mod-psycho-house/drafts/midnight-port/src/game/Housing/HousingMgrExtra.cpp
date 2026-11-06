@@ -2849,6 +2849,24 @@ namespace Housing
             return true;
         }
 
+        if (op == "ACCESS")
+        {
+            // `C:ACCESS <plot|house> <mask>`. The mask is the audience bits, so the addon can
+            // send exactly what its checkboxes hold rather than a list of toggles.
+            uint32 space = 0;
+            uint32 mask = 0;
+
+            if (fields.size() < 3 || !HousingAddon::ParseUInt(fields[1], space)
+                || !HousingAddon::ParseUInt(fields[2], mask))
+            {
+                SendResult(player, "ACCESS", NotAllowedHere);
+                return true;
+            }
+
+            SendResult(player, "ACCESS", SetAccess(player, uint8(space), uint8(mask)));
+            return true;
+        }
+
         if (op == "PET")
         {
             uint32 placementId = 0;

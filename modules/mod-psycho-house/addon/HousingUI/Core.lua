@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.6.0"
+H.version = "0.7.0"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -173,6 +173,40 @@ H.handlers["PLOTINFO"] = function(fields)
         tostring(fields[2]), tostring(fields[3]), tostring(fields[4]), tostring(fields[6]),
         tostring(fields[7]), tostring(fields[8]), tostring(fields[9]),
         tostring(fields[13]), tostring(fields[11]), tostring(fields[14]), tostring(fields[12])))
+
+    -- The two permission masks, kept so the House tab draws what the server holds rather than
+    -- its own idea of it.
+    H.plotMasks = {
+        plot = tonumber(fields[15]) or 0,
+        house = tonumber(fields[16]) or 0,
+    }
+
+    if H.OnPlotMasks then
+        H.OnPlotMasks()
+    end
+end
+
+-- Audience bits, in the order the server numbers them. Kept here rather than in Menu.lua so
+-- one table feeds the print, the checkboxes and the command.
+H.AUDIENCES = {
+    { bit = 0x01, key = "anyone",    label = "Anyone" },
+    { bit = 0x02, key = "neighbors", label = "Neighbours" },
+    { bit = 0x04, key = "guild",     label = "Guild" },
+    { bit = 0x08, key = "party",     label = "Party" },
+    { bit = 0x10, key = "friends",   label = "Friends" },
+    { bit = 0x20, key = "guests",    label = "Guests" },
+}
+
+function H.AudienceMask(names)
+    local mask = 0
+
+    for _, audience in ipairs(H.AUDIENCES) do
+        if names[audience.key] then
+            mask = mask + audience.bit
+        end
+    end
+
+    return mask
 end
 
 H.handlers["RESULT"] = function(fields)

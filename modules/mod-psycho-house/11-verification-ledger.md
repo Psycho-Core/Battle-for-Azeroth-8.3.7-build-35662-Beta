@@ -798,3 +798,51 @@ this code and no server executed this SQL. The new core calls were read against 
 `Player::GetSummonedBattlePet`, `Player::GetBattlePetCountForSpecies`, `sBattlePetSpeciesStore`,
 `BattlePetSpeciesEntry::CreatureID`, `QuaternionData::fromEulerAnglesZYX` - and the column
 widths against the schema, but "read against the header" is not "linked and run".
+
+### 6.20 The twenty-fourth revision: two rows that described a data structure
+
+The twenty-third pass compared behaviour against doc 01. This one checked the two rows in doc 02
+and doc 06 that describe a *shape* rather than a behaviour - "two spaces, five audiences, one bit
+per audience, stored on `character_housing`" - and the shape was not there. Neither document was
+lying on purpose; both were written from the retail model, and nothing compared a sentence about
+a bitfield with the columns in the schema. That is the same failure mode as the rotation angles
+in the previous revision, which suggests the general rule: a document sentence that names a data
+structure has to be checked against the schema, not against the prose beside it.
+
+What was actually in the code: `locked`, a per-account guest list, and neighbourhood membership.
+So a house could be open to neighbours or closed to everyone, and nothing in between. There was
+no guild audience, no party audience and no friends audience, and no way for the yard and the
+interior to differ.
+
+What is there now:
+
+| Piece | Where |
+| --- | --- |
+| `plotMask`, `houseMask` on `character_housing`, `HousingAudience` bits | schema, `HousingDefines.h` |
+| `AudienceBits` (six relationships resolved per visitor), `CheckSpace` (one space against its own mask) | `HousingMgr.cpp` |
+| `ResolvePlot` asks the yard, `EnterHouse` asks the interior | `HousingMgr.cpp` |
+| `SetAccess` persists and re-runs `EnforceAccess` on the same call | `HousingMgr.cpp` |
+| `.housing access`, ten Steward checkboxes, six toggles per space on the House tab | `housing_commands.cpp`, `HousingNpc.cpp`, `Menu.lua` |
+| Masks on `S:PLOTINFO`, `C:ACCESS` to change them | `HousingMgrProtocol.cpp`, `HousingMgrExtra.cpp` |
+
+Three asymmetries were decided rather than discovered, and all three are in doc 14 sec.5: the
+guest bit is always stored, the friends audience falls back to the visitor's list when the owner
+is offline, and `locked` is checked before the mask rather than being a seventh audience.
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; the new methods, the ten gossip ids (each with a named `case` arm, which is what the gossip rule demands), the widened `S:PLOTINFO` |
+| `check_lua.py` | 0 findings; the permission buttons, the audience table, the `PLOTINFO` handler |
+| `check_protocol.py` | 0 findings; `C:ACCESS` dispatched, `S:PLOTINFO` at 16 fields and the addon reads 16 |
+| `check_sql_columns.py` | 0 findings; `plotMask` and `houseMask` against the module's own schema |
+| `check_reference.py` | 0 findings; 31 settings, 47 commands, all listed |
+| `check_mariadb.py` | 0 findings; the two new columns parsed |
+| `verify_drafts.py` | 0 findings; both drafts rebuilt |
+| `check_coverage.py` | 0 findings |
+| `check_psychohouse.py` | 0 findings; draft C untouched |
+| `audit.py` | 0 findings across 9 checks |
+
+And the standing caveat, unchanged in every revision: no compiler ran over this code and no
+server executed this SQL. `PlayerSocial::HasFriend`, `Player::GetGroup`, `Player::GetGuildId`
+and `ObjectAccessor::FindPlayerByLowGUID` were each read against this tree's headers before being
+used; that is the strongest claim available here and it is weaker than a build.
