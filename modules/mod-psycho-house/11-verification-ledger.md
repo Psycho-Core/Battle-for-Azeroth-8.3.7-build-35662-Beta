@@ -706,3 +706,54 @@ Still true, and still the limit of every claim in this folder: nothing here was 
 no SQL was executed against a server. The new C++ was read against the headers it calls -
 `QuestStatus`, `Player::AddQuest`, `AreaExploredOrEventHappens`, `RewardQuest`,
 `MotionMaster::MoveRandom`, `UNIT_FLAG_IMMUNE_TO_NPC` - and the new SQL was parsed as text.
+
+### 6.18 The twenty-second revision: settings, and the three places a setting lives
+
+The twenty-first revision asked whether a feature had been written. This one asked the
+question behind the request - is the package complete - and the answer was that the feature
+layer was in better shape than the settings layer, for a structural reason: a setting lives in
+three places at once.
+
+1. a line in a conf file, which an operator edits;
+2. a field in `LoadConfig`, which the server reads;
+3. a sentence in a document, which explains it.
+
+Nothing here compared the three. Doc 14 is that document, `.housing config` makes the second
+one observable, and `check_reference.py` compares all three plus the command and client lists,
+which is how the following were found:
+
+- **Fourteen of the 29 settings** appeared in no document at all. The conf file's own comments
+  were the only explanation of `Housing.SaveInterval`, `Housing.RateLimit.Messages`,
+  `Housing.Sell.RefundPercent`, `Housing.Phasing.PlotScoped`, the four interior coordinates and
+  the four Town Center coordinates.
+- **No way to see what the server had actually kept.** Six settings are clamped - `SaveInterval`
+  to a floor of 5, `RateLimit.Messages` to 1, `Sell.RefundPercent` to 0-100, the three device
+  levels to 1 - so the value in the file is not always the value in use, and there was no way
+  to tell. `LoadConfig` now records every key with the value it kept and `.housing config`
+  prints the record.
+- **Help that described six of 44 commands.** The six were typed by hand, so they were the six
+  somebody remembered. The help now walks the command table.
+- **A client preference that lasted one session.** Grid snapping was a table literal rebuilt at
+  every login, so `/housing snap off` survived until the next reload. It is now one of six
+  persisted settings, with no mirrored copy for the UI to fall out of step with.
+- **A window that could not be configured at all.** The client half had no settings surface;
+  the Settings tab is now the tenth, and the window's own position and scale are preferences
+  like the rest.
+
+| checker | result |
+| --- | --- |
+| `check_reference.py` | 0 findings; 29 settings in conf = 29 recorded = 29 documented, 44 commands = 44 documented, 6 client settings = 6 documented, help read from the table. Mutation-tested four ways (dropped setting row, renamed command, renamed client default, deleted `note` call) and each was named |
+| `check_cpp.py` | 0 findings; the snapshot, the `note` helpers and the new command included |
+| `check_lua.py` | 0 findings; ten tabs, the settings pane and the persisted table parse |
+| `check_protocol.py` | 0 findings; no opcode changed this round |
+| `check_sql_columns.py` | 0 findings; no new SQL |
+| `check_mariadb.py` | 0 findings; no new SQL |
+| `verify_drafts.py` | 0 findings; both drafts rebuilt after the addon change |
+| `check_coverage.py` | 0 findings; catalogue and stock unchanged |
+| `check_psychohouse.py` | 0 findings; draft C untouched by this round |
+| `audit.py` | 0 findings across 9 checks, the reference check now among them |
+
+Unchanged and still true: nothing here was compiled and no SQL was executed. The new C++ is
+`std::vector` of string pairs, a lambda that formats through `ostringstream`, and a reader of
+`ChatHandler::getCommandTable()` - all of it read against the headers in this tree, none of it
+built.

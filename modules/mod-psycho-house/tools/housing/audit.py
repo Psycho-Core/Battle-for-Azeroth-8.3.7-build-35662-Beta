@@ -318,6 +318,23 @@ def check_mapping(findings):
         findings.append(("mapping", rel(decor_sql), "%d rows with a zero game object" % zeros))
 
 
+def check_reference(findings):
+    """Run the settings-and-commands checker as one of the audit's own steps.
+
+    The other checks in this file look at the documents as prose; this one looks at the
+    three lists that have to match the code, and delegates so there is one implementation
+    of that comparison rather than two that can drift.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "check_reference.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith("  "):
+                findings.append(("reference", rel(script), line.strip()))
+
+
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
@@ -327,6 +344,7 @@ CHECKS = {
     "csv": check_csv,
     "sql": check_sql,
     "mapping": check_mapping,
+    "reference": check_reference,
 }
 
 

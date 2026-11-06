@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <sstream>
 
 namespace
 {
@@ -82,45 +83,82 @@ HousingMgr::HousingMgr()
 
 void HousingMgr::LoadConfig()
 {
+    _configValues.clear();
+
+    // One line per setting, written as the loader reads it, so what `.housing config` prints is
+    // what LoadConfig kept after clamping - not a second, hopeful reading of the same file.
+    auto note = [this](char const* key, long double value)
+    {
+        std::ostringstream out;
+        out << value;
+        _configValues.emplace_back(key, out.str());
+    };
+
+    auto noteText = [this](char const* key, std::string const& value)
+    {
+        _configValues.emplace_back(key, value);
+    };
+
     _enabled = sConfigMgr->GetBoolDefault("Housing.Enable", false);
+    note("Housing.Enable", _enabled ? 1 : 0);
     _housingMapId = uint32(sConfigMgr->GetIntDefault("Housing.Map.Id", 0));
+    note("Housing.Map.Id", _housingMapId);
     _interiorMapId = uint32(sConfigMgr->GetIntDefault("Housing.Interior.Map", 0));
+    note("Housing.Interior.Map", _interiorMapId);
     _saveInterval = uint32(std::max(5, sConfigMgr->GetIntDefault("Housing.SaveInterval", kSaveIntervalSeconds)));
+    note("Housing.SaveInterval", _saveInterval);
     _rateLimit = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.RateLimit.Messages", int32(kRateLimitMessages))));
+    note("Housing.RateLimit.Messages", _rateLimit);
     _homeCooldown = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Homestone.Cooldown", 900)));
+    note("Housing.Homestone.Cooldown", _homeCooldown);
     _refundPercent = uint32(std::min(100, std::max(0, sConfigMgr->GetIntDefault("Housing.Sell.RefundPercent", 50))));
+    note("Housing.Sell.RefundPercent", _refundPercent);
     _plotScopedPhasing = sConfigMgr->GetBoolDefault("Housing.Phasing.PlotScoped", true);
+    note("Housing.Phasing.PlotScoped", _plotScopedPhasing ? 1 : 0);
 
     // Eviction is off unless the realm asks for it: a house that vanishes because its owner
     // took a break is the loudest possible bug report.
     _evictDays = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Evict.Days", 0)));
+    note("Housing.Evict.Days", _evictDays);
     _graceDays = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Evict.GraceDays", 7)));
+    note("Housing.Evict.GraceDays", _graceDays);
     _populationCap = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.PopulationCap", 0)));
+    note("Housing.Neighborhood.PopulationCap", _populationCap);
 
     // The Steward's gryphon. Cost is gold; a zero cost makes it free, a zero cooldown makes it
     // instant, and both are allowed because the two are separate decisions.
     _gryphonCost = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Gryphon.Cost", 5)));
+    note("Housing.Gryphon.Cost", _gryphonCost);
     _gryphonCooldown = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Gryphon.Cooldown", 300)));
+    note("Housing.Gryphon.Cooldown", _gryphonCooldown);
 
     // Dissolving a private or guild neighbourhood nobody lives in any more. 0 residents means
     // the sweep never runs: an empty street might be one somebody is about to move into.
     _minResidents = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MinResidents", 0)));
+    note("Housing.Neighborhood.MinResidents", _minResidents);
     _dissolveGraceDays = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Neighborhood.DissolveGraceDays", 30)));
+    note("Housing.Neighborhood.DissolveGraceDays", _dissolveGraceDays);
 
     // The two level devices.
     _arcaneLevel = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Arcanostorage.Level", 10)));
+    note("Housing.Arcanostorage.Level", _arcaneLevel);
     _arcaneCooldownDays = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Arcanostorage.CooldownDays", 7)));
+    note("Housing.Arcanostorage.CooldownDays", _arcaneCooldownDays);
     _armillaryLevel = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Armillary.Level", 6)));
+    note("Housing.Armillary.Level", _armillaryLevel);
 
     _guildWings = sConfigMgr->GetBoolDefault("Housing.Guild.Wings", true);
+    note("Housing.Guild.Wings", _guildWings ? 1 : 0);
 
     // The stone on an empty plot. 0 keeps the plots bare, which is what a realm without a
     // suitable gameobject wants; any entry that exists in gameobject_template gets a stone
     // spawned at every free plot with ScriptName `go_housing_cornerstone` on it.
     _cornerstoneEntry = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Plot.CornerstoneEntry", 0)));
+    note("Housing.Plot.CornerstoneEntry", _cornerstoneEntry);
 
     std::string const mode = sConfigMgr->GetStringDefault("Housing.Map.Mode", "native");
     _nativeMap = mode != "anchor";
+    noteText("Housing.Map.Mode", mode);
 
     _interiorAnchor = Position(
         sConfigMgr->GetFloatDefault("Housing.Interior.X", 0.0f),
@@ -133,6 +171,15 @@ void HousingMgr::LoadConfig()
         sConfigMgr->GetFloatDefault("Housing.TownCenter.Y", 0.0f),
         sConfigMgr->GetFloatDefault("Housing.TownCenter.Z", 0.0f),
         sConfigMgr->GetFloatDefault("Housing.TownCenter.O", 0.0f));
+
+    note("Housing.Interior.X", _interiorAnchor.m_positionX);
+    note("Housing.Interior.Y", _interiorAnchor.m_positionY);
+    note("Housing.Interior.Z", _interiorAnchor.m_positionZ);
+    note("Housing.Interior.O", _interiorAnchor.m_positionO);
+    note("Housing.TownCenter.X", _townCenter.m_positionX);
+    note("Housing.TownCenter.Y", _townCenter.m_positionY);
+    note("Housing.TownCenter.Z", _townCenter.m_positionZ);
+    note("Housing.TownCenter.O", _townCenter.m_positionO);
 
     if (!_enabled)
         return;
