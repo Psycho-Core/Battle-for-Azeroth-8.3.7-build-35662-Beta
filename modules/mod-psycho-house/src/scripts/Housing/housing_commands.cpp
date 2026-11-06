@@ -628,6 +628,7 @@ public:
             { "remove",   0, false, &HandleRemoveCommand,     "Remove a placed decor item" },
             { "tilt",     0, false, &HandleTiltCommand,       "Tilt a placed piece on its two axes" },
             { "pet",      0, false, &HandlePetCommand,        "Put your summoned companion on a pet bed" },
+            { "access",   0, false, &HandleAccessCommand,     "Who may stand on the yard and who may come inside" },
             { "dir",      0, false, &HandleDirectoryCommand,  "Neighbourhood directory" },
             { "finder",   0, false, &HandleFinderCommand,     "List public neighbourhoods" },
             { "visit",    0, false, &HandleVisitCommand,      "Visit a plot in another neighbourhood" },
@@ -1188,6 +1189,127 @@ public:
         handler->PSendSysMessage("Tilt: {}", ResultText(sHousingMgr->MoveDecor(player, placementId,
             placement->X, placement->Y, placement->Z, placement->O, placement->Scale,
             pitch / 57.2958f, roll / 57.2958f)));
+        return true;
+    }
+
+    /*
+     * `.housing access <plot|house> <mask|names>`. The mask is the six audience bits, and names
+     * are accepted because nobody should have to convert 0x22 in their head to allow
+     * neighbours and guests. Printing the current masks is the default.
+     */
+    static bool HandleAccessCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        Housing::HousingPlot* plot = sHousingMgr->GetOwnedPlot(player);
+        if (!plot || !plot->GetHouse())
+        {
+            handler->SendSysMessage("You do not own a house.");
+            return true;
+        }
+
+        std::istringstream stream(args ? args : "");
+        std::string spaceText;
+        stream >> spaceText;
+
+        auto describe = [](uint8 mask)
+        {
+            std::string out;
+
+            struct { uint8 bit; char const* name; } const names[] = {
+                { Housing::AudienceAnyone, "anyone" },
+                { Housing::AudienceNeighbors, "neighbours" },
+                { Housing::AudienceGuild, "guild" },
+                { Housing::AudienceParty, "party" },
+                { Housing::AudienceFriends, "friends" },
+                { Housing::AudienceGuests, "guests" }
+            };
+
+            for (auto const& entry : names)
+            {
+                if (!(mask & entry.bit))
+                    continue;
+
+                if (!out.empty())
+                    out += ", ";
+
+                out += entry.name;
+            }
+
+            return out.empty() ? std::string("nobody") : out;
+        };
+
+        if (spaceText.empty())
+        {
+            handler->PSendSysMessage("Yard:    {} ({})",
+                describe(plot->GetHouse()->GetAccessMask(Housing::SpacePlot)),
+                uint32(plot->GetHouse()->GetAccessMask(Housing::SpacePlot)));
+            handler->PSendSysMessage("Inside:  {} ({})",
+                describe(plot->GetHouse()->GetAccessMask(Housing::SpaceHouse)),
+                uint32(plot->GetHouse()->GetAccessMask(Housing::SpaceHouse)));
+            handler->SendSysMessage("Usage: .housing access <yard|house> <mask|names>");
+            return true;
+        }
+
+        uint8 space = 0;
+
+        if (spaceText == "yard" || spaceText == "plot" || spaceText == "0")
+            space = Housing::SpacePlot;
+        else if (spaceText == "house" || spaceText == "inside" || spaceText == "1")
+            space = Housing::SpaceHouse;
+        else
+        {
+            handler->SendSysMessage("Usage: .housing access <yard|house> <mask|names>");
+            return true;
+        }
+
+        std::string rest;
+        std::getline(stream, rest);
+
+        uint32 mask = 0;
+        std::istringstream numbers(rest);
+        std::string token;
+        bool named = false;
+
+        while (numbers >> token)
+        {
+            uint32 parsed = 0;
+
+            if (std::sscanf(token.c_str(), "%u", &parsed) == 1)
+            {
+                mask |= parsed;
+                continue;
+            }
+
+            named = true;
+
+            if (token == "anyone" || token == "all")
+                mask |= Housing::AudienceAnyone;
+            else if (token == "neighbours" || token == "neighbors")
+                mask |= Housing::AudienceNeighbors;
+            else if (token == "guild")
+                mask |= Housing::AudienceGuild;
+            else if (token == "party")
+                mask |= Housing::AudienceParty;
+            else if (token == "friends")
+                mask |= Housing::AudienceFriends;
+            else if (token == "guests")
+                mask |= Housing::AudienceGuests;
+            else if (token == "none" || token == "nobody")
+                mask = 0;
+            else
+            {
+                handler->PSendSysMessage("Unknown audience '{}'. Use anyone, neighbours, guild, "
+                    "party, friends, guests, none, or a mask number.", token);
+                return true;
+            }
+        }
+
+        (void)named;
+
+        handler->PSendSysMessage("Access: {}", ResultText(sHousingMgr->SetAccess(player, space, uint8(mask))));
         return true;
     }
 

@@ -218,18 +218,25 @@ pet->GetMotionMaster()->MoveRandom(6.0f);   // Roaming
 
 ## 5. Permissions matrix (supporting design for doc 02 sec.2.5)
 
-Two independent spaces, five audiences, evaluated on the housing tick:
+Two independent spaces, six audiences, evaluated on the housing tick:
 
 ```
-plotMask  : who may stand on the yard
-houseMask : who may enter the interior
+plotMask  : who may stand on the yard     default 0x3F (everyone)
+houseMask : who may enter the interior    default 0x3E (everyone but a stranger)
 audience  : anyone | neighbors | guild | party | friends | guests
 ```
 
-Stored as two `TINYINT`-per-audience bitfields on `character_housing`. Evaluation order:
-owner -> GM -> guest list -> audience match. Re-evaluated every 500 ms on the housing tick;
-on loss of permission the player is teleported to the plot's front door (plot) or outside
-the house (interior). That reproduces retail's "ejected, no cooldown, checked frequently".
+Stored as two `TINYINT` masks on `character_housing`, one bit per audience. Evaluation order:
+owner -> GM -> guest list -> `locked` -> audience match. Re-evaluated every 500 ms on the
+housing tick; on loss of permission the player is teleported to the plot's front door (yard)
+or outside the house (interior). That reproduces retail's "ejected, no cooldown, checked
+frequently", and `SetAccess` also calls the check directly so a change made in the UI applies
+before the next tick.
+
+Two asymmetries are deliberate and are written down in doc 14 sec.5: the guest bit is always
+in the mask because a mask without it is a house nobody can be invited to, and the friends
+audience falls back to the visitor's own list when the owner is offline, because the owner's
+list cannot be read then.
 
 The prototype's per-house guest table survives as the explicit "guests" audience, which is
 how Pepe-style invites and "book club at 8" work in practice.

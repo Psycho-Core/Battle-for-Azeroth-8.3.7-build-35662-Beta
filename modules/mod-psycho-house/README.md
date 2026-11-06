@@ -156,6 +156,19 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
 
+## Audit pass, twenty-fourth revision
+
+The twenty-third pass compared doc 01 row by row. This one checked the two rows that described a
+data structure rather than a behaviour, and both were describing something that did not exist.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 133 | Doc 02 and doc 06 both said permissions were two independent spaces with a bit per audience, stored on `character_housing`. There was no such column and no such bitfield: access was `locked`, a guest list, and neighbourhood membership, so a house could not be open to neighbours but closed to strangers, and there was no guild, party or friends audience at all | `plotMask` and `houseMask` on `character_housing`, six `HousingAudience` bits, `AudienceBits` resolving a visitor's relationships, `CheckSpace` evaluating one space against its own mask. The yard and the interior are asked separately - `ResolvePlot` asks the yard, `EnterHouse` the interior |
+| 134 | Nothing could set a permission. `CheckAccess` had no counterpart, so the masks would have been six columns of default values | Three ways in: `.housing access` with a yard or house argument, ten checkboxes on the Steward's gossip, and six toggle buttons per space on the House tab fed by `C:ACCESS` and the masks that now ride on `S:PLOTINFO` |
+| 135 | "Immediate ejection on permission change" was a tick away. A half second is enough for the owner to conclude the button did nothing, and for a player who lost access to walk further in | `SetAccess` calls `EnforceAccess` on the same call, then the tick keeps re-asserting it |
+| 136 | The friends audience had no way to work while the owner was offline, and nothing said so | Documented rather than hidden: the visitor's friend list stands in when the owner is not logged in. The owner's list is read as well, whenever there is an owner to read it from |
+| 137 | `locked` and the mask were two mechanisms with no stated relationship, so a locked house with a wide mask and an unlocked one with a narrow mask could behave identically or not, depending on the order of the checks | Stated and coded: the guest list is an exception that the mask cannot override, `locked` is a blanket denial checked before the mask, and the guest bit is always stored so a mask cannot lock out the people it is meant to admit |
+
 ## Audit pass, twenty-third revision
 
 The twenty-second pass fixed the settings layer. This one went back to the retail reference and

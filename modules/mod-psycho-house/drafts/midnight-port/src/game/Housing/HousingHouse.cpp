@@ -29,6 +29,7 @@ namespace Housing
 
 HousingHouse::HousingHouse(uint32 id, uint8 plotIndex)
     : _id(id), _plotIndex(plotIndex), _tier(1), _blueprint(0), _locked(false), _nightMode(false),
+      _plotMask(kAudienceDefaultPlot), _houseMask(kAudienceDefaultHouse),
     _shellId(0), _roomsOwned(0),
     _decorLoaded(false), _spawned(false), _spawnMap(nullptr), _dirty(false), _usedIndoor(0), _usedOutdoor(0)
 {
@@ -411,10 +412,10 @@ void HousingHouse::Flush()
     CharacterDatabase.DirectPExecute(
         "UPDATE `character_housing` SET `tier` = {}, `blueprint` = {}, `name` = '{}', `locked` = {}, "
         "`budget_indoor` = {}, `budget_outdoor` = {}, `shell_id` = {}, `rooms_owned` = {}, "
-        "`night_mode` = {}, `last_edited` = {} WHERE `id` = {}",
+        "`night_mode` = {}, `plotMask` = {}, `houseMask` = {}, `last_edited` = {} WHERE `id` = {}",
         uint32(_tier), _blueprint, _name, uint32(_locked ? 1 : 0), _usedIndoor, _usedOutdoor,
         uint32(_shellId), uint32(_roomsOwned), uint32(_nightMode ? 1 : 0),
-        uint32(std::time(nullptr)), _id);
+        uint32(_plotMask), uint32(_houseMask), uint32(std::time(nullptr)), _id);
 
     _dirty = false;
 }

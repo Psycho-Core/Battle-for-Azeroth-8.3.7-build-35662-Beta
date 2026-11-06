@@ -153,6 +153,12 @@ namespace Housing
         // ---- access ----------------------------------------------------------
 
         HousingAccess CheckAccess(Player* player, HousingPlot* plot);
+        /// The same question, asked of the yard or the interior.
+        HousingAccess CheckSpace(Player* player, HousingPlot* plot, HousingSpace space);
+        /// Which audiences this visitor belongs to, as HousingAudience bits.
+        uint8 AudienceBits(Player* player, HousingPlot* plot);
+        /// Owner-facing: set one space's audience mask.
+        HousingResult SetAccess(Player* player, uint8 space, uint8 mask);
         HousingPlot* GetOwnedPlot(Player* player);
         HousingPlot* GetPlotForEdit(Player* player);
         PlayerState* GetPlayerState(Player* player);

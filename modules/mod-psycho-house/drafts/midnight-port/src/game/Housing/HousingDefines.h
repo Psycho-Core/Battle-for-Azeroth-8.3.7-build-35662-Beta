@@ -277,6 +277,37 @@ namespace Housing
         GuestFlagManage = 0x04
     };
 
+    /*
+     * Retail's permission model: five audiences plus the explicit guest list, evaluated
+     * independently for the yard and for the interior. Both masks live on the house, so two
+     * houses on the same street can have different rules.
+     *
+     * `locked` is not a sixth audience - it is a blanket denial that only the owner, the guest
+     * list and a GM get past. The masks say who *else* may come in, and a locked house ignores
+     * them. Without that split, "locked" and "nobody in the mask" would be two spellings of
+     * the same state with different behaviour when the mask is later edited.
+     */
+    enum HousingAudience : uint8
+    {
+        AudienceAnyone    = 0x01,   // no relationship needed
+        AudienceNeighbors = 0x02,   // a member of the neighbourhood
+        AudienceGuild     = 0x04,   // same guild as the owner
+        AudienceParty     = 0x08,   // same group as the owner
+        AudienceFriends   = 0x10,   // on the owner's friend list, or the owner on theirs
+        AudienceGuests    = 0x20    // the explicit per-house guest list
+    };
+
+    constexpr uint8 kAudienceAll      = 0x3F;   // every bit above
+    constexpr uint8 kAudienceDefaultPlot  = 0x3F;   // a yard is public ground by default
+    constexpr uint8 kAudienceDefaultHouse = 0x3E;   // everything but a stranger
+
+    /// Which of the two permission spaces a request is about.
+    enum HousingSpace : uint8
+    {
+        SpacePlot  = 0,
+        SpaceHouse = 1
+    };
+
     enum EndeavorTaskType : uint8
     {
         TaskKillCreature   = 0,

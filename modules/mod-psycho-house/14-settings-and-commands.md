@@ -73,7 +73,7 @@ being applied from a setting that is being ignored.
 
 ## 3. Every command
 
-46 commands, of which 39 are player commands and 7 are GM commands. `.housing` with no argument
+47 commands, of which 40 are player commands and 7 are GM commands. `.housing` with no argument
 prints this list from the command table itself, so the in-game help cannot drift from what the
 server dispatches.
 
@@ -89,7 +89,8 @@ server dispatches.
 | `.housing interior` | `<enter|exit>` | player | step through the door into the interior or back out |
 | `.housing tier` | `<1-12>` | player | set the house level directly (a GM shortcut; the normal route is GrantHouseXp) |
 | `.housing name` | `<text>` | player | rename the house, up to 64 characters |
-| `.housing lock` | `<on|off>` | player | lock or unlock the plot; a locked plot admits nobody but the owner |
+| `.housing lock` | `<on|off>` | player | lock or unlock the plot; a locked house admits nobody but the owner, a guest and a GM |
+| `.housing access` | `<yard|house> <mask|names>` | player | who may stand on the yard and who may come inside, as six audience bits or as names (`anyone neighbours guild party friends guests none`); no argument prints both masks |
 | `.housing decor` | `[category] [page]` | player | the catalogue, filtered by faction and category, paged |
 | `.housing buydecor` | `<id>` | player | buy a decor item with gold or the row's currency |
 | `.housing placed` | `-` | player | every placement in the house with id, decor, position and scale |
@@ -151,7 +152,37 @@ The snap is client-side by design: the server clamps and confirms every position
 a player who turns snapping off sends precise numbers and a player who leaves it on sends
 rounded ones, and the server cannot tell the difference.
 
-## 5. What is a table and not a setting
+## 5. The permission model
+
+Two spaces, six audiences, stored as one byte each per house: `plotMask` and `houseMask` on
+`character_housing`. The bits are `HousingAudience`; the spaces are `HousingSpace`.
+
+| Bit | Value | Audience |
+| --- | --- | --- |
+| `AudienceAnyone` | `0x01` | no relationship needed |
+| `AudienceNeighbors` | `0x02` | a member of the neighbourhood |
+| `AudienceGuild` | `0x04` | same guild as the owner |
+| `AudienceParty` | `0x08` | same group as the owner |
+| `AudienceFriends` | `0x10` | on the owner's friend list, or the owner on theirs |
+| `AudienceGuests` | `0x20` | the explicit per-house guest list |
+
+Defaults are `0x3F` for the yard (a yard is public ground) and `0x3E` for the interior
+(everything but a stranger). `locked` is not a seventh audience: it is a blanket denial that
+only the owner, a guest and a GM get past, and it is checked before the mask.
+
+Three details worth writing down, because each is a decision rather than a mechanic:
+
+- **Guests are always in the mask.** `SetAccess` sets the bit whether the caller asked for it
+  or not. A house whose mask excluded guests would be a house nobody could be invited to.
+- **Friends while the owner is offline.** The owner's own friend list cannot be read when they
+  are not logged in, so the visitor's list stands in. That is more permissive than retail in
+  one direction, and the alternative is no friend audience at all during the hours when
+  visitors actually turn up.
+- **A change applies on the same half second.** `SetAccess` calls `EnforceAccess` directly
+  instead of waiting for the tick, so closing the yard moves the people standing in it out
+  straight away.
+
+## 6. What is a table and not a setting
 
 Five numbers that live in the world database rather than the conf file, because they change
 without a restart and because an operator may want to edit one row rather than the whole file:
@@ -168,7 +199,10 @@ without a restart and because an operator may want to edit one row rather than t
 seventh colour inserts a row rather than patching the addon. The addon asks for the palette with
 `C:DYES` and rebuilds its Dyes tab from the answer.
 
-## 6. What has no setting, and why
+The permission masks are not settings and not a table either: they are per-house data, edited
+by the owner, and they live on `character_housing` next to the tier and the name.
+
+## 7. What has no setting, and why
 
 Three constants stay in the header rather than the conf file, because a realm that changes them
 changes the shape of the content rather than its numbers:
