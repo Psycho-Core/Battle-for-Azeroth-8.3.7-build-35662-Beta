@@ -602,3 +602,57 @@ What the checker cannot see: whether a game object entry exists in the server's
 `gameobject_template`. The source tree declares the constant; only a world database says
 whether the row is there. That is the same wall every other check in this folder hits, and
 `bind_housing_content.sql` is the tool that reports it on a real realm.
+
+### 6.16 The twentieth revision: a matrix read against the source, row by row
+
+The question was whether everything is there, so the method was to take doc 02's feature
+matrix - 62 rows across eight subsystems - and ask each row for a function. A row with a file
+and a symbol is implemented; a row with only prose was the finding. Eleven subsystems
+answered "no", and `HousingResult` had one defect that no reading of the documents could
+have found because it is only wrong to a compiler.
+
+What was checked, and how:
+
+- **Enumerator names.** Read out of `HousingDefines.h` with `grep -o`, not by eye: one
+  duplicate (`NeighborhoodFull` at 17 and 33), now a gap at 33 and nothing at 33.
+- **Every symbol the new code calls.** 33 names - `CheckAccess`, `ReleaseViewer`,
+  `ForceSellPlot`, `CanBuyRoom`, `GetRoomsForPlot`, `AnchorForAmenity`, `AddStorage`,
+  `HasUnlocked`, `GenerateNeighborhoodName`, `RunDissolutionSweep`, `GetOrCreateGuildWing`,
+  `ScaledRequirement`, `SpawnEndeavorTheming` and the rest - grepped in `src/game/Housing`
+  for both a declaration and a `HousingMgr::` definition. Two did not exist when the code was
+  written and both were fixed rather than documented: `HousingMgr::FindPlotAt` and the
+  `RoomInfo` accessor path.
+- **Core API, not memory.** `AddGossipItemFor` in `ScriptedGossip.h`, `CreatureScript::OnGossipHello`
+  and `OnGossipSelect` at `ScriptMgr.h:459/462`, `GameObjectScript::OnGossipHello` and `OnGossipSelect`
+  at `ScriptMgr.h:498/501`, `Player::HasAchieved` at `Player.h:2516`,
+  `WorldSession::SendNotification` at `WorldSession.h:1079`. Four things the matrix wanted are
+  not in this core and the documents say so rather than pretending: no achievement-complete
+  hook (reconciled at login), no item-gained hook (loot and craft tasks are defined and never
+  emitted), no reachable `Weather` setter (the Armillary phases and relights), and no
+  `SendListInventory` on a creature that is not a vendor (the vendor menu is gossip).
+- **The conf files, against the code.** Nine keys the C++ reads were in neither draft; eight
+  keys were listed as "not read yet" and read; four `PsychoHouse.*` keys from a different
+  draft were presented as this module's. `verify_drafts.py` compares the two sets in both
+  directions now and was mutation-tested by deleting one key, which it named.
+- **The tables themselves.** Every pipe table in doc 02 and the readme was parsed for cell
+  count against its header after the rewrite - one row was wrong (`/housing snap on|off`
+  inside a cell) and was fixed, because a broken table is a document that renders as one long
+  line.
+
+The checkers, all of them, on the tree as it stands:
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; 21 files in `src/game/Housing`, every query against a column the schema has |
+| `check_lua.py` | 0 findings; the addon parses, two files, nine tabs |
+| `check_protocol.py` | 0 findings; every `C:` the addon sends is dispatched and every `S:` it sends is read |
+| `check_sql_columns.py` | 0 findings; 10 statements against the build's own loader queries |
+| `check_mariadb.py` | 0 findings; every file parsed with sqlglot, read as MariaDB 11.8.6 takes it |
+| `verify_drafts.py` | 0 findings; both drafts, both conf files, the shared `src` trees agree |
+| `check_coverage.py` | 0 findings; 571 + 350 catalogue rows and their stock, in both directions |
+| `check_psychohouse.py` | 0 findings; draft C, its phases, its SQL and its conf shape |
+| `audit.py` | 0 findings across 8 checks |
+
+What none of them can say: that this compiles, or that a realm accepts it. Both remain the
+limit named in section 3, and nothing in this revision claims otherwise - the new C++ was
+read against the headers it calls and the new SQL was parsed as text, and that is all.

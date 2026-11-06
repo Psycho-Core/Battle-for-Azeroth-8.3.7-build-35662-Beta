@@ -82,7 +82,13 @@ public:
         if (!player || !quest)
             return;
 
-        sHousingEndeavor->OnEvent(player, TaskCompleteQuest, quest->GetQuestId(), 1);
+        uint32 const questId = quest->GetQuestId();
+        sHousingEndeavor->OnEvent(player, TaskCompleteQuest, questId, 1);
+
+        // A quest can be the source of a piece of decor. This is the only non-vendor source
+        // with a hook of its own: there is no item-gained hook for drops, and achievements
+        // are reconciled at login by HousingMgr::SyncAchievementDecor.
+        sHousingMgr->GrantSourceDecor(player, SourceQuest, questId);
     }
 
     void OnPetBattleFinish(Player* player) override

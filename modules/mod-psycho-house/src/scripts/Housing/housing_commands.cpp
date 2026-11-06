@@ -370,6 +370,68 @@ namespace
             ? "claimed" : ResultText(Housing::EndeavorIncomplete));
         return true;
     }
+
+    /*
+     * Choosing the Endeavor. A public neighbourhood is given one by the rotation and cannot
+     * argue; a private one is the founder's household and takes up whatever it likes, which
+     * is the only way a group of friends can pick a theme they can actually finish.
+     */
+    static bool HandleChooseEndeavorCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        uint32 const id = args ? ParseId(args) : 0;
+
+        HousingNeighborhood* neighborhood = sHousingMgr->FindNeighborhoodFor(player);
+        if (!neighborhood)
+        {
+            handler->SendSysMessage("You are not in a neighbourhood.");
+            return true;
+        }
+
+        if (neighborhood->GetType() != Housing::NeighborhoodPrivate)
+        {
+            handler->SendSysMessage("Only a private neighbourhood chooses its own Endeavor.");
+            return true;
+        }
+
+        if (neighborhood->GetRank(player->GetSession()->GetAccountId()) < 3)
+        {
+            handler->SendSysMessage("Only the founder of the neighbourhood may choose.");
+            return true;
+        }
+
+        if (!id)
+        {
+            handler->SendSysMessage("Endeavors this neighbourhood can take up:");
+
+            uint32 const current = sHousingEndeavor->GetActiveId(neighborhood->GetId());
+            for (Housing::EndeavorInfo const& info : sHousingEndeavor->GetInfos())
+                handler->PSendSysMessage("  {} - {}{}", info.Id, info.Name,
+                    info.Id == current ? " (running now)" : "");
+
+            handler->SendSysMessage("Usage: .housing choose <id>");
+            return true;
+        }
+
+        if (!sHousingEndeavor->GetInfo(id))
+        {
+            handler->PSendSysMessage("There is no Endeavor {}.", id);
+            return true;
+        }
+
+        if (sHousingEndeavor->HasActive(neighborhood->GetId()))
+        {
+            handler->SendSysMessage("One is already running here; it has to finish first.");
+            return true;
+        }
+
+        sHousingEndeavor->Start(neighborhood->GetId(), id);
+        handler->PSendSysMessage("The neighbourhood takes up Endeavor {}.", id);
+        return true;
+    }
 }
 
 class housing_commandscript : public CommandScript
@@ -420,6 +482,7 @@ public:
             { "endeavor", 0, false, &HandleEndeavorCommand,   "Endeavour progress here" },
             { "deliver",  0, false, &HandleDeliverCommand,    "Turn in an Endeavour delivery" },
             { "claim",    0, false, &HandleClaimCommand,      "Claim a milestone reward" },
+            { "choose",   0, false, &HandleChooseEndeavorCommand, "Choose the Endeavor in a private neighbourhood" },
             { "guest",    0, false, &HandleGuestListCommand,  "Manage plot guests", guestCommandTable },
             { "audit",    rbac::RBAC_PERM_COMMAND_GM, false, &HandleAuditCommand,    "Audit housing state" },
             { "save",     rbac::RBAC_PERM_COMMAND_GM, false, &HandleSaveCommand,     "Flush housing state" },

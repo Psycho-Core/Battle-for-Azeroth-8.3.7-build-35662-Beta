@@ -307,6 +307,29 @@ def main():
     if not draft_c:
         fail("mod-psychohouse", "its SQL inserts no rows at all")
 
+    # every config key the module reads is a key both drafts document, and the other way
+    # round: a key in the file that nothing reads is a key an operator will set for nothing.
+    read_keys = set()
+    src_root = os.path.join(HERE, "src")
+    for folder, _, names in os.walk(src_root):
+        for name in names:
+            if not name.endswith((".cpp", ".h")):
+                continue
+            for match in re.finditer(r'Default\("([^"]+)"', read(os.path.join(folder, name))):
+                read_keys.add(match.group(1))
+
+    for draft in ("midnight-port", "bfa-native"):
+        dist = os.path.join(DRAFTS, draft, "conf", "mod-psycho-house.conf.dist")
+        text = read(dist)
+        shipped = set(re.findall(r"^(Housing\.[A-Za-z.]+)\s*=", text, re.M))
+
+        for key in sorted(read_keys - shipped):
+            fail(draft + "/conf", "the C++ reads {} and the file never sets it".format(key))
+        for key in sorted(shipped - read_keys):
+            fail(draft + "/conf", "the file sets {} and no C++ reads it".format(key))
+
+    print("{:<52} {:>5} keys".format("conf, both drafts", len(read_keys)))
+
     # both drafts ship the same core, so their C++ headers must agree
     a = sorted(os.listdir(os.path.join(DRAFTS, "midnight-port", "src", "game", "Housing")))
     b = sorted(os.listdir(os.path.join(DRAFTS, "bfa-native", "src", "game", "Housing")))

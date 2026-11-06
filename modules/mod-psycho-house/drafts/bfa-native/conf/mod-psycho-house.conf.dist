@@ -108,12 +108,83 @@ Housing.Homestone.Cooldown = 900
 
 Housing.Sell.RefundPercent = 50
 
+Housing.Sell.RefundPercent = 50
+
+#   Housing.Gryphon.Cost
+#       Description: Gold the Steward charges to fly a player to their own door. 0 is free.
+#       Default:     5
+
+Housing.Gryphon.Cost = 5
+
+#   Housing.Gryphon.Cooldown
+#       Description: Seconds between gryphon rides, per account. 0 removes the wait.
+#       Default:     300
+
+Housing.Gryphon.Cooldown = 300
+
+#   Housing.Plot.CornerstoneEntry
+#       Description: gameobject entry spawned on every free plot, so the plot can be bought by
+#                    clicking it. The entry must exist in gameobject_template and carry the
+#                    ScriptName `go_housing_cornerstone`. 0 spawns nothing and plots are bought
+#                    from the addon or the Steward instead.
+#       Default:     0
+
+Housing.Plot.CornerstoneEntry = 0
+
 ###################################################################################################
-#   Keys this draft is built for but the C++ does not read yet.
+#   Neighbourhoods
+###################################################################################################
+
+#   Housing.Neighborhood.MinResidents
+#       Description: A private or guild neighbourhood with fewer residents than this and no
+#                    owned plots is dissolved once the grace period has passed. 0 turns the
+#                    sweep off, which is the safe default: an empty street may be one somebody
+#                    is about to move into.
+#       Default:     0
+
+Housing.Neighborhood.MinResidents = 0
+
+#   Housing.Neighborhood.DissolveGraceDays
+#       Description: Days an empty neighbourhood is left standing before it is dissolved.
+#       Default:     30
+
+Housing.Neighborhood.DissolveGraceDays = 30
+
+#   Housing.Guild.Wings
+#       Description: Give a guild that outgrows one neighbourhood an extra wing instead of
+#                    turning members away. Only applies to guild neighbourhoods.
+#       Default:     1
+
+Housing.Guild.Wings = 1
+
+###################################################################################################
+#   The two level devices and the weekly cache
+###################################################################################################
+
+#   Housing.Arcanostorage.Level
+#       Description: House level needed before the Arcanostorage Sphere will turn.
+#       Default:     10
+
+Housing.Arcanostorage.Level = 10
+
+#   Housing.Arcanostorage.CooldownDays
+#       Description: Days between turns of the Sphere, per account.
+#       Default:     7
+
+Housing.Arcanostorage.CooldownDays = 7
+
+#   Housing.Armillary.Level
+#       Description: House level needed before the Hearthlight Armillary can be lit.
+#       Default:     6
+
+Housing.Armillary.Level = 6
+
+###################################################################################################
+#   Numbers that live in the database, not here, so they can be changed without a restart:
 #
-#   Housing.Level.Max          = 6
-#   Housing.Budget.Indoor      = 3000
-#   Housing.Budget.Exterior    = 200
-#   Housing.Dye.Enabled        = 0
-#   Housing.Blueprint.Enabled  = 1
+#     housing_house_level   levels 1-12, XP thresholds, indoor / room / outdoor budgets
+#     housing_shell         exteriors, sizes, level requirement, faction
+#     housing_room          rooms, shell, level requirement, budget cost
+#     housing_plot          plot prices, sizes, yard radius
+#     housing_vendor_stock  prices, currency, Endeavor milestone gating
 ###################################################################################################

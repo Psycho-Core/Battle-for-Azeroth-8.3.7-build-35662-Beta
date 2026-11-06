@@ -50,6 +50,19 @@ namespace Housing
         uint32 GetBlueprint() const { return _blueprint; }
         void SetBlueprint(uint32 blueprint);
 
+        /// The exterior shell applied to the plot, and how many extra rooms have been built.
+        /// Both are bought at the General Contractor and both cost decor budget through
+        /// BudgetRoom(), which is why the house has to know them.
+        uint8 GetShellId() const { return _shellId; }
+        void SetShellId(uint8 shellId) { _shellId = shellId; MarkDirty(); }
+        uint8 GetRoomsOwned() const { return _roomsOwned; }
+        void SetRoomsOwned(uint8 rooms) { _roomsOwned = rooms; MarkDirty(); }
+
+        /// Night mode: the Hearthlight Armillary is lit. Stored on the house so it survives a
+        /// relog and is the same for everyone who walks in.
+        bool IsNightMode() const { return _nightMode; }
+        void SetNightMode(bool night) { _nightMode = night; MarkDirty(); }
+
         std::string const& GetName() const { return _name; }
         void SetName(std::string const& name);
 
@@ -115,6 +128,9 @@ namespace Housing
         uint32 _blueprint;
         std::string _name;
         bool _locked;
+        bool _nightMode;
+        uint8 _shellId;
+        uint8 _roomsOwned;
         bool _decorLoaded;
         bool _spawned;
         Map* _spawnMap;

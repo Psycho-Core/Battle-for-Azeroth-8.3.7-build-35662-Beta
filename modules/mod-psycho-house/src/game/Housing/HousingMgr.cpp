@@ -67,6 +67,9 @@ HousingMgr::HousingMgr()
     : _enabled(false), _housingMapId(0), _interiorMapId(0), _saveInterval(kSaveIntervalSeconds),
     _rateLimit(kRateLimitMessages), _homeCooldown(900), _refundPercent(50), _plotScopedPhasing(true),
     _nativeMap(true), _evictDays(0), _graceDays(7), _populationCap(0), _lifecycleTimer(0),
+    _gryphonCost(5), _gryphonCooldown(300), _minResidents(0), _dissolveGraceDays(30),
+    _arcaneLevel(10), _arcaneCooldownDays(7), _armillaryLevel(6), _guildWings(true),
+    _cornerstoneEntry(0),
     _nextPlacementId(1), _nextHousingId(1), _nextNeighborhoodId(1),
     _saveTimer(0), _tick(0)
 {
@@ -93,6 +96,28 @@ void HousingMgr::LoadConfig()
     _evictDays = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Evict.Days", 0)));
     _graceDays = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Evict.GraceDays", 7)));
     _populationCap = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.PopulationCap", 0)));
+
+    // The Steward's gryphon. Cost is gold; a zero cost makes it free, a zero cooldown makes it
+    // instant, and both are allowed because the two are separate decisions.
+    _gryphonCost = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Gryphon.Cost", 5)));
+    _gryphonCooldown = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Gryphon.Cooldown", 300)));
+
+    // Dissolving a private or guild neighbourhood nobody lives in any more. 0 residents means
+    // the sweep never runs: an empty street might be one somebody is about to move into.
+    _minResidents = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MinResidents", 0)));
+    _dissolveGraceDays = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Neighborhood.DissolveGraceDays", 30)));
+
+    // The two level devices.
+    _arcaneLevel = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Arcanostorage.Level", 10)));
+    _arcaneCooldownDays = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Arcanostorage.CooldownDays", 7)));
+    _armillaryLevel = uint32(std::max(1, sConfigMgr->GetIntDefault("Housing.Armillary.Level", 6)));
+
+    _guildWings = sConfigMgr->GetBoolDefault("Housing.Guild.Wings", true);
+
+    // The stone on an empty plot. 0 keeps the plots bare, which is what a realm without a
+    // suitable gameobject wants; any entry that exists in gameobject_template gets a stone
+    // spawned at every free plot with ScriptName `go_housing_cornerstone` on it.
+    _cornerstoneEntry = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Plot.CornerstoneEntry", 0)));
 
     std::string const mode = sConfigMgr->GetStringDefault("Housing.Map.Mode", "native");
     _nativeMap = mode != "anchor";
@@ -339,7 +364,7 @@ void HousingMgr::LoadVendors()
     }
 
     if (QueryResult result = WorldDatabase.Query(
-        "SELECT `vendor_id`, `decor_id`, `price` FROM `housing_vendor_stock`"))
+        "SELECT `vendor_id`, `decor_id`, `price`, `milestone` FROM `housing_vendor_stock`"))
     {
         do
         {
@@ -348,6 +373,7 @@ void HousingMgr::LoadVendors()
             VendorStockEntry entry;
             entry.DecorId = fields[1].GetUInt32();
             entry.Price = fields[2].GetUInt32();
+            entry.Milestone = fields[3].GetUInt8();
             _vendorStock[fields[0].GetUInt32()].push_back(entry);
         }
         while (result->NextRow());
@@ -445,7 +471,7 @@ void HousingMgr::LoadNeighborhoods()
 
     if (QueryResult result = CharacterDatabase.Query(
         "SELECT `id`, `neighborhoodId`, `plotIndex`, `ownerAccount`, `ownerGuid`, `ownerName`, `tier`, "
-        "`blueprint`, `name`, `locked` FROM `character_housing`"))
+        "`blueprint`, `name`, `locked`, `shell_id`, `rooms_owned`, `night_mode` FROM `character_housing`"))
     {
         do
         {
@@ -474,6 +500,13 @@ void HousingMgr::LoadNeighborhoods()
             plot->SetOwner(housingId, fields[3].GetUInt32(), ObjectGuid(fields[4].GetUInt64()),
                 fields[5].GetString(), fields[6].GetUInt8(), fields[7].GetUInt32(),
                 fields[8].GetString(), fields[9].GetUInt8() != 0);
+
+            if (HousingHouse* house = plot->GetHouse())
+            {
+                house->SetShellId(fields[10].GetUInt8());
+                house->SetRoomsOwned(fields[11].GetUInt8());
+                house->SetNightMode(fields[12].GetUInt8() != 0);
+            }
         }
         while (result->NextRow());
     }
@@ -717,12 +750,20 @@ HousingNeighborhood* HousingMgr::FindNeighborhoodFor(Player* player)
     if (best)
         return best;
 
-    auto const itr = _namePool.find(faction);
-    std::string const name = (itr != _namePool.end() && !itr->second.empty())
-        ? Trinity::StringFormat("{} {}", itr->second[_neighborhoods.size() % itr->second.size()], _neighborhoods.size() + 1)
-        : Trinity::StringFormat("Founder's Point {}", _neighborhoods.size() + 1);
+    return CreateNeighborhood(NeighborhoodPublic, faction, GenerateNeighborhoodName(faction), 0, 0);
+}
 
-    return CreateNeighborhood(NeighborhoodPublic, faction, name, 0, 0);
+std::string HousingMgr::GenerateNeighborhoodName(uint8 faction)
+{
+    auto const itr = _namePool.find(faction);
+
+    if (itr == _namePool.end() || itr->second.empty())
+        return Trinity::StringFormat("Founder's Point {}", _neighborhoods.size() + 1);
+
+    // The pool is read in order and the index is the count of neighbourhoods, so two
+    // foundations in the same second still get different names.
+    return Trinity::StringFormat("{} {}", itr->second[_neighborhoods.size() % itr->second.size()],
+        _neighborhoods.size() + 1);
 }
 
 // -----------------------------------------------------------------------------
@@ -763,6 +804,51 @@ void HousingMgr::OnPlayerLogin(Player* player)
     }
 
     LoadCollection(player->GetSession()->GetAccountId());
+    SyncAchievementDecor(player);
+}
+
+/*
+ * Decor earned by an achievement. This core has no achievement hook, so the check runs at
+ * login instead: every piece whose source is an achievement the character already has is
+ * granted then. It costs one pass over the catalogue rows that name an achievement, and it
+ * is self-healing - a piece added to the catalogue after the achievement was earned arrives
+ * on the next login rather than never.
+ */
+void HousingMgr::SyncAchievementDecor(Player* player)
+{
+    if (!player)
+        return;
+
+    uint32 const accountId = player->GetSession()->GetAccountId();
+    uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
+    uint32 granted = 0;
+
+    for (auto const& entry : _decor)
+    {
+        DecorInfo const& info = entry.second;
+
+        if (info.SourceType != SourceAchievement || !info.SourceId)
+            continue;
+
+        if ((info.Flags & DecorFlagHidden) || !(info.FactionMask & factionBit))
+            continue;
+
+        if (!player->HasAchieved(info.SourceId) || HasUnlocked(accountId, info.Id))
+            continue;
+
+        CharacterDatabase.DirectPExecute(
+            "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, "
+            "`source_id`, `acquired`) VALUES ({}, {}, {}, {}, UNIX_TIMESTAMP())",
+            accountId, info.Id, uint32(SourceAchievement), info.SourceId);
+
+        _collection[accountId].insert(info.Id);
+        AddStorage(accountId, info.Id, 1);
+        ++granted;
+    }
+
+    if (granted)
+        player->GetSession()->SendNotification(
+            "|cffe6cc80Housing|r: %u piece(s) of decor unlocked by achievements.", granted);
 }
 
 void HousingMgr::OnPlayerLogout(Player* player)
@@ -820,6 +906,46 @@ void HousingMgr::OnPlayerUpdate(Player* player, uint32 diff)
     EnforceBiomeRules(player);
 
     ResolvePlot(player, *state);
+
+    EnforceAccess(player, *state);
+}
+
+void HousingMgr::EnforceAccess(Player* player, PlayerState& state)
+{
+    if (!player || state.InsidePlot == 0xFF)
+        return;
+
+    HousingNeighborhood* neighborhood = GetNeighborhood(state.NeighborhoodId);
+    if (!neighborhood)
+        return;
+
+    HousingPlot* plot = neighborhood->GetPlot(state.InsidePlot);
+    if (!plot || !plot->IsOwned())
+        return;
+
+    // Access is re-read every half second rather than cached: a guest whose permission was
+    // taken away while standing in the yard is moved out on the next tick, and so is anybody
+    // standing in a plot that has just been sold underneath them.
+    if (CheckAccess(player, plot) >= AccessGuest)
+        return;
+
+    TC_LOG_INFO("housing", "Ejecting %s from neighbourhood %u plot %u: no access",
+        player->GetName().c_str(), neighborhood->GetId(), uint32(plot->GetIndex()));
+
+    if (_plotScopedPhasing)
+    {
+        PhasingHandler::RemovePhase(player, plot->GetPlotPhase(), true);
+        PhasingHandler::RemovePhase(player, plot->GetInteriorPhase(), true);
+    }
+
+    ReleaseViewer(plot);
+
+    state.InsidePlot = 0xFF;
+    state.InsideInterior = false;
+    state.InsideHousingId = 0;
+
+    if (state.NeighborhoodId && _townCenter.m_positionX != 0.0f)
+        player->TeleportTo(neighborhood->GetMapId(), _townCenter);
 }
 
 void HousingMgr::ClearPlotPhases(Player* player, PlayerState& state)
@@ -1502,7 +1628,7 @@ HousingResult HousingMgr::PlaceDecor(Player* player, uint32 decorId, float x, fl
         return NoHouse;
 
     // Owner, or a guest the owner gave the edit bit to. Unlocking a piece is not enough:
-    // retail makes you own the copies you put down.
+    // retail requires ownership of the copies that are put down.
     if (!CanEdit(player, plot))
         return NotOwner;
 
@@ -1636,6 +1762,43 @@ HousingResult HousingMgr::RemoveDecor(Player* player, uint64 placementId)
     return result;
 }
 
+uint32 HousingMgr::GetPurchasePrice(Player* player, DecorInfo const& info) const
+{
+    uint32 price = info.Price;
+
+    if (info.SourceType == SourceVendor)
+    {
+        auto const stockItr = _vendorStock.find(info.SourceId);
+        if (stockItr != _vendorStock.end())
+            for (VendorStockEntry const& entry : stockItr->second)
+                if (entry.DecorId == info.Id && entry.Price)
+                    price = entry.Price;
+    }
+
+    // The smuggler's mark-up is a quarter, applied to the same number the shop would quote.
+    if (player && !(info.FactionMask & (player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02)))
+        price += price / 4;
+
+    return price;
+}
+
+bool HousingMgr::IsStockAvailable(Player* player, DecorInfo const& info) const
+{
+    if (info.SourceType != SourceVendor)
+        return true;
+
+    auto const stockItr = _vendorStock.find(info.SourceId);
+    if (stockItr == _vendorStock.end())
+        return true;
+
+    uint8 needed = 0;
+    for (VendorStockEntry const& entry : stockItr->second)
+        if (entry.DecorId == info.Id)
+            needed = entry.Milestone;
+
+    return !needed || sHousingEndeavor->GetMilestoneFor(player) >= needed;
+}
+
 HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
 {
     if (!_enabled)
@@ -1652,46 +1815,51 @@ HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
 
     uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
     if (!(info->FactionMask & factionBit))
-        return WrongFaction;
+    {
+        // A smuggler sells the other side's furniture, at a mark-up and one copy at a time.
+        // The piece stays masked so the ordinary shops still refuse it; what changes is that
+        // the smuggler's own window lists it and this call accepts it.
+        bool smuggled = false;
+
+        if (info->SourceType == SourceVendor)
+            if (VendorInfo const* vendor = GetVendor(info->SourceId))
+                smuggled = vendor->Role == RoleSmuggler;
+
+        if (!smuggled)
+            return WrongFaction;
+    }
 
     // Milestone-gated stock: the row carries the milestone, the neighbourhood's progress
     // decides whether it is on the shelf. Hiding it in the window is not enough - the buy
     // path checks again.
-    if (info->SourceType == SourceVendor)
-    {
-        auto const stockItr = _vendorStock.find(info->SourceId);
-        if (stockItr != _vendorStock.end())
-        {
-            uint8 needed = 0;
-            for (VendorStockEntry const& entry : stockItr->second)
-                if (entry.DecorId == decorId)
-                    needed = entry.Milestone;
+    if (!IsStockAvailable(player, *info))
+        return NotAllowedHere;
 
-            if (needed && sHousingEndeavor->GetMilestoneFor(player) < needed)
-                return NotAllowedHere;
-        }
-    }
+    // The stock row may override the price the decor row carries, and a smuggler adds a
+    // quarter on top of whatever the piece would have cost at home. Both are decided in
+    // GetPurchasePrice so that the gossip menu, which quotes it, cannot drift from this.
+    uint32 const price = GetPurchasePrice(player, *info);
 
     if (info->Currency != kCurrencyGold)
     {
         if (IsItemCost(info->Currency))
         {
-            if (!player->HasItemCount(info->Currency, info->Price))
+            if (!player->HasItemCount(info->Currency, price))
                 return NotEnoughMoney;
 
-            player->DestroyItemCount(info->Currency, info->Price, true);
+            player->DestroyItemCount(info->Currency, price, true);
         }
         else
         {
-            if (player->GetCurrency(info->Currency) < info->Price)
+            if (player->GetCurrency(info->Currency) < price)
                 return NotEnoughMoney;
 
-            player->ModifyCurrency(info->Currency, -int32(info->Price));
+            player->ModifyCurrency(info->Currency, -int32(price));
         }
     }
     else
     {
-        uint64 const cost = GoldToCopper(info->Price);
+        uint64 const cost = GoldToCopper(price);
         if (!player->HasEnoughMoney(int64(cost)))
             return NotEnoughMoney;
 

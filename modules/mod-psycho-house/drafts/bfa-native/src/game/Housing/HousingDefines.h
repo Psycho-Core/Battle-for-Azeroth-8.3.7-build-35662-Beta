@@ -57,6 +57,12 @@ namespace Housing
     constexpr uint32 kCataloguePageSize = 20;
     constexpr int32 kSaveIntervalSeconds = 30;
 
+    // World states the addon reads. 8.3.7 lets a server push any id; these three are the
+    // module's own, high enough not to collide with a Blizzard world state in the 8.3.7 range.
+    constexpr uint32 kFavorWorldState = 61200;      // Endeavor favour, 0-1000
+    constexpr uint32 kMilestoneWorldState = 61201;  // Endeavor milestone, 0-4
+    constexpr uint32 kArmillaryWorldState = 61202;  // 1 while the Hearthlight Armillary is lit
+
     // Anchor mode: plots are laid out on concentric rings around the town centre when a
     // plot template has no authored spawn, so the module is playable on a borrowed map
     // before the custom one exists.
@@ -213,7 +219,11 @@ namespace Housing
         ArchiveExpired       = 30,
         NotGuild             = 31,
         AlreadyKnown         = 32,
-        NeighborhoodFull     = 33
+        NotReady             = 34,   // level, cooldown or prerequisite not met
+        OnCooldown           = 35,
+        NotInGuild           = 36,
+        GuildRankTooLow      = 37,
+        WrongNeighborhood    = 38
     };
 
     // Flag bits
@@ -221,7 +231,8 @@ namespace Housing
     {
         PlotFlagIsland         = 0x001,  // Outer Banks private island, non contiguous
         PlotFlagBridgeOnly     = 0x002,  // Stoneveil Ridge, reachable only by its bridge
-        PlotFlagNoOutdoorDecor = 0x004
+        PlotFlagNoOutdoorDecor = 0x004,
+        PlotFlagArmillary      = 0x008   // the plot has a Hearthlight Armillary
     };
 
     enum DecorFlags : uint32
@@ -234,7 +245,8 @@ namespace Housing
         DecorFlagJukebox     = 0x020,    // reserved: needs a verifiable sound id
         DecorFlagMountStand  = 0x040,    // shows the owner's mount on a creature
         DecorFlagMannequin   = 0x080,    // shows the owner's transmog on a creature
-        DecorFlagDyable      = 0x100     // has at least one row in housing_decor_variant
+        DecorFlagDyable      = 0x100,    // has at least one row in housing_decor_variant
+        DecorFlagSmuggled    = 0x200     // only a smuggler sells it to the other faction
     };
 
     enum AmenityFlags : uint32

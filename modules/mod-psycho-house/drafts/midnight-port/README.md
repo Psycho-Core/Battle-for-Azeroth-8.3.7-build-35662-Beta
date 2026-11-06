@@ -157,6 +157,17 @@ sees each of those two paths twice, at two prices, and buys the cheaper one.
 - Retail exterior shells (house skins) have no 8.3.7 equivalent. The draft uses the shell
   rooms from doc 06.
 
+- What answers when clicked. Eight scripts are selected by `ScriptName`, never by entry, so
+  no creature or object is created and none is overwritten - every binding is an `UPDATE ...
+  WHERE ScriptName = ''`:
+  `npc_housing_steward`, `npc_housing_contractor`, `npc_housing_coffer`,
+  `npc_housing_vendor` in `HousingNpc.cpp`; `go_housing_cornerstone`,
+  `go_housing_coffer`, `go_housing_bulletin`, `go_housing_portal` in `HousingGo.cpp`.
+  `02_world_content.sql` binds the two contractors, the Last Architect as the coffer, the
+  stewards where a realm has them, and every `housing_vendor` row into the vendor script in
+  one join. A creature the realm does not have stays unbound and the command does the same
+  job, which is why nothing here depends on the retail ids.
+
 ## Install
 
 `../../tools/housing/install.py --draft midnight-port` copies the four trees to the right
