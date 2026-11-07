@@ -58,10 +58,17 @@ namespace Housing
         uint8 GetRoomsOwned() const { return _roomsOwned; }
         void SetRoomsOwned(uint8 rooms) { _roomsOwned = rooms; MarkDirty(); }
 
-        /// Night mode: the Hearthlight Armillary is lit. Stored on the house so it survives a
-        /// relog and is the same for everyone who walks in.
-        bool IsNightMode() const { return _nightMode; }
-        void SetNightMode(bool night) { _nightMode = night; MarkDirty(); }
+        /// The Hearthlight Armillary's preset, 0-4. Stored on the house so it survives a relog
+        /// and is the same for everyone who walks in.
+        uint8 GetArmillary() const { return _armillary; }
+        void SetArmillary(uint8 preset)
+        {
+            _armillary = preset <= ArmillaryMidnight ? preset : uint8(ArmillaryDefault);
+            MarkDirty();
+        }
+
+        /// Convenience for the spawn path: is this house showing its lit pieces?
+        bool IsNightMode() const { return IsArmillaryDark(_armillary); }
 
         std::string const& GetName() const { return _name; }
         void SetName(std::string const& name);
@@ -149,7 +156,7 @@ namespace Housing
         uint32 _blueprint;
         std::string _name;
         bool _locked;
-        bool _nightMode;
+        uint8 _armillary;
         uint8 _plotMask;
         uint8 _houseMask;
         uint8 _shellId;

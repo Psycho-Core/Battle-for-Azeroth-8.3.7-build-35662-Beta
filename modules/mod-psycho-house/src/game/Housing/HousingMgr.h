@@ -324,6 +324,8 @@ namespace Housing
 
         /// The Hearthlight Armillary: level 6, toggles the plot between day and night.
         HousingResult ToggleArmillary(Player* player);
+        /// One of the five presets. Toggle is the cycle; this is the menu and the command.
+        HousingResult SetArmillary(Player* player, uint8 preset);
 
         /// Endeavor favour: the neighbourhood's progress as a 0-1000 bar, sent as a worldstate.
         void SendFavor(Player* player, uint32 neighborhoodId);
@@ -482,7 +484,8 @@ namespace Housing
         void HandlePlotList(Player* player, PlayerState& state);
         void HandlePlotInfo(Player* player, PlayerState& state, uint8 plotIndex);
         void HandleDirectory(Player* player, PlayerState& state, uint32 page);
-        void HandleDecorList(Player* player, PlayerState& state, std::string const& category, uint32 page);
+        void HandleDecorList(Player* player, PlayerState& state, std::string const& category,
+            std::string const& subcategory, uint32 page);
         void HandlePlacedList(Player* player, PlayerState& state);
         void HandleGuestList(Player* player, PlayerState& state);
         void HandleAmenityList(Player* player, PlayerState& state);

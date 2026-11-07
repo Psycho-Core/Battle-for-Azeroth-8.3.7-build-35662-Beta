@@ -66,7 +66,7 @@ namespace Housing
     // module's own, high enough not to collide with a Blizzard world state in the 8.3.7 range.
     constexpr uint32 kFavorWorldState = 61200;      // Endeavor favour, 0-1000
     constexpr uint32 kMilestoneWorldState = 61201;  // Endeavor milestone, 0-4
-    constexpr uint32 kArmillaryWorldState = 61202;  // 1 while the Hearthlight Armillary is lit
+    constexpr uint32 kArmillaryWorldState = 61202;  // Hearthlight Armillary preset, 0-4
 
     // Anchor mode: plots are laid out on concentric rings around the town centre when a
     // plot template has no authored spawn, so the module is playable on a borrowed map
@@ -301,6 +301,37 @@ namespace Housing
     constexpr uint8 kAudienceDefaultPlot  = 0x3F;   // a yard is public ground by default
     constexpr uint8 kAudienceDefaultHouse = 0x3E;   // everything but a stranger
 
+    /*
+     * The Hearthlight Armillary's five presets. Retail names five; a server can act on two
+     * axes - whether the piece's lit variant spawns, and whether the sky is forced clear for
+     * the player - so four of the five presets are distinguishable in the world and the fifth
+     * differs only in the number the client receives. That is written down rather than hidden:
+     * `Default` and `Natural Light` differ only by the sky, `Unnatural Dark` and `Midnight`
+     * only by it as well. Inventing a third axis a server does not have would be worse than a
+     * documented collision.
+     */
+    enum ArmillaryPreset : uint8
+    {
+        ArmillaryDefault       = 0,   // as authored
+        ArmillaryNaturalLight  = 1,   // as authored, sky forced clear
+        ArmillaryUnnaturalDark = 2,   // lit variants spawn
+        ArmillaryEveningCalm   = 3,   // lit variants, sky forced clear
+        ArmillaryMidnight      = 4    // lit variants, sky left alone
+    };
+
+    /// Whether the preset swaps pieces for their lit variants.
+    inline bool IsArmillaryDark(uint8 preset)
+    {
+        return preset == ArmillaryUnnaturalDark || preset == ArmillaryEveningCalm
+            || preset == ArmillaryMidnight;
+    }
+
+    /// Whether the preset asks for a clear sky. Only fine weather is reachable from a script.
+    inline bool IsArmillaryClearSky(uint8 preset)
+    {
+        return preset == ArmillaryNaturalLight || preset == ArmillaryEveningCalm;
+    }
+
     /// Which of the two permission spaces a request is about.
     enum HousingSpace : uint8
     {
@@ -464,7 +495,9 @@ namespace Housing
         uint8 FactionMask = 1;  // bit0 alliance, bit1 horde
         float ScaleMin = 0.5f;
         float ScaleMax = 3.0f;
-        uint8 DyeGroup = 0;     // 0 = not dyable
+        uint32 NightEntry = 0;  // lit variant spawned while the Armillary is dark, 0 = same piece
+        uint8 DyeGroup = 0;     // 0 = not dyable, otherwise the group `housing_decor_variant` dyes
+        std::string Subcategory;  // second level of the catalogue, may be empty
         uint32 Flags = 0;
     };
 

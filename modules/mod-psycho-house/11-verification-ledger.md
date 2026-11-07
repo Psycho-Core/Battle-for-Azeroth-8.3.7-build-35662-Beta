@@ -846,3 +846,68 @@ And the standing caveat, unchanged in every revision: no compiler ran over this 
 server executed this SQL. `PlayerSocial::HasFriend`, `Player::GetGroup`, `Player::GetGuildId`
 and `ObjectAccessor::FindPlayerByLowGUID` were each read against this tree's headers before being
 used; that is the strongest claim available here and it is weaker than a build.
+
+### 6.21 The twenty-eighth revision: identifiers, and the data behind the prose
+
+The twenty-seventh pass gave permissions a way in. This one stopped trusting prose and parsed
+every backticked identifier in the documents against the files, then asked the same question of
+every data-shaped claim: is the column created, is it selected, and is the number in the
+document the number in the table.
+
+- **Names that pointed at nothing.** `psycho_house_vendor_stock` (doc 02 sec.4, doc 09 sec.7)
+  and `RestorePlot` (doc 02 sec.2) do not exist; the world schema creates
+  `housing_vendor_stock` and the restore is `RestoreArchivedHouse`. Three more tables in doc
+  02's "new table" list - `housing_blueprint`, `housing_dye_color`, `housing_pet_bed` - are
+  not created either: blueprints are `character_housing_blueprint` in the characters
+  database, a dyed appearance is `housing_decor_variant` beside `housing_dye`, and a pet bed
+  is a row in `housing_decor_creature`.
+- **A column that existed and was never read.** `housing_decor.dye_group` was in the schema,
+  absent from the `SELECT` and absent from `DecorInfo`, so every piece reported group 0 and
+  `GetVariant` could never match a colour. It is selected now, in a column order
+  `check_sql_columns.py` compares against the schema. `subcategory` did not exist at all; it
+  does now, is filtered by `C:DECOR`, and rides on `S:DECORENTRY` so the window can print a
+  heading.
+- **A documented impossibility that was not one.** The Armillary row said a script cannot
+  reach weather. `Weather::SetWeather` is public and `Weather::SendFineWeatherUpdateToPlayer`
+  is static. The row is rewritten as five presets over two axes a server really has - lit
+  variants and a clear sky - with the two presets that differ only in the client number
+  stated as such (doc 06 sec.6) rather than dressed up.
+- **Content documents describing other content.** Doc 04 sec.4.1 sketched a schema with
+  `taskType`/`rotationStart`/`rotationEnd`/`itemOrDecorId`; the shipped tables are
+  `type` (0-6), `duration_days`, `started`, `ends`, `item_entry`, `item_count`. Sec.4.2
+  described six Endeavors where `07_progression.sql` has four, with 22 task rows between them.
+  Both sections now describe the data, and the six retail themes are named as the shape to
+  grow into rather than as shipped content.
+- **A reward path that dropped rows.** `EndeavorMgr::Claim` paid currency and XP and ignored
+  `item_entry`/`item_count`. A row that names an item is paid now, with a notification if the
+  bag is full; the shipped rows still name none, and the comment in the SQL says why.
+- **A pane drawn twice.** The house tab put the amenity list and the permission matrix in the
+  same 200 pixels and the second block ran off the bottom. An eleventh tab, Access, carries
+  both; the Armillary's five preset buttons took the space they freed.
+
+| Piece | Where |
+| --- | --- |
+| `housing_decor.subcategory`, `night_entry`; `character_housing.armillary` | both schema files |
+| `DecorInfo::Subcategory`, `DecorInfo::DyeGroup`, `DecorInfo::NightEntry`, loader at 19 columns | `HousingDefines.h`, `HousingMgr.cpp` |
+| `ArmillaryPreset` 0-4, `IsArmillaryDark`, `IsArmillaryClearSky` | `HousingDefines.h` |
+| `SetArmillary`, `ToggleArmillary`, weather for the two clear-sky presets, world state 61202 | `HousingMgrExtra.cpp` |
+| The lit entry chosen at spawn, dye winning over lit | `HousingHouse.cpp`, `HousingDecor.cpp` |
+| `C:ARMILLARY [0-4]`, `C:DECOR <category> <page> <subcategory>` | `HousingMgrProtocol.cpp`, `Core.lua` |
+| `.housing armillary`, Access tab with both matrices and the amenity list | `housing_commands.cpp`, `Menu.lua` |
+| `tools/sql/bind_night_variants.sql` | paired lit twins from `gameobject_template`, shipped in both drafts |
+| `EndeavorMgr::Claim` paying item rewards | `HousingEndeavor.cpp` |
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; the new preset enum, `SetArmillary`, the spawn path, the reward branch |
+| `check_lua.py` | 0 findings; the Access tab, the Armillary buttons, the catalogue heading |
+| `check_protocol.py` | 0 findings; `S:PLOTINFO` at 17 fields and the addon reads 17, `S:DECORENTRY` at 10 and the addon reads 10 |
+| `check_sql_columns.py` | 0 findings; `subcategory`, `night_entry`, `armillary` against the module's own schema |
+| `check_reference.py` | 0 findings; 48 commands, all listed |
+| `check_mariadb.py` | 0 findings; the new bind file parsed as statements |
+| `verify_drafts.py` | 0 findings; both drafts rebuilt, 31 conf keys |
+| `check_coverage.py` | 0 findings |
+| `check_psychohouse.py` | 0 findings; draft C untouched |
+| `audit.py` | 0 findings across 9 checks |
+
+Unchanged caveat: no compiler ran over this code and no server executed this SQL.

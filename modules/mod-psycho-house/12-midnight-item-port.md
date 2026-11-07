@@ -225,7 +225,7 @@ API, and its FrameXML is its own. What it can be is the same arrangement, rebuil
 | Catalogue with filters | Catalogue tab: name filter, buy, "owned" state, currency named per row |
 | Placement mode | `/housing place`, `/housing move`, `/housing remove`, or the Placed tab |
 | Neighbourhood directory | Neighbours tab: every plot with owner, tier, and a Visit button |
-| Hub amenities (stage, mailbox, board) | House tab: the amenity list comes from the server (`C:VAREA`), not from the addon |
+| Hub amenities (stage, mailbox, board) | Access tab: the amenity list comes from the server (`C:VAREA`), not from the addon |
 | Endeavor track and milestones | Endeavors tab: the four milestones and what each unlocks |
 | Blueprint share codes | Blueprints tab: the `PCH1` format, with copy and paste |
 | Nothing equivalent | Guide tab: the opcode list, so the transport is never a mystery |

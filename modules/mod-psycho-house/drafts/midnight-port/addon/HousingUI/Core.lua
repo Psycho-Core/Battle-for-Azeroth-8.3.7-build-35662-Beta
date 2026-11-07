@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.7.0"
+H.version = "0.8.0"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -229,6 +229,7 @@ H.handlers["DECORENTRY"] = function(fields)
         id = id, name = fields[3], cost = tonumber(fields[4]), placement = tonumber(fields[5]),
         surface = tonumber(fields[6]), unlocked = fields[7] == "1",
         price = tonumber(fields[8]), currency = tonumber(fields[9]),
+        subcategory = fields[10],
     }
 end
 

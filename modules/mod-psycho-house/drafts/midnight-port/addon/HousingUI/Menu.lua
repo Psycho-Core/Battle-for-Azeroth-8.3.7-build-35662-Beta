@@ -43,6 +43,7 @@ local TABS = {
     { id = "neighbours", label = "Neighbours" },
     { id = "endeavors", label = "Endeavors" },
     { id = "blueprints", label = "Blueprints" },
+    { id = "access", label = "Access" },
     { id = "guide", label = "Guide" },
     { id = "settings", label = "Settings" },
 }
@@ -289,10 +290,56 @@ for tier = 2, 5 do
     Menu.tierButtons[tier] = button
 end
 
+-- Hearthlight Armillary: five presets. The buttons light the one the plot reports, so the
+-- window and the world never disagree about which ambience is standing.
+
+local ARMILLARY_PRESETS = {
+    { 0, "Default" },
+    { 1, "Natural" },
+    { 2, "Unnatural" },
+    { 3, "Evening" },
+    { 4, "Midnight" },
+}
+
+local armillaryHeader = NewLabel(housePane, nil, "TOPLEFT", 0, -282)
+armillaryHeader:SetText(GOLD .. "Hearthlight Armillary|r")
+
+local armillaryLine = NewLabel(housePane, "GameFontHighlightSmall", "TOPLEFT", 0, -330)
+armillaryLine:SetText("preset 0 - as authored")
+
+Menu.armillaryButtons = {}
+
+for index, preset in ipairs(ARMILLARY_PRESETS) do
+    local button = NewButton(housePane, preset[2], 96, (index - 1) * 104, -304, function()
+        H.Send("C:ARMILLARY|" .. preset[1])
+    end)
+    Menu.armillaryButtons[preset[1]] = button
+end
+
+local function RefreshArmillary()
+    local preset = (H.plotInfo and H.plotInfo.armillary) or 0
+
+    for id, button in pairs(Menu.armillaryButtons) do
+        button:SetButtonState(id == preset and "PUSHED" or "NORMAL", id == preset)
+    end
+
+    local names = { "as authored", "as authored, sky clear", "lit pieces",
+        "lit pieces, sky clear", "lit pieces, sky natural" }
+    armillaryLine:SetText(string.format("preset %d - %s", preset, names[preset + 1] or "unknown"))
+end
+
+Menu.RefreshArmillary = RefreshArmillary
+
+-- ---------------------------------------------------------------------------
+-- Access
+-- ---------------------------------------------------------------------------
+
+local accessPane = NewPane("access")
+
 -- Amenities: the hub's fixed points - stage, mailbox, bulletin board, the rest. They are
 -- server data (C:VAREA), not addon guesses, because the module moves them with the map.
 
-local amenityHeader = NewLabel(housePane, nil, "TOPLEFT", 0, -286)
+local amenityHeader = NewLabel(accessPane, nil, "TOPLEFT", 0, 0)
 amenityHeader:SetText(GOLD .. "Amenities in this hub|r")
 
 Menu.amenityRows = {}
@@ -314,7 +361,7 @@ local function BuildAmenities()
         local row = Menu.amenityRows[index]
 
         if not row then
-            row = NewLabel(housePane, "GameFontHighlightSmall", "TOPLEFT", 0, -306 - ((index - 1) * 16))
+            row = NewLabel(accessPane, "GameFontHighlightSmall", "TOPLEFT", 0, -22 - ((index - 1) * 16))
             row:SetWidth(520)
             Menu.amenityRows[index] = row
         end
@@ -328,8 +375,20 @@ end
 
 Menu.onShow = Menu.onShow or {}
 Menu.onShow.house = function()
-    RefreshPermissions()
     H.Send("C:NEIGHBORHOOD")
+    if H.plotIndex then
+        H.Send("C:PLOT|" .. H.plotIndex)
+    end
+end
+
+-- The access tab carries what used to crowd the house tab: the hub's fixed points and the
+-- yard/interior permission matrices. Both are lists that grow, so they get a pane each.
+Menu.onShow.access = function()
+    -- Through the table, not the local name: the function is declared further down this file
+    -- and a closure made here would capture a global that is still nil.
+    if Menu.RefreshPermissions then
+        Menu.RefreshPermissions()
+    end
     H.amenities = {}
     H.Send("C:VAREA")
     if H.plotIndex then
@@ -345,7 +404,7 @@ end
 -- than from anything remembered here.
 -- ---------------------------------------------------------------------------
 
-local permHeader = NewLabel(housePane, "GameFontNormalSmall", "TOPLEFT", 0, -276)
+local permHeader = NewLabel(accessPane, "GameFontNormalSmall", "TOPLEFT", 0, -140)
 permHeader:SetText("Who may come in")
 
 local permRows = {}
@@ -357,15 +416,15 @@ local PERM_SPACES = {
 }
 
 for spaceIndex, entry in ipairs(PERM_SPACES) do
-    local label = NewLabel(housePane, "GameFontDisableSmall", "TOPLEFT", 0, -300 - ((spaceIndex - 1) * 46))
+    local label = NewLabel(accessPane, "GameFontDisableSmall", "TOPLEFT", 0, -164 - ((spaceIndex - 1) * 46))
     label:SetText(entry.label)
     label:SetWidth(50)
 
     permRows[entry.id] = {}
 
     for audienceIndex, audience in ipairs(H.AUDIENCES) do
-        local button = NewButton(housePane, audience.label, 78,
-            52 + ((audienceIndex - 1) * 82), -298 - ((spaceIndex - 1) * 46), nil)
+        local button = NewButton(accessPane, audience.label, 78,
+            52 + ((audienceIndex - 1) * 82), -162 - ((spaceIndex - 1) * 46), nil)
 
         button:SetScript("OnClick", function()
             -- Flip one bit with arithmetic rather than the bit library: the masks are small
@@ -470,6 +529,7 @@ local function BuildCatalogue()
 
     local filter = string.lower(filterBox:GetText() or "")
     local sorted = {}
+    local lastHeading = nil
 
     for _, entry in pairs(H.catalogue or {}) do
         if filter == "" or string.find(string.lower(entry.name or ""), filter, 1, true) then
@@ -477,7 +537,15 @@ local function BuildCatalogue()
         end
     end
 
+    -- Category, then subcategory, then name: the same order the server pages in, so a page
+    -- boundary never splits a subcategory heading off the pieces under it.
     table.sort(sorted, function(left, right)
+        if (left.category or "") ~= (right.category or "") then
+            return (left.category or "") < (right.category or "")
+        end
+        if (left.subcategory or "") ~= (right.subcategory or "") then
+            return (left.subcategory or "") < (right.subcategory or "")
+        end
         return (left.name or "") < (right.name or "")
     end)
 
@@ -503,7 +571,13 @@ local function BuildCatalogue()
         end
 
         row:SetPoint("TOPLEFT", catalogueContent, "TOPLEFT", 0, -((index - 1) * 24))
-        row.name:SetText((entry.unlocked and GOOD or "") .. (entry.name or "?") .. RESET)
+        local heading = entry.subcategory and entry.subcategory ~= "" and entry.subcategory or nil
+        if heading and heading ~= lastHeading then
+            row.name:SetText(string.format("%s%s|r", GOLD, heading))
+            lastHeading = heading
+        else
+            row.name:SetText((entry.unlocked and GOOD or "") .. (entry.name or "?") .. RESET)
+        end
 
         if entry.unlocked then
             row.price:SetText(DIM .. "owned" .. RESET)
@@ -1049,7 +1123,7 @@ guideHeader:SetText("What this menu sends")
 local GUIDE_LINES = {
     "|cffffd100House|r      C:NEIGHBORHOOD, C:PLOT <n>, C:HOME, C:LEAVE, C:NAME <text>,",
     "            C:LOCK <0|1>, C:TIER <2-5>",
-    "|cffffd100Catalogue|r  C:DECOR [category] -> S:DECORENTRY per decor, S:DECOREND at the end",
+    "|cffffd100Catalogue|r  C:DECOR [category] [page] [subcategory] -> S:DECORENTRY per decor, S:DECOREND at the end",
     "|cffffd100Buy|r        C:BUYDECOR <id> -> S:BUYRESULT",
     "|cffffd100Placed|r     C:PLACED -> S:PLACEDENTRY per placement, S:PLACEDEND",
     "|cffffd100Neighbours|r C:PLOTS -> S:PLOT per plot; C:DIR <page> -> S:DIRENTRY",
@@ -1066,7 +1140,7 @@ local GUIDE_LINES = {
     "|cffffd100Shells|r     C:SHELLS / C:SHELL <id> -> S:SHELL per exterior",
     "|cffffd100Rooms|r      C:ROOMS / C:ROOM <id> -> S:ROOM per room",
     "|cffffd100Progression|r C:LEVELUP, C:ENDEAVOR, C:DELIVER, C:CLAIM <milestone>",
-    "|cffffd100Devices|r    C:ARCANE (weekly Sphere), C:ARMILLARY (level 6 lights)",
+    "|cffffd100Devices|r    C:ARCANE (weekly Sphere), C:ARMILLARY [0-4] (level 6, five presets)",
     "|cffffd100Travel|r     C:GRYPHON (gold + cooldown), C:PORTALS, C:GOPORTAL <id>",
     "|cffffd100Dyes|r      C:DYES -> S:DYE per colour the server has; C:DYE <placement> <colour> [group], 0 strips it",
     "|cffffd100Blueprints|r C:BPIMP <code>, C:BPEXP -> S:BPCODE, C:RESTORE",
@@ -1229,6 +1303,7 @@ local function StorePlotInfo(fields)
         usedOutdoor = tonumber(fields[14]),
         plotMask = tonumber(fields[15]) or 0,
         houseMask = tonumber(fields[16]) or 0,
+        armillary = tonumber(fields[17]) or 0,
     }
 
     H.plotIndex = H.plotInfo.index
@@ -1238,6 +1313,7 @@ local function StorePlotInfo(fields)
             houseName:SetText(H.plotInfo.name)
         end
         RefreshHouse()
+        RefreshArmillary()
     end
 end
 

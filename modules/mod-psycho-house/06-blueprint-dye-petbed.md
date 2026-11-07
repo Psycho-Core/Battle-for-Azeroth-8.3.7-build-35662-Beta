@@ -11,14 +11,13 @@ Retail tiles arbitrary rooms into a floorplan. 8.3.7 has no room renderer, so a
 ### 1.1 Data
 
 ```sql
-psycho_house_room
-  id, name, go_entry,        -- the shell object
-  foot_x, foot_y,            -- footprint in yards
-  cost,                      -- room placement budget cost
-  level_required,
-  offset_x, offset_y, offset_z,   -- where the shell's origin sits relative to its grid cell
-  wall_style, floor_style,
-  connects_north/south/east/west  -- doorway mask
+housing_room
+  id, shell_id,              -- the shell object it places
+  name,
+  x, y, z,                   -- offset from the interior anchor
+  radius,                    -- the room the player must stand in to decorate it
+  budget_cost,               -- rooms come out of the room budget
+  level_required
 ```
 
 ### 1.2 Placement rules (server-side, identical for UI and commands)
@@ -70,23 +69,27 @@ elsewhere - which is also retail's behaviour ("not all decor can be dyed").
 ### 2.2 Data
 
 ```sql
-psycho_house_dye            -- 9 groups, retail parity
-  id, name, icon, item_entry, craft_spell_alchemy, craft_spell_inscription
+housing_dye                  -- the colour words a dyable piece's name starts with
+  id, name
 
-psycho_house_dye_color       -- 77 colours across the 9 groups
-  id, dye_id, name, display_ids   -- comma list of GO displays this colour can switch to
+housing_decor_variant        -- one row per decor, group and colour
+  decor_id, dye_group, dye_color, dye_name, gameobject_entry
 ```
 
-I use `display_ids` as the honest mechanism: a colour is offered for a piece only when that piece's family has a display for it. Where no display exists, the colour is greyed out with
-"not available for this piece" rather than silently doing nothing.
+The variant row is the honest mechanism: a colour is offered for a piece only when the
+variant table has a game object entry for it. Where no row exists the colour is not listed
+for that piece at all, rather than silently doing nothing.
 
 ### 2.3 Applying
 
-1. Player picks a colour in the addon -> `C:DYE|<placementId>|<colorId>`.
-2. Server validates: piece is dyable, colour exists, family supports it, player has a dye
-   item (or the dye is in the collection), budget unaffected.
-3. Server consumes one dye, updates `character_housing_decor.dye_color`, and calls
-   `SetDisplayId(newDisplay)` on the live object (or respawns it).
+1. Player picks a colour in the addon -> `C:DYE|<placementId>|<colour> [group]`.
+2. Server validates: the piece has a variant row for that group and colour, and the caller
+   may edit the plot. No dye item is consumed - `housing_dye` is a word list, not a
+   consumable, and charging one would need an item id per colour that the source data does
+   not carry.
+3. Server writes `dye_group`, `dye_color` and `variant_entry` to
+   `character_housing_decor`, then despawns the standing object and respawns it as the
+   variant entry. A dye that only took effect on the next login would read as a failure.
 4. Persisted per placement, exported in blueprints.
 
 ### 2.4 Acquisition
@@ -169,7 +172,7 @@ Same validation path as a live placement, per piece, plus:
 
 ### 3.4 Storing and sharing
 
-`psycho_house_blueprint(id, accountId, kind, faction, code, name, created)`. The code is the
+`character_housing_blueprint(id, accountId, name, kind, faction, code, created)`. The code is the
 canonical artefact; sharing is just pasting the string in chat, Discord or mail. Because it
 is deterministic text, it also survives database wipes - a player's build is portable
 outside the realm, which retail's codes are not (they are account-bound).
@@ -240,3 +243,41 @@ list cannot be read then.
 
 The prototype's per-house guest table survives as the explicit "guests" audience, which is
 how Pepe-style invites and "book club at 8" work in practice.
+
+## 6. The Hearthlight Armillary
+
+Retail's Armillary is a level-6 device that changes a house's ambience: five presets, and the
+lighting of every placed piece moves with them. A server can act on two axes - whether a
+piece spawns as its lit variant, and whether the sky is forced clear for the player - so the
+five presets are mapped onto those two axes and the mapping is written down rather than
+implied:
+
+| Preset | Client number | Pieces | Sky |
+| --- | --- | --- | --- |
+| Default | 0 | as authored | as the realm has it |
+| Natural Light | 1 | as authored | clear |
+| Unnatural Dark | 2 | lit variants | as the realm has it |
+| Evening Calm | 3 | lit variants | clear |
+| Midnight | 4 | lit variants | as the realm has it |
+
+Unnatural Dark and Midnight differ only in the number the client receives. That is a
+limitation of what `Weather` exposes: `Weather::SetWeather` takes a type and a grade, but a
+`Weather` object belongs to a zone and is owned by the world updater, which resets it on its
+next tick. The one state a script can hand a single player without fighting the updater is
+fine weather, through the static `Weather::SendFineWeatherUpdateToPlayer`. Inventing a third
+axis to pretend otherwise would be worse than a documented collision.
+
+- **State**: `character_housing.armillary`, one tinyint, so the preset survives a relog and is
+  the same for everyone who walks in. `Housing.Armillary.Level` gates it, and `CanEdit`
+  decides who may change it.
+- **Lit pieces**: `housing_decor.night_entry`. When a dark preset is active, `SpawnPlacement`
+  sets the placement's night entry and the piece spawns as that game object. A dye wins over
+  a lit variant: a dyed piece is a colour the player chose, and a lit twin for that exact
+  colour does not exist, so a dyed piece stays dyed when the Armillary goes dark.
+- **Binding the twins**: `tools/sql/bind_night_variants.sql` pairs a piece with the realm's
+  own game object of the same name and type with `Lit ` in front (or behind). Nothing is
+  guessed; a catalogue whose realm has no lit twins keeps `night_entry` at 0, and the dark
+  presets then change the world state only.
+- **Telling the client**: world state 61202 carries the preset, `S:PLOTINFO`'s seventeenth
+  field carries it as well so the window lights the right button, and `.housing armillary
+  <0-4>` sets one directly.

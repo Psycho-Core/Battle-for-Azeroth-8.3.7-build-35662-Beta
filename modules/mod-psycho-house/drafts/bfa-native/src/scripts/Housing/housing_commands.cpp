@@ -629,6 +629,7 @@ public:
             { "tilt",     0, false, &HandleTiltCommand,       "Tilt a placed piece on its two axes" },
             { "pet",      0, false, &HandlePetCommand,        "Put your summoned companion on a pet bed" },
             { "access",   0, false, &HandleAccessCommand,     "Who may stand on the yard and who may come inside" },
+            { "armillary", 0, false, &HandleArmillaryCommand, "The five Hearthlight Armillary presets" },
             { "dir",      0, false, &HandleDirectoryCommand,  "Neighbourhood directory" },
             { "finder",   0, false, &HandleFinderCommand,     "List public neighbourhoods" },
             { "visit",    0, false, &HandleVisitCommand,      "Visit a plot in another neighbourhood" },
@@ -1197,6 +1198,40 @@ public:
      * are accepted because nobody should have to convert 0x22 in their head to allow
      * neighbours and guests. Printing the current masks is the default.
      */
+    static bool HandleArmillaryCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        static char const* const names[] = {
+            "default", "natural light", "unnatural dark", "evening calm", "midnight"
+        };
+
+        if (!args || !*args)
+        {
+            handler->SendSysMessage("Hearthlight Armillary presets:");
+            for (uint32 preset = 0; preset < 5; ++preset)
+                handler->PSendSysMessage("  {} - {}", preset, names[preset]);
+
+            handler->SendSysMessage("Usage: .housing armillary <0-4>, or no argument to cycle");
+            handler->PSendSysMessage("Ambience: {}", ResultText(sHousingMgr->ToggleArmillary(player)));
+            return true;
+        }
+
+        uint32 preset = 0;
+
+        if (std::sscanf(args, "%u", &preset) != 1 || preset > 4)
+        {
+            handler->SendSysMessage("Usage: .housing armillary <0-4>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Now {}: {}", names[preset],
+            ResultText(sHousingMgr->SetArmillary(player, uint8(preset))));
+        return true;
+    }
+
     static bool HandleAccessCommand(ChatHandler* handler, char const* args)
     {
         Player* player = GetSessionPlayer(handler);
