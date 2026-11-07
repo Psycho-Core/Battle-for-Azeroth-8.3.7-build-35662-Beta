@@ -81,7 +81,8 @@ Everything else - decor, trees, tents, carts, braziers, fences - comes from the 
 | --- | --- |
 | `PsychoHouse.toc` | `## Interface: 80300`, SavedVariables, file list |
 | `Core.lua` | Transport, message dispatch, slash commands, and the `PHP1` envelope check. **Ships today** |
-| `Menu.lua` | The housing window: House (with the amenity list), Catalogue, Placed, Neighbours, Endeavors, Blueprints, Guide tabs. **Ships today**, checked against the server with `check_protocol.py` |
+| `Menu.lua` | The housing window: fifteen tabs, the launcher button and the hidden button the key binding clicks. **Ships today**, checked against the server with `check_protocol.py` |
+| `Bindings.xml` | Declares one binding, "Toggle the housing window", so the window can be put on a key in Key Bindings under Addons. An addon cannot claim a key on its own, so nothing is bound until the player binds it. **Ships today** |
 | `Placement.lua` | Placement mode and gizmo - the Placed tab lists and removes, it does not drag pieces yet |
 | `Permissions.lua` | Two matrices |
 | `Localisation/enUS.lua` | Strings |

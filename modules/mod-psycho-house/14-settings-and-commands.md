@@ -13,7 +13,7 @@ buttons that change it. The three lists are generated from the same sources the 
 
 ## 1. The server settings
 
-Every key is optional, and there are 31 of them. The default below is the value that applies
+Every key is optional, and there are 32 of them. The default below is the value that applies
 when the key is absent, and the clamping in the fourth column is applied by
 `HousingMgr::LoadConfig` before the value is used, so a nonsense value degrades to a usable
 one instead of falling through.
@@ -46,6 +46,7 @@ one instead of falling through.
 | `Housing.Sell.RefundPercent` | `50` | percentage of the price refunded on sale; clamped 0 to 100 | reload |
 | `Housing.Gryphon.Cost` | `5` | gold the Steward charges for a ride to the house door; 0 is free | reload |
 | `Housing.Gryphon.Cooldown` | `300` | seconds between rides, per account; 0 removes the wait | reload |
+| `Housing.Dye.Cost` | `0` | gold charged for a dye change on one piece; re-applying the colour it already has is free, and 0 makes every change free | reload |
 | `Housing.Guild.Wings` | `1` | give a guild that outgrows one neighbourhood an extra wing instead of turning members away | reload |
 | `Housing.Arcanostorage.Level` | `10` | house level before the Arcanostorage Sphere will turn; never below 1 | reload |
 | `Housing.Arcanostorage.CooldownDays` | `7` | days between turns of the Sphere, per account; never below 1 | reload |
@@ -152,6 +153,12 @@ values in one line for anyone who would rather read than click.
 The snap is client-side by design: the server clamps and confirms every position it is given, so
 a player who turns snapping off sends precise numbers and a player who leaves it on sends
 rounded ones, and the server cannot tell the difference.
+
+There is a seventh client-side control and it is not a SavedVariable, because the client keeps
+it: `Bindings.xml` declares one binding, "Toggle the housing window", in Key Bindings under
+Addons. Retail's dashboard opens on `H` and an addon cannot claim a key by itself, so the
+binding exists and the key is the player's to set - which is the closest an addon can come to
+the retail default without taking a key nobody agreed to.
 
 ## 5. The permission model
 

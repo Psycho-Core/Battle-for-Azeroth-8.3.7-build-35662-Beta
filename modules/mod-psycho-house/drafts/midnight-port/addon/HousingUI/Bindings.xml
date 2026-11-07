@@ -1,0 +1,11 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!--
+        Retail opens the housing dashboard on H. An addon cannot claim a key by default, so
+        this declares the binding and the client puts it in Key Bindings under Addons, where
+        it can be set to H. The name is a CLICK on the hidden PsychoHouseToggleButton that
+        Menu.lua creates; the two have to match or the key clicks nothing.
+    -->
+    <Bindings>
+        <Binding name="CLICK PsychoHouseToggleButton:LeftButton" header="PSYCHOHOUSE" category="ADDONS"/>
+    </Bindings>
+</Ui>

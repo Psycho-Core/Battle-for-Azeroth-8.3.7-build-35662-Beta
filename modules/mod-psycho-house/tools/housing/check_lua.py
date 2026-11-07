@@ -213,6 +213,39 @@ def check_toc():
                 fail("addon", "toc lists {} which does not exist".format(line))
 
 
+def check_bindings():
+    """A key binding that clicks a frame nobody created is a key that does nothing.
+
+    The .toc lists Bindings.xml, the XML names a hidden button, and Menu.lua creates that
+    button under exactly that global name. Three files, one string, and no compile step to
+    notice when the string drifts.
+    """
+    xml_path = os.path.join(ADDON, "Bindings.xml")
+    if not os.path.exists(xml_path):
+        return
+
+    with open(xml_path, encoding="utf-8") as handle:
+        xml = handle.read()
+
+    lua = ""
+    toc = os.path.join(ADDON, "HousingUI.toc")
+    if os.path.exists(toc):
+        with open(toc, encoding="utf-8") as handle:
+            for line in handle:
+                name = line.strip()
+                if name.endswith(".lua") and os.path.exists(os.path.join(ADDON, name)):
+                    with open(os.path.join(ADDON, name), encoding="utf-8") as source:
+                        lua += source.read()
+
+    for frame in re.findall(r'name="CLICK ([^:"\s]+):', xml):
+        if 'CreateFrame("Button", "{}"'.format(frame) not in lua:
+            fail("addon", "Bindings.xml clicks `{}`, which no Lua file creates".format(frame))
+
+    for header in re.findall(r'header="([A-Z_]+)"', xml):
+        if 'BINDING_HEADER_{}'.format(header) not in lua:
+            fail("addon", "Bindings.xml uses header `{}`, which no Lua file names".format(header))
+
+
 def main():
     total = 0
     for name in sorted(os.listdir(ADDON)):
@@ -229,6 +262,7 @@ def main():
         total += lines
         print("{:<28} {:>4} lines".format(name, lines))
     check_toc()
+    check_bindings()
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:
         print("  " + line)

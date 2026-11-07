@@ -1037,6 +1037,50 @@ ran. The caches were never spawned on a map, no quest was taken, and no piece wa
 rotation, the phase and the gossip ids are checked against the source tree; the behaviour needs
 a server with the world database imported.
 
+### 6.26 The thirty-second revision: checking the answer instead of writing it
+
+The previous pass ended with a sentence: every row of doc 01, with the code that carries it.
+This pass treated that sentence as a claim and built something that could refute it.
+
+- **`check_claims.py`.** Every code span in the completeness entry, and in doc 02's matrix,
+  is checked by shape: an opcode against the protocol checker's own opcode sets (one oracle,
+  not two), a `Housing.*` key against the conf file, `table.column` against the schema,
+  `Class::Member` against `src/`, a file name against the folder. 104 spans. Mutation-tested
+  with a fake member, a fake table and a fake opcode; all three were named. It is the tenth
+  check in `audit.py`.
+- **The key binding.** Doc 01 says the dashboard opens on `H`, and an addon cannot claim a
+  key. `Bindings.xml` declares a CLICK binding on a hidden button, so the window appears in
+  Key Bindings under Addons and the player sets the key. `check_lua.py` gained a `bindings`
+  rule so the XML's frame name and the Lua's frame name cannot drift; renaming the frame in
+  the XML produced exactly one finding.
+- **The eighth substitution.** The Neighbourhood NPC row of doc 01 lists a Lumberjack. The
+  module has no such NPC and the substitution list did not say so, while the entry above
+  claimed nothing else was missing. The record gives the role and no npc id, and
+  `creature_template` is bound by name, so a `'Lumberjack'` row would have made every
+  lumberjack in the world a housing vendor. Doc 02 sec.3 now names the substitution and the
+  coverage: the builder vendors carry that stock, 69 lines for Faarden the Builder, and the
+  Contractor handles shells and rooms.
+
+- **Dyeing got a price.** It was free, and doc 06 sec.2.4 described crafted dye recipes that
+  do not exist three paragraphs after sec.2.3 said no dye is consumed. `Housing.Dye.Cost`
+  (default 0) prices a change and leaves a re-application free; the recipes are gone from the
+  document, replaced by the reason they cannot exist - an `item_template` and a
+  `spell_template` row per colour, and there are no housing dyes in 8.3.7 to copy.
+- **The palette stopped pretending.** Six colour words against retail's seventy-seven is now
+  stated where the table is described, with the rule that a colour exists when the realm's
+  own furniture names carry it.
+- **The third vendor gate is named.** Currency and milestone gating are enforced; the
+  entitlement gate is not, because neither the Deed of Patronage nor *Ever Painting* has an
+  id in the record. Doc 02 sec.3 has it as the ninth substitution instead of leaving it
+  unsaid, and doc 10's "nothing is enforced yet" is corrected.
+
+| checker | result |
+| --- | --- |
+| `check_claims.py` | 0 findings; 104 spans, 33 tables, 141 column names, 59 opcodes, 54 commands, 32 conf keys |
+| `check_reference.py` | 0 findings; 32 settings, 48 commands, 6 client settings, all documented |
+| `check_lua.py` | 0 findings; 15 tabs, one binding, the CLICK frame present |
+| `audit.py` | 0 findings across 10 checks |
+
 ### 6.25 The completeness entry
 
 The round asked for everything, not for a systems list. The answer is in the README section

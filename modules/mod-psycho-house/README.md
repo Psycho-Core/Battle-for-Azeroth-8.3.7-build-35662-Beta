@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 31 server settings, all 48 commands, the six client
+  14-settings-and-commands.md  all 32 server settings, all 48 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -98,7 +98,7 @@ publish entry ids for the interior quests.
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
-| `tools/housing/audit.py` | Nine checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping, and the settings-and-commands reference. Exits non-zero on a finding. |
+| `tools/housing/audit.py` | Ten checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping, the settings-and-commands reference, and the names the documents cite. Exits non-zero on a finding. |
 | `tools/housing/check_reference.py` | The four lists that have to agree: conf keys, the keys `LoadConfig` records, and the keys doc 14 lists; the command table and the commands doc 14 lists; the addon's defaults and the client settings doc 14 lists; and that in-game help is read out of the command table rather than typed out. Mutation-tested four ways - a dropped setting row, a renamed command, a renamed client default and a deleted `note` call were each reported. |
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
 | `tools/housing/build_hunts.py` | Writes `08_hunts.sql` into both drafts: the ten reward pieces (1900-1909 and 2900-2909), the ten `housing_hunt` rows, the ten `quest_objectives` rows and the ten riddle quests 900110-900119. Separate from the quest builder because the two drafts number the reward pieces differently. |
@@ -110,8 +110,9 @@ publish entry ids for the interior quests.
 | `tools/housing/check_psychohouse.py` | The third draft's checker: the 34 core calls it makes, each against the declaration in this source tree, and every include those calls need; SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, fourteen statements this document makes about build 35662 checked against the source tree, and the MariaDB rules: printf dialect and argument counts, a 64-bit house key on both sides, `COLLATE` on every table, no `INSERT IGNORE`, no bare scalar subquery, no config section header. |
 | `tools/housing/check_mariadb.py` | Reads the module's SQL and all three drafts the way MariaDB 11.8.6 would: every table pinned to InnoDB and utf8mb4 with an explicit COLLATE, NOT NULL columns with no default that an INSERT forgets (error 1364), integer and string literals wider than the column (1264 and 1406), duplicate primary and unique keys inside one file (1062), a decor category straddling two surface bands, and the statements that are MariaDB-only or that make an install unrepeatable. |
 | `tools/housing/check_coverage.py` | Both drafts against the data they are generated from, in both directions: every vendor, every priced line, every resolved retail item id and every catalogue row has to appear on both sides, and anything the data cannot supply has to be named in the file as a comment. Mutation-tested three ways: a dropped stock tuple, a decor row with its item id zeroed, and a native entry that is not in the source tree were each reported. |
-| `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, file-scope locals read above their own declaration, duplicate file-scope locals, and a `.toc` whose files exist. |
+| `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, file-scope locals read above their own declaration, duplicate file-scope locals, a `.toc` whose files exist, and a `Bindings.xml` whose CLICK names a frame the Lua actually creates. |
 | `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, no handler reads past the last field of its line, and every opcode the server dispatches is sent from a button in the housing window. |
+| `tools/housing/check_claims.py` | Reads the code spans in the completeness entry and in doc 02's matrix and checks each against an oracle by shape: a `C:` or `S:` opcode against the protocol's opcode sets, a `Housing.*` key against the conf file, a `table.column` against the schema, a `Class::Member` against `src/`, a file name against the folder. The answer to "is everything there" is made of names, so the names are checked. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `housing_vendor_stock`. |
 | `vendor-slugs.txt` | The 39 vendor slugs the scraper consumes. |
 | `tools/sql/psycho_house_harvest.sql` | The same harvest as pure SQL for people who do not want to run Python: candidate queries per furniture family, plus the report I use to spot gaps. |
@@ -158,6 +159,23 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
 
+## Audit pass, thirty-second revision
+
+The last pass answered the completeness question by walking doc 01 row by row. This one did
+the opposite: it took the names in that answer and asked the code whether it had them. That
+turned a written claim into a checked one, and it caught the two rows that were prose rather
+than names - which is exactly where an unchecked answer goes wrong.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+
+| 167 | **The answer was prose, so nothing could contradict it.** The completeness entry named functions, tables, opcodes, settings and commands, and a renamed function or a dropped column would have left the sentence standing | `check_claims.py` reads every code span in that section and in doc 02's matrix, and checks it against an oracle per shape: opcode against the protocol's own opcode sets, `Housing.*` against the conf file, `table.column` against the schema, `Class::Member` against `src/`, file names against the folder. 104 spans, 0 findings; mutation-tested with a fake class member, a fake table and a fake opcode, all three named |
+| 168 | **The dashboard had no key.** Doc 01 says the dashboard opens on `H`, the row above says the window is on a launcher button and a slash command, and an addon cannot claim a key at all - so being unable to bind one looked like a client limit | `Bindings.xml` declares a binding that clicks a hidden button, which puts "Toggle the housing window" in Key Bindings under Addons where it can be set to `H`. No key is claimed without the player's consent, so the default is still theirs to choose |
+| 169 | **A binding that clicks nothing is silent.** The frame name lives in the XML and again in `Menu.lua`, and there is no compile step between them | `check_lua.py` gained a `bindings` rule: every `CLICK <frame>` in the XML has to be a frame some listed Lua file creates, and every `header=` has to be a string the Lua defines. Mutation-tested by renaming the frame in the XML |
+| 170 | **The Neighbourhood NPC row listed a Lumberjack, the module has none, and the substitution list did not mention it.** The entry said "nothing else in doc 01 is missing" while one row of it had no owner | Doc 02 sec.3 has an eighth substitution: the record names the role and no npc id, and binding `creature_template` by name would turn every lumberjack in the world into a housing vendor, so the builder vendors carry that stock - 69 lines for Faarden the Builder, and the Contractor handles shells and rooms |
+| 171 | **Dyeing was free, so it was not a decision.** Retail's dyes are crafted by Alchemy and Inscription, tradeable and sold on the auction house; here a dye change cost nothing and doc 06 sec.2.4 described recipes that do not exist while sec.2.3 said no dye is consumed - the two halves of one document contradicted each other | `Housing.Dye.Cost` prices a change, defaults to 0, and re-applying the colour a piece already has stays free. Doc 06 sec.2.4 now says why there is no dye item: an item and a spell row per colour would have to be invented, and seventy-seven invented ids is a worse trade than a price the realm sets |
+| 172 | **The palette claim was quietly wrong.** Retail has 77 colours in nine groups; `housing_dye` seeds six words, and nothing said so - a reader comparing the two counts had to work out that a dye here is a recoloured game object rather than a client dye | Doc 06 sec.2.2 states the rule: a colour exists when the realm's own furniture names carry that word, the draft seeds six, and `bind_decor_variants.sql` fills the variants from whatever is in `housing_dye`, so a realm that adds a seventh word gets its variants |
+| 173 | **A documented gap that was never written down, and a stale line beside it.** Doc 09 sec.5.13 describes three vendor gates and doc 01 sec.7.5 lists them; only two are implemented. Doc 10 said "nothing is enforced yet - that is phase 3", which had been false since the milestone gate shipped | Doc 02 sec.3 has the ninth substitution: currency and milestone gates are enforced, the entitlement gate is not, because both named entitlements lack an id. Doc 10 now says which half is enforced and which half waits |
 ## Everything doc 01 lists, and where it lives
 
 The question this pass answers is whether the package is complete. The way to answer it is to
@@ -181,7 +199,8 @@ same XP whoever earned it.
 plot's own portal entry. Steward at the portal: `npc_housing_steward` with its nine gossip
 options. Homestone with a 15-minute cooldown: `C:HOME`, `.housing home` and the Travel tab, on
 `Housing.Homestone.Cooldown` at 900 seconds. The dashboard is the addon window, on a launcher
-button and `/house`. Routing from other hubs is the part 8.3.7 does differently: there is no
+button, on a key binding (`Bindings.xml` clicks a hidden button, so the key can be set to H
+in Key Bindings) and on `/house`. Routing from other hubs is the part 8.3.7 does differently: there is no
 Dornogal, so the portal sits in Stormwind and Orgrimmar and the town centre portal reaches it.
 Moving house free and keeping the build: `HousingMgr::MoveHouse` rewrites the plot index only
 and respawns the interior. Relinquishing with a regret timer: `ArchiveHouse` and
@@ -220,8 +239,9 @@ milestones in doc 04, read out of the state the module already keeps. Storage co
 Storage tab. Hearthlight Armillary with five presets: `SetArmillary` and `ToggleArmillary`,
 `character_housing.armillary` 0-4, level 6, worldstate 61202. Pet beds with 100 indoor and 25
 outdoor: `Housing.PetBed.IndoorCap` and `Housing.PetBed.OutdoorCap`, stationary or roaming per
-bed. Dyes: `housing_dye` and `housing_decor_variant`, `DyeDecor` swaps the piece's game object
-for its variant and consumes the dye. Treasure hunts: `housing_hunt`, `LoadHunts`,
+bed. Dyes: `housing_dye` and `housing_decor_variant`; `DyeDecor` swaps the piece's game object
+for its variant and charges `Housing.Dye.Cost`, because a dye item would need an invented
+`item_template` and `spell_template` row per colour. Treasure hunts: `housing_hunt`, `LoadHunts`,
 `AcceptHunt`, `CompleteHunt`, `SpawnHuntCaches`, the Hunts tab and the Steward's ten options.
 
 **Section 6, neighborhoods.** Zones: `housing_biome` and the two neighbourhood rows. Fifty-five
@@ -231,8 +251,9 @@ needed, `GetOrCreateGuildWing` gives a guild its wing under `Housing.Guild.Wings
 `FoundNeighborhood` writes a charter. Minimums and dissolution: `Housing.Neighborhood.PopulationCap`,
 `Housing.Neighborhood.MinResidents` and `RunDissolutionSweep`. Sanctuary: `EnforceBiomeRules`
 re-asserts no-PvP every two seconds on a housing map. No bank and no auction house: nothing on
-the housing maps opens either. Neighbourhood NPCs: steward, contractor, dye crafter, lumberjack,
-decor vendors and the smuggler, all in `HousingNpc.cpp`. Endeavor Coffer: `go_housing_coffer`.
+the housing maps opens either. Neighbourhood NPCs: steward, contractor, dye crafter,
+decor vendors and the smuggler in `HousingNpc.cpp`; the lumberjack has no npc id in the
+record and is served by the builder vendors, which is the eighth row of doc 02 sec.3. Endeavor Coffer: `go_housing_coffer`.
 Plots spaced so yards do not intrude: the ring spacing and `yard_radius`.
 
 **Section 7, permissions.** Plot and house masks, five audiences each, per house:
@@ -265,16 +286,18 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 (3363) for neighbourhood stock, War Resources (1560) reused for themed vendors,
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
-**Settings.** 31 keys in the conf file, all read by `LoadConfig` and all clamped, printable
+**Settings.** 32 keys in the conf file, all read by `LoadConfig` and all clamped, printable
 with `.housing config`. Six client preferences on the Settings tab. 48 commands, 41 player and
 7 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.
 
-**What is not here, and why.** Seven rows in doc 02 sec.3 are substitutions rather than
-omissions: room tiling, the exterior barber-shop builder, dye on arbitrary decor, shop and
-promotion decor, a true warband unit, a distinct Endeavor currency, and the client's View
-Houses menu. Each one is a client or DB2 capability that does not exist in build 35662, and
-each one names what players get instead. Nothing else in doc 01 is missing.
+**What is not here, and why.** Nine rows in doc 02 sec.3 are substitutions rather than
+omissions: room tiling, the exterior barber-shop builder, dye on arbitrary decor, crafted dye
+items, the entitlement gate on vendor stock, shop and promotion decor, a true warband unit, a
+distinct Endeavor currency, and the client's View Houses menu. Each one is a client or DB2
+capability that does not exist in build 35662, or a piece of data the record does not carry -
+the Deed of Patronage and *Ever Painting* have no ids - and each one names what players get
+instead. Nothing else in doc 01 is missing.
 
 ## Audit pass, thirty-first revision
 

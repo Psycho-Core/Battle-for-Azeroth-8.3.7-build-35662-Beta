@@ -133,6 +133,13 @@ void HousingMgr::LoadConfig()
     _gryphonCooldown = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Gryphon.Cooldown", 300)));
     note("Housing.Gryphon.Cooldown", _gryphonCooldown);
 
+    // A dye change costs gold rather than an item. Retail's dyes are crafted and tradeable;
+    // an 8.3.7 item id per colour would have to be invented, and the module does not invent
+    // ids, so the sink is a price the realm can set. Zero is free, which is the default
+    // because a realm that has not thought about the dye economy should not be given one.
+    _dyeCost = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Dye.Cost", 0)));
+    note("Housing.Dye.Cost", _dyeCost);
+
     // Dissolving a private or guild neighbourhood nobody lives in any more. 0 residents means
     // the sweep never runs: an empty street might be one somebody is about to move into.
     _minResidents = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MinResidents", 0)));

@@ -1909,6 +1909,19 @@ namespace Housing
         // the 0 the caller may have sent.
         group = variant->DyeGroup;
 
+        // Re-applying the colour the piece already has is free: charging for a click that
+        // changes nothing is a tax on the player who read the menu before clicking. Anything
+        // else is the dye change, and `Housing.Dye.Cost` prices it.
+        bool const changing = (placement->DyeGroup != group || placement->DyeColor != color);
+        if (changing && _dyeCost)
+        {
+            uint64 const cost = GoldToCopper(_dyeCost);
+            if (!player->HasEnoughMoney(int64(cost)))
+                return NotEnoughMoney;
+
+            player->ModifyMoney(-int64(cost));
+        }
+
         CharacterDatabase.DirectPExecute(
             "UPDATE `character_housing_decor` SET `dye_group` = {}, `dye_color` = {}, "
             "`variant_entry` = {} WHERE `id` = " UI64FMTD,
