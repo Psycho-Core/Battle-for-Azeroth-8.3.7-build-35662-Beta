@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS `housing_decor` (
   `surface`          TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 floor, 1 wall, 2 ceiling, 3 any',
   `placement`        TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 outdoor, 1 indoor, 2 both',
   `category`         VARCHAR(32) NOT NULL DEFAULT '',
+  `subcategory`      VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'second level of the catalogue, empty when the piece has none',
   `source_type`      TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 vendor, 1 quest, 2 achievement, 3 drop, 4 treasure hunt, 5 GM',
   `source_id`        INT UNSIGNED NOT NULL DEFAULT 0,
   `price`            INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'gold',
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS `housing_decor` (
   `scale_max`        FLOAT NOT NULL DEFAULT 3,
   `dye_group`        TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = not dyable, see housing_decor_variant',
   `flags`            INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'bit0 interactive, bit1 no float, bit2 hidden, bit4 pet bed, bit5 jukebox, bit6 mount stand, bit7 mannequin, bit8 dyable',
+  `night_entry`      INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'gameobject entry spawned instead while the Armillary is dark, 0 = the same piece',
   PRIMARY KEY (`id`),
   KEY `idx_housing_decor_category` (`category`),
   KEY `idx_housing_decor_source` (`source_type`, `source_id`)

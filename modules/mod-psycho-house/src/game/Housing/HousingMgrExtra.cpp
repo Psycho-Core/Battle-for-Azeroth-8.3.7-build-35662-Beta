@@ -43,6 +43,7 @@
 #include "Player.h"
 #include "QuaternionData.h"
 #include "Timer.h"
+#include "Weather.h"
 #include "Util.h"
 
 #include <algorithm>
@@ -867,7 +868,7 @@ namespace Housing
         bool const locked = house ? house->IsLocked() : false;
         uint8 const shellId = house ? house->GetShellId() : 0;
         uint8 const rooms = house ? house->GetRoomsOwned() : 0;
-        bool const night = house ? house->IsNightMode() : false;
+        uint8 const armillary = house ? house->GetArmillary() : uint8(ArmillaryDefault);
 
         if (house)
             house->DespawnAll();
@@ -885,7 +886,7 @@ namespace Housing
         {
             moved->SetShellId(shellId);
             moved->SetRoomsOwned(rooms);
-            moved->SetNightMode(night);
+            moved->SetArmillary(armillary);
         }
 
         _houseViewers.erase(housingId);
@@ -1109,10 +1110,22 @@ namespace Housing
     // Hearthlight Armillary
     // -------------------------------------------------------------------------
 
-    HousingResult HousingMgr::ToggleArmillary(Player* player)
+    /*
+     * The Hearthlight Armillary: five presets, level-gated, stored on the house.
+     *
+     * What a server can actually do with "ambience" is two things - swap a piece for its lit
+     * variant, and force the sky clear for a player - so four of the five presets differ in
+     * the world and the fifth differs only in the number the client receives. That collision
+     * is written down in HousingDefines.h rather than papered over with an invented third
+     * axis.
+     */
+    HousingResult HousingMgr::SetArmillary(Player* player, uint8 preset)
     {
         if (!_enabled || !player || !player->GetSession())
             return Disabled;
+
+        if (preset > ArmillaryMidnight)
+            return NotAllowedHere;
 
         HousingPlot* plot = GetOwnedPlot(player);
         if (!plot || !plot->GetHouse())
@@ -1126,27 +1139,38 @@ namespace Housing
         if (!CanEdit(player, plot))
             return NotOwner;
 
-        bool const night = !house->IsNightMode();
-        house->SetNightMode(night);
+        house->SetArmillary(preset);
 
         CharacterDatabase.DirectPExecute(
-            "UPDATE `character_housing` SET `night_mode` = {} WHERE `id` = {}",
-            uint32(night ? 1 : 0), plot->GetHousingId());
+            "UPDATE `character_housing` SET `armillary` = {} WHERE `id` = {}",
+            uint32(preset), plot->GetHousingId());
 
-        // The ambience is a phase, not a shader. Every lighting piece in the catalogue that
-        // has a lit variant spawns as that variant while the Armillary is lit, and the world
-        // state below tells the client's UI which way round it is.
-        if (HousingHouse* owned = plot->GetHouse())
-        {
-            owned->DespawnAll();
+        // Relight: every piece respawns, and the ones with a lit variant come back as it.
+        house->DespawnAll();
 
-            if (Map* map = player->GetMap())
-                owned->EnsureSpawned(map, plot->GetInteriorPhase(), player->GetGUID());
-        }
+        if (Map* map = player->GetMap())
+            house->EnsureSpawned(map, plot->GetInteriorPhase(), plot->GetOwnerGuid());
 
-        player->SendUpdateWorldState(kArmillaryWorldState, night ? 1 : 0);
+        // Only fine weather is reachable from a script, so a preset that asks for a clear sky
+        // gets one and the rest are left to the realm's own weather.
+        if (IsArmillaryClearSky(preset))
+            Weather::SendFineWeatherUpdateToPlayer(player);
+
+        player->SendUpdateWorldState(kArmillaryWorldState, uint32(preset));
 
         return Ok;
+    }
+
+    HousingResult HousingMgr::ToggleArmillary(Player* player)
+    {
+        if (!_enabled || !player)
+            return Disabled;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        if (!plot || !plot->GetHouse())
+            return NoHouse;
+
+        return SetArmillary(player, uint8((uint32(plot->GetHouse()->GetArmillary()) + 1) % 5));
     }
 
     // -------------------------------------------------------------------------
@@ -3124,6 +3148,21 @@ namespace Housing
 
         if (op == "ARMILLARY")
         {
+            // `C:ARMILLARY` with no argument cycles; `C:ARMILLARY <0-4>` picks a preset, which
+            // is what the five buttons in the window send.
+            if (fields.size() > 1 && !fields[1].empty())
+            {
+                uint32 preset = 0;
+                if (!HousingAddon::ParseUInt(fields[1], preset) || preset > ArmillaryMidnight)
+                {
+                    SendResult(player, "ARMILLARY", NotAllowedHere);
+                    return true;
+                }
+
+                SendResult(player, "ARMILLARY", SetArmillary(player, uint8(preset)));
+                return true;
+            }
+
             SendResult(player, "ARMILLARY", ToggleArmillary(player));
             return true;
         }

@@ -28,7 +28,7 @@ namespace Housing
 {
 
 HousingHouse::HousingHouse(uint32 id, uint8 plotIndex)
-    : _id(id), _plotIndex(plotIndex), _tier(1), _blueprint(0), _locked(false), _nightMode(false),
+    : _id(id), _plotIndex(plotIndex), _tier(1), _blueprint(0), _locked(false), _armillary(ArmillaryDefault),
       _plotMask(kAudienceDefaultPlot), _houseMask(kAudienceDefaultHouse),
     _shellId(0), _roomsOwned(0),
     _decorLoaded(false), _spawned(false), _spawnMap(nullptr), _dirty(false), _usedIndoor(0), _usedOutdoor(0)
@@ -353,6 +353,10 @@ void HousingHouse::SpawnPlacement(DecorPlacement& placement, Map* map, uint32 ph
     if (!placement.SpawnGuid.IsEmpty())
         return;
 
+    // The Armillary decides which of the piece's two entries stands here. Set on every spawn
+    // rather than once at load, because the preset can change while the house is up.
+    placement.NightEntry = (IsNightMode() && info->NightEntry) ? info->NightEntry : 0;
+
     if (GameObject* go = SpawnDecorObject(*info, placement, map, phaseId, ownerGuid))
     {
         TC_LOG_DEBUG("housing", "Spawned decor %u (placement " UI64FMTD ") for house " UI64FMTD,
@@ -412,9 +416,9 @@ void HousingHouse::Flush()
     CharacterDatabase.DirectPExecute(
         "UPDATE `character_housing` SET `tier` = {}, `blueprint` = {}, `name` = '{}', `locked` = {}, "
         "`budget_indoor` = {}, `budget_outdoor` = {}, `shell_id` = {}, `rooms_owned` = {}, "
-        "`night_mode` = {}, `plotMask` = {}, `houseMask` = {}, `last_edited` = {} WHERE `id` = {}",
+        "`armillary` = {}, `plotMask` = {}, `houseMask` = {}, `last_edited` = {} WHERE `id` = {}",
         uint32(_tier), _blueprint, _name, uint32(_locked ? 1 : 0), _usedIndoor, _usedOutdoor,
-        uint32(_shellId), uint32(_roomsOwned), uint32(_nightMode ? 1 : 0),
+        uint32(_shellId), uint32(_roomsOwned), uint32(_armillary),
         uint32(_plotMask), uint32(_houseMask), uint32(std::time(nullptr)), _id);
 
     _dirty = false;

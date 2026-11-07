@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 29 server settings, all 44 commands, the six client
+  14-settings-and-commands.md  all 29 server settings, all 48 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -35,12 +35,12 @@ modules/mod-psycho-house/
   src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
                          neighbourhoods, the houses, the Endeavor engine, the four NPC
                          scripts and the four gameobject scripts
-  src/scripts/Housing/   commands (46 of them), player/world/guild hooks, loader
+  src/scripts/Housing/   commands (48 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
   addon/HousingUI/       the client addon: Core.lua (transport, grid snapping) and
-                         Menu.lua (the nine-tab housing window)
+                         Menu.lua (the eleven-tab housing window)
   legacy-prototype/      the original prototype notes and patches, kept verbatim as
                          history - the numbered documents are the current set
   tools/housing/         scrapers, indexers, the draft builder, the installer,
@@ -93,6 +93,7 @@ publish entry ids for the interior quests.
 | `tools/housing/merge_capture.py` | Merges one vendor capture file from `data/captures/` into both CSVs: replaces that vendor's stock rows, or adds to them with `--append` when a vendor stands as two npcs, adds the ids, keeps an empty price empty and preserves an existing gate note. Re-running it is safe. |
 | `tools/housing/build_drafts.py` | Builds both drafts from the CSVs: vendor rows, decor catalogue, stock rows, the progression file both drafts import, and the native catalogue's name refresh. Re-running rewrites every generated file. |
 | `tools/housing/build_progression.py` | The progression content both drafts share: the 12-level house ladder with its three decor budgets, 6 exterior shells, 18 rooms, 10 portal destinations, 4 Endeavors with 24 tasks and 16 reward rows. Imported by `build_drafts.py`, so the two drafts cannot disagree about what a level 8 house costs. |
+| `tools/sql/bind_night_variants.sql` | Pairs each catalogue piece with the realm's own lit twin - same name and type with `Lit ` in front - so the Armillary's dark presets respawn pieces as their lit form. Reports how many pieces got one. |
 | `tools/sql/bind_housing_content.sql` | Turns the search names the draft rows ship with into ids out of the realm's own `gameobject_template`, `creature_template`, `item_template`, `quest_template` and `game_tele`, then prints what stayed unbound. Every subquery is `COALESCE`d to 0 so one missing name cannot stop the file. |
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
@@ -110,7 +111,7 @@ publish entry ids for the interior quests.
 | `tools/housing/check_coverage.py` | Both drafts against the data they are generated from, in both directions: every vendor, every priced line, every resolved retail item id and every catalogue row has to appear on both sides, and anything the data cannot supply has to be named in the file as a comment. Mutation-tested three ways: a dropped stock tuple, a decor row with its item id zeroed, and a native entry that is not in the source tree were each reported. |
 | `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
 | `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
-| `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `psycho_house_vendor_stock`. |
+| `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `housing_vendor_stock`. |
 | `vendor-slugs.txt` | The 39 vendor slugs the scraper consumes. |
 | `tools/sql/psycho_house_harvest.sql` | The same harvest as pure SQL for people who do not want to run Python: candidate queries per furniture family, plus the report I use to spot gaps. |
 
@@ -155,6 +156,25 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twenty-eighth revision
+
+The twenty-seventh pass gave permissions a way in. This one stopped reading prose and parsed
+every identifier in the documents against `src/`, `addon/`, `sql/` and `tools/`, then asked
+the same question of every data-shaped claim: does the column exist, is it loaded, and is the
+number in the document the number in the table.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 138 | `psycho_house_vendor_stock` does not exist anywhere. The world schema creates `housing_vendor_stock`, and doc 09 loaded a CSV into the name that does not exist - with a `LOAD DATA` block that also assumed a database that is not there | Doc 02 sec.4 and doc 09 sec.7 name `housing_vendor_stock`; the load block clears the table first, is run with `--local-infile=1`, and points at the file `build_drafts.py` actually writes |
+| 139 | Doc 02 sec.4 listed three tables that are not created - `housing_blueprint`, `housing_dye_color`, `housing_pet_bed` - and a column, `housing_decor.subcategory`, that was not there | The tables are named what they are: `character_housing_blueprint` (characters database), `housing_decor_variant` beside `housing_dye`, `housing_decor_creature`. `subcategory` is now a real column |
+| 140 | `RestorePlot` does not exist; the archive restore is `RestoreArchivedHouse` | Doc 02 row renamed to the function the code has |
+| 141 | The Armillary row claimed weather was impossible, and the ledger said the same. `Weather::SetWeather` is public and `Weather::SendFineWeatherUpdateToPlayer` is static and takes a player | The claim is gone. Five presets, a `night_entry` per piece that `SpawnPlacement` honours, clear sky for the two presets that ask for it, and doc 06 sec.6 writes down which two presets differ only in the number the client receives |
+| 142 | `housing_decor.dye_group` was in the schema and never selected, so every piece reported group 0 and the dye path could not find a variant | Selected and loaded into `DecorInfo`, with the column order checked by `check_sql_columns.py` |
+| 143 | Doc 04 sec.4.1 described an Endeavor schema that does not exist (`taskType`, `rotationStart`, `rotationEnd`, `itemOrDecorId`) and sec.4.2 described six Endeavors where the data has four | Both written to the shipped shape: numeric task types 0-6, `duration_days`/`started`/`ends`, and the four Endeavors with their actual task lists |
+| 144 | "Rewards grant decor directly (`GrantDecor`)" - there is no such function, and `EndeavorMgr::Claim` ignored a reward row's item entirely | `Claim` pays `item_entry`/`item_count` when a row names them, and says so if the bag is full. The shipped rows pay currency and XP only, which is what the comment in the SQL now says |
+| 145 | Doc 05 and doc 06 sketched `psycho_house_*` table names that no SQL file creates | The plan doc says plainly that the rename was not taken, and the sketches use the real names |
+| 146 | The house tab drew the amenities list and the permission matrix on top of each other - two blocks of labels in the same 200 pixels, and the second fell off the bottom of the pane | An eleventh tab, Access, carries both; the Armillary's five preset buttons went into the space that freed up on the house tab |
 
 ## Audit pass, twenty-fourth revision
 

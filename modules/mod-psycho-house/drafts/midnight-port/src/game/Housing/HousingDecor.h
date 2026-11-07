@@ -46,6 +46,7 @@ namespace Housing
         uint8 DyeGroup = 0;         // 0 = undyed
         uint8 DyeColor = 0;
         uint32 VariantEntry = 0;    // the dyed game object entry, 0 = the catalogue entry
+        uint32 NightEntry = 0;      // the lit game object entry while the Armillary is dark, 0 = none
         ObjectGuid SpawnGuid;       // live object, empty when not spawned
         ObjectGuid PetGuid;         // creature a pet bed owns, empty when not spawned
     };

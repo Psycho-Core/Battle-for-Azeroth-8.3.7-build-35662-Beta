@@ -514,7 +514,7 @@ like on a map pin.
    (small props, bushes, columns), 50g (cushions, rugs, small tables, pet beds), 75-100g
    (furniture, tiles, walls, doors), 125g (large tables, big platforms, wagons), 150g
    (trees, garden clusters, gazebos, market stands), 250-500g (holiday showpieces), 1 500g
-   (paintings). That is the price table `psycho_house_decor` should copy.
+   (paintings). That is the price table `housing_decor` copies.
 
 ## 7. Loading this into the module
 
@@ -528,12 +528,16 @@ python3 tools/housing/merge_capture.py \
     --file data/captures/gronthul.tsv \
     --source "wowhead npc 255278"
 
-# 2. turn the CSVs into the two drafts
+# 2. turn the CSVs into the drafts, which is where the world SQL is written
 python3 tools/housing/build_drafts.py
 
-# 3. or load the CSV straight into a world database
-mysql world -e "LOAD DATA LOCAL INFILE 'data/town-center-stock.csv' \
-  INTO TABLE psycho_house_vendor_stock \
+# 3. apply the generated file, or reload the whole table from it
+mysql world < drafts/midnight-port/sql/world/05_stock_retail.sql
+
+# 4. or load the CSV straight into the table, after clearing it
+mysql world -e "TRUNCATE TABLE housing_vendor_stock;"
+mysql --local-infile=1 world -e "LOAD DATA LOCAL INFILE 'data/town-center-stock.csv' \
+  INTO TABLE housing_vendor_stock \
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' \
   LINES TERMINATED BY '\n' IGNORE 1 LINES \
   (vendor, item, price, currency, note);"

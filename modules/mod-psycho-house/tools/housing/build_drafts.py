@@ -176,6 +176,7 @@ BIND_SQL = (
     "bind_native_vendors.sql",
     "bind_housing_content.sql",
     "bind_decor_variants.sql",
+    "bind_night_variants.sql",
 )
 
 

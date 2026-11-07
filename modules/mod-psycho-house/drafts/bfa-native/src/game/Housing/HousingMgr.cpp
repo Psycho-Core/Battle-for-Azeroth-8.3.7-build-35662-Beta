@@ -339,8 +339,8 @@ void HousingMgr::LoadDecor()
 
     QueryResult result = WorldDatabase.Query(
         "SELECT `id`, `name`, `gameobject_entry`, `budget_cost`, `surface`, `placement`, `category`, "
-        "`source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`, "
-        "`item_entry` "
+        "`subcategory`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, "
+        "`scale_max`, `dye_group`, `flags`, `item_entry`, `night_entry` "
         "FROM `housing_decor`");
 
     if (!result)
@@ -361,15 +361,18 @@ void HousingMgr::LoadDecor()
         info.Surface = fields[4].GetUInt8();
         info.Placement = fields[5].GetUInt8();
         info.Category = fields[6].GetString();
-        info.SourceType = fields[7].GetUInt8();
-        info.SourceId = fields[8].GetUInt32();
-        info.Price = fields[9].GetUInt32();
-        info.Currency = fields[10].GetUInt32();
-        info.FactionMask = fields[11].GetUInt8();
-        info.ScaleMin = fields[12].GetFloat();
-        info.ScaleMax = fields[13].GetFloat();
-        info.Flags = fields[14].GetUInt32();
-        info.ItemEntry = fields[15].GetUInt32();
+        info.Subcategory = fields[7].GetString();
+        info.SourceType = fields[8].GetUInt8();
+        info.SourceId = fields[9].GetUInt32();
+        info.Price = fields[10].GetUInt32();
+        info.Currency = fields[11].GetUInt32();
+        info.FactionMask = fields[12].GetUInt8();
+        info.ScaleMin = fields[13].GetFloat();
+        info.ScaleMax = fields[14].GetFloat();
+        info.DyeGroup = fields[15].GetUInt8();
+        info.Flags = fields[16].GetUInt32();
+        info.ItemEntry = fields[17].GetUInt32();
+        info.NightEntry = fields[18].GetUInt32();
 
         // A catalogue row without a spawn is kept: the addon lists it, the collection
         // tracks it, and placing it fails cleanly in SpawnDecorObject. Dropping the row
@@ -526,7 +529,7 @@ void HousingMgr::LoadNeighborhoods()
 
     if (QueryResult result = CharacterDatabase.Query(
         "SELECT `id`, `neighborhoodId`, `plotIndex`, `ownerAccount`, `ownerGuid`, `ownerName`, `tier`, "
-        "`blueprint`, `name`, `locked`, `shell_id`, `rooms_owned`, `night_mode`, `plotMask`, "
+        "`blueprint`, `name`, `locked`, `shell_id`, `rooms_owned`, `armillary`, `plotMask`, "
         "`houseMask` FROM `character_housing`"))
     {
         do
@@ -561,7 +564,7 @@ void HousingMgr::LoadNeighborhoods()
             {
                 house->SetShellId(fields[10].GetUInt8());
                 house->SetRoomsOwned(fields[11].GetUInt8());
-                house->SetNightMode(fields[12].GetUInt8() != 0);
+                house->SetArmillary(fields[12].GetUInt8());
                 house->SetAccessMask(SpacePlot, fields[13].GetUInt8());
                 house->SetAccessMask(SpaceHouse, fields[14].GetUInt8());
             }

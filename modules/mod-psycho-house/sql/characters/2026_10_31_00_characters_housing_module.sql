@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
 `budget_room`  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'cached, recomputed on load',
 `shell_id`  INT UNSIGNED NOT NULL DEFAULT 0,
 `rooms_owned` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'rooms bought at the Contractor',
-`night_mode` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 while the Hearthlight Armillary is lit',
+`armillary` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Hearthlight Armillary preset: 0 default, 1 natural light, 2 unnatural dark, 3 evening calm, 4 midnight',
 `endeavor_id`  INT UNSIGNED NOT NULL DEFAULT 0,
 `edit_session` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 while the owner is in build mode',
  `blueprint`    INT UNSIGNED NOT NULL DEFAULT 0,

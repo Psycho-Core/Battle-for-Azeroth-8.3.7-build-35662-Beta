@@ -37,7 +37,12 @@ GameObject* SpawnDecorObject(DecorInfo const& info, DecorPlacement& placement, M
 
     // A dyed piece spawns as the variant game object, not the catalogue one. Without this the
     // dye row was written and read back and never seen.
-    uint32 const entry = placement.VariantEntry ? placement.VariantEntry : info.GameObjectEntry;
+    // Dye wins over the lit variant: a dyed piece is a colour the player chose, and a night
+    // entry for that exact colour does not exist. A dyed piece therefore stays its dyed self
+    // when the Armillary goes dark, which is a limitation rather than a bug - the alternative
+    // would be silently losing the dye.
+    uint32 const entry = placement.VariantEntry ? placement.VariantEntry
+        : (placement.NightEntry ? placement.NightEntry : info.GameObjectEntry);
     if (!entry)
         return nullptr;
 

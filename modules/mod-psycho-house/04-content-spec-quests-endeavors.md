@@ -73,45 +73,60 @@ room budget at level 1: one large room plus a few small ones fits, anything bigg
 
 ## 4. Endeavors
 
-Six Endeavors at launch, each themed on BfA content so the task list is something players
-already do on this server. Monthly rotation, one active per neighborhood.
+Four Endeavors at launch, each themed on content this realm already has so the task list is
+something players already do. Monthly rotation, one active per neighborhood.
 
 ### 4.1 Structure
 
 ```sql
 housing_endeavor
-  id, name, description, faction_mask, currency_id, favor_per_task, xp_per_task,
-  theme_biome, prop_set, vendor_set, min_tasks, max_tasks
+  id, name, description, duration_days, base_required, flags
 
 housing_endeavor_task
-  endeavorId, taskType, targetId, required, weight, description
+  id, endeavor_id, type, target, target_name, required, text
 
 housing_endeavor_reward
-  endeavorId, itemOrDecorId, cost, currencyId, requiresCompletion
+  endeavor_id, milestone, item_entry, item_count, currency_id, currency_amount, xp
 ```
 
-`taskType` values: `Craft` (spell id), `Gather` (item id), `Quest` (quest id),
-`Dungeon` (boss entry or instance map), `Raid`, `PetBattle`, `Kill` (creature entry),
-`WorldQuest`-equivalent (daily), `Fish` (item id), `Archaeology` (project id).
+`type` is a number, not a word: 0 kill, 1 boss, 2 quest, 3 loot, 4 craft, 5 pet battle,
+6 deliver. `target` is the creature, gameobject, quest or spell id the hook compares
+against, and 0 means the row is not bound yet; `target_name` is the name the bind statement
+in `tools/sql/bind_housing_content.sql` searches for, so a row can be authored before the
+id is known. `required` is scaled per neighbourhood by `GetRequired`, not used raw: an
+Endeavor in a street of twelve asks for more than the same one in a street of two.
 
-### 4.2 The six
+`character_housing_endeavor` holds the running one - `neighborhoodId`, `endeavorId`,
+`milestone`, `started`, `ends` - and per-task progress lives beside it, so a server restart
+mid-rotation does not reset a street's work.
 
-| Endeavor | Theme | Task examples | Vendor set unlocked |
+### 4.2 The four that ship
+
+Retail rotates themed Endeavors - one per neighbourhood theme, six in the 12.0 set. What the
+module ships is four, and they are deliberately small: every task is a real 8.3.7 creature,
+quest or system, because a task that names something the realm does not have is a bar that
+never fills.
+
+| Endeavor | Premise | Tasks | Rows |
 | --- | --- | --- | --- |
-| **Tides of Kul Tiras** | Drustvar / Tiragarde coastal | Fish 40x coastal fish; complete 3 Tiragarde quests; kill 25 pirates | Nautical: anchors, nets, crates, dock posts, fog lanterns |
-| **Zandalari Bazaar** | Zuldazar markets | Craft 20x potions; loot 30x trade goods; 5 pet battles won | Tribal: rugs, urns, totems, market stands, hanging fabrics |
-| **Mechagon Workshop** | Mechagon tinkering | Craft 15x engineering items; kill 30 mechagnomes; 2 dungeon runs | Gnome/Mech: gears, lamps, pipes, cog piles, mechanical chairs |
-| **Nazjatar Depths** | Naga / ocean floor | Kill 40 naga; gather 25x herbs; complete 2 Nazjatar dailies | Oceanic: shells, coral, kelp, glowfish tanks, dark braziers |
-| **Vulpera Caravan** | Vol'dun traders | Complete 10 Vol'dun quests; loot 20x caravan goods; 3 pet battles | Nomad: tents, cushions, campfires, saddlebags, desert plants |
-| **Death Rising** | Scourge / Cult of the Damned | Kill 50 undead; complete 2 Northrend-era quests; 1 raid boss | Spooky: gravestones, cobwebs, candles, skulls, iron fences (pairs with Brumewood Hollow) |
+| **Harvest Home** | The neighbourhood fills its larder for the season | Kill 10 Kobold Vermin, 5 Harvest Golems, 10 Boars; complete *A House For You*; win 3 pet battles; deliver 5 loads at the Coffer | 6 |
+| **The Hunters' Gate** | Something is taking the livestock at night | Kill 10 Wolves, Hogger, 10 Defias Pillagers; defeat Edwin VanCleef; complete *First Home* and *Welcome Home* | 6 |
+| **Winter Veil Warmth** | The neighbourhood decorates for the holiday | Defeat the Abominable Greench; complete *Time to Decorate*; win 5 pet battles; deliver 10 loads; kill 10 Winterfall Den Watchers and 10 Frostsabers | 6 |
+| **Deep Places** | The old things under the rock are stirring again | Defeat Onyxia; kill 10 Faceless Ones; win 8 pet battles; deliver 5 loads | 4 |
 
-Each has **20-34 tasks** in its list with a neighborhood-scaled requirement:
+Twenty-two task rows, in `07_progression.sql`. The six retail themes - Tides of Kul Tiras,
+Zandalari Bazaar, Mechagon Workshop, Nazjatar Depths, Vulpera Caravan, Death Rising - are
+written down in doc 01 as the shape to grow into; adding one is four definition rows plus its
+task rows, with no code change.
+
+Each task's requirement scales with how many people live in the street:
 
 ```
-required = ceil(base * clamp(activeResidents / 10, 0.5, 3.0))
+required = max(1, base * clamp(residents / 10, 0.5, 3.0))
 ```
 
-so a 3-house server still finishes an Endeavor and a 40-house server has to work for it.
+`ScaledRequirement`, called through `GetRequired`, so a three-house street still finishes an
+Endeavor and a forty-house street has to work for it.
 
 ### 4.2b Milestones, and why they are the real reward
 
@@ -135,11 +150,13 @@ one comparison in `GetVendorStock`. It turns a currency sink into a reason to lo
 
 ### 4.3 Loop
 
-1. Rotation timer (WorldScript) picks the next Endeavor per neighborhood, writes
-   `endeavorId`, `rotationStart`, `rotationEnd` (30 days), zeroes progress.
+1. Rotation timer (`EndeavorMgr::Update`, driven by the world script) finishes an expired
+   Endeavor and starts the next one: it writes `endeavorId`, `started` and `ends`
+   (`duration_days`, 30 in the shipped rows) and zeroes the task progress.
 2. Players see tasks in the addon and via `.house endeavor`; each character has an
    *active* Endeavor (per-character, per retail).
-3. Task completions increment progress and pay Favor + House XP.
+3. Task completions increment progress; progress is what moves the milestone. Favor and
+   House XP are paid at the milestone claim, not per task.
 4. At 100 % the themed vendor NPCs spawn in the hub (their `phase` = neighborhood hub
    phase), a Coffer GO appears, and every resident can loot it once per warband:
    250 House XP + currency + one themed decor.
@@ -167,7 +184,9 @@ each a custom quest with a GO objective:
 | 10 | "The lamp the wind cannot kill" | Outer Banks cliff | *Storm Lantern* |
 
 Mechanics: `quest_template` + `quest_objectives` with `GAMEOBJECT` type, plus a spawn of a
-small "cache" GO per location. Rewards grant decor directly (`GrantDecor`, no item).
+small "cache" GO per location. The quest rewards a decor id through the collection -
+`character_housing_collection`, which is what gates placing the piece - rather than through
+an item, so no item_template row is needed for a decoration.
 
 The four introduction quests in section 1 have a giver now: the Steward offers the next one
 in the chain and takes the turn-in, and the objective is marked by the module event that

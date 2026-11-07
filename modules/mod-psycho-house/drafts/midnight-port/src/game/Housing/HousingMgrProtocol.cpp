@@ -345,7 +345,8 @@ void HousingMgr::HandleAddonMessage(Player* player, std::string const& message)
         uint32 page = 0;
         std::string category = fields.size() > 1 ? fields[1] : "";
         HousingAddon::ParseUInt(fields.size() > 2 ? fields[2] : std::string("0"), page);
-        HandleDecorList(player, *state, category, page);
+        std::string subcategory = fields.size() > 3 ? fields[3] : "";
+        HandleDecorList(player, *state, category, subcategory, page);
         return;
     }
 
@@ -524,9 +525,9 @@ void HousingMgr::HandlePlotInfo(Player* player, PlayerState& state, uint8 plotIn
     uint32 const accountId = player->GetSession()->GetAccountId();
     HousingHouse* house = plot->GetHouse();
 
-    // The two masks ride at the end so the addon can draw the permission checkboxes from the
-    // same line that gives it the house card.
-    SendChunk(player, Trinity::StringFormat("S:PLOTINFO|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+    // The two masks ride after the card so the addon can draw the permission checkboxes from
+    // the same line, and the Armillary preset trails them for the same reason.
+    SendChunk(player, Trinity::StringFormat("S:PLOTINFO|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
         uint32(plotIndex), plot->GetBiomeId(), plot->GetPrice(), uint32(plot->GetSizeClass()),
         uint32(plot->GetStateFor(accountId)), uint32(house ? house->GetTier() : 0),
         plot->GetOwnerName(), house ? house->GetName() : std::string(),
@@ -534,7 +535,8 @@ void HousingMgr::HandlePlotInfo(Player* player, PlayerState& state, uint8 plotIn
         house ? house->GetBudget(true) : 0, house ? house->GetBudget(false) : 0,
         house ? house->GetUsedBudget(true) : 0, house ? house->GetUsedBudget(false) : 0,
         uint32(house ? house->GetAccessMask(SpacePlot) : kAudienceDefaultPlot),
-        uint32(house ? house->GetAccessMask(SpaceHouse) : kAudienceDefaultHouse)));
+        uint32(house ? house->GetAccessMask(SpaceHouse) : kAudienceDefaultHouse),
+        uint32(house ? house->GetArmillary() : uint32(ArmillaryDefault))));
 }
 
 void HousingMgr::HandleDirectory(Player* player, PlayerState& state, uint32 page)
@@ -569,7 +571,8 @@ void HousingMgr::HandleDirectory(Player* player, PlayerState& state, uint32 page
     SendChunk(player, payload);
 }
 
-void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string const& category, uint32 page)
+void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string const& category,
+    std::string const& subcategory, uint32 page)
 {
     (void)state;
 
@@ -591,6 +594,8 @@ void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string
             continue;
         if (!category.empty() && info.Category != category)
             continue;
+        if (!subcategory.empty() && info.Subcategory != subcategory)
+            continue;
         if (info.SourceType == SourceVendor && info.Price == 0 && info.Currency == 0)
             continue;
 
@@ -607,6 +612,8 @@ void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string
         {
             if (left->Category != right->Category)
                 return left->Category < right->Category;
+            if (left->Subcategory != right->Subcategory)
+                return left->Subcategory < right->Subcategory;
             return left->Id < right->Id;
         });
 
@@ -618,10 +625,10 @@ void HousingMgr::HandleDecorList(Player* player, PlayerState& state, std::string
     {
         DecorInfo const* info = visible[i];
 
-        payload += Trinity::StringFormat("S:DECORENTRY|{}|{}|{}|{}|{}|{}|{}|{};",
+        payload += Trinity::StringFormat("S:DECORENTRY|{}|{}|{}|{}|{}|{}|{}|{}|{};",
             info->Id, info->Name, uint32(info->BudgetCost), uint32(info->Placement),
             uint32(info->Surface), HasUnlocked(accountId, info->Id) ? 1u : 0u,
-            GetPurchasePrice(player, *info), info->Currency);
+            GetPurchasePrice(player, *info), info->Currency, info->Subcategory);
     }
 
     payload += Trinity::StringFormat("S:DECOREND|{}|{};", page, end < visible.size() ? 1 : 0);

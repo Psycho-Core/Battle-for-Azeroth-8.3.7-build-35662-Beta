@@ -73,7 +73,7 @@ being applied from a setting that is being ignored.
 
 ## 3. Every command
 
-47 commands, of which 40 are player commands and 7 are GM commands. `.housing` with no argument
+48 commands, of which 41 are player commands and 7 are GM commands. `.housing` with no argument
 prints this list from the command table itself, so the in-game help cannot drift from what the
 server dispatches.
 
@@ -91,7 +91,8 @@ server dispatches.
 | `.housing name` | `<text>` | player | rename the house, up to 64 characters |
 | `.housing lock` | `<on|off>` | player | lock or unlock the plot; a locked house admits nobody but the owner, a guest and a GM |
 | `.housing access` | `<yard|house> <mask|names>` | player | who may stand on the yard and who may come inside, as six audience bits or as names (`anyone neighbours guild party friends guests none`); no argument prints both masks |
-| `.housing decor` | `[category] [page]` | player | the catalogue, filtered by faction and category, paged |
+| `.housing armillary` | `[0-4]` | player | the Hearthlight Armillary: prints the five presets and cycles to the next one, or sets the preset named |
+| `.housing decor` | `[category] [page] [subcategory]` | player | the catalogue, filtered by faction, category and subcategory, paged |
 | `.housing buydecor` | `<id>` | player | buy a decor item with gold or the row's currency |
 | `.housing placed` | `-` | player | every placement in the house with id, decor, position and scale |
 | `.housing place` | `<decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]` | player | place a piece at a typed coordinate; the two tilt angles are optional and in radians |

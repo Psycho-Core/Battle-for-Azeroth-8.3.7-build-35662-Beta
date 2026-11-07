@@ -30,7 +30,7 @@ SQL applied and no GM intervention**:
 | P0 | Rename + restructure, config under `PsychoHouse.*`, keep behaviour | Prototype feature set still passes its own test matrix after rename; server boots | 2-3 evenings |
 | P1 | Ownership parity + travel + level table + catalogue from harvest | Buy, move, sell, level 1-5 budgets, 3 vendors, 200+ decor entries, homestone, portal rooms | 2 weeks |
 | P2 | Addon UI v1, permissions matrix, gossip paths, interior shells v1 | Playable without a GM; a stranger can be blocked from both plot and house independently | 3 weeks |
-| P3 | Endeavors engine + the six Endeavors + coffer + themed vendors | One Endeavor completable on a small neighborhood; coffer once per warband | 4 weeks |
+| P3 | Endeavors engine + the four Endeavors + coffer + themed vendors | One Endeavor completable on a small neighborhood; coffer once per warband | 4 weeks |
 | P4 | Storage/duplicates, pet beds, weekly level-10 reward, guild neighborhoods | Duplicates enforced; pets live in plots; guild hoods by roster | 3 weeks |
 | P5 | Dye system (limited), blueprint codes | Dyes work on variant-authored pieces; export/import round-trips | 3-4 weeks |
 | P6 | Art pass: custom housing map, exteriors, rooms art | Founder's Point geometry shipped in a client patch | art-bound |
@@ -72,15 +72,14 @@ silently disables the whole module. CMake must be re-run (the glob is configure-
 | `HousingMgr` | `PsychoHouseMgr` |
 | `Housing::kAddonPrefix = "BFAH"` | `PsychoHouse::kAddonPrefix = "PCHO"` |
 | Config `Housing.*` | `PsychoHouse.*` |
-| Tables `housing_*` / `character_housing_*` | `psycho_house_*` / `character_psycho_house_*` |
+| Tables `housing_*` / `character_housing_*` | Unchanged - the drafts ship `housing_*` |
 | Protocol version 3 | 4 (breaking: new opcodes, renamed prefix) |
 
-Table renames are painful on a live realm. Two options, both fine:
-
-- **Greenfield realm**: drop the prototype tables, apply the new schema, move on.
-- **Live realm**: keep the physical table names, only rename the C++ constants, and note the
-  mismatch in the schema doc. Ugly, zero risk. I would take this for anything with data
-  worth keeping.
+The table rename is the one line in that table I did not take. Drafts A and B ship
+`housing_*` and `character_housing_*`, draft C ships `psychohouse_facility`, and a rename
+would touch every query, both schema files and any realm that has already applied the
+prototype - for nothing a player can see. The table names in doc 02 sec.4 and doc 06 are the
+names in `sql/world/` and `sql/characters/`. A future rename stays a text-only change.
 
 ### 3.3 What must not change
 
@@ -202,7 +201,7 @@ small, independent of decor, and already written: `drafts/mod-psychohouse/` sell
 services and two faction portals from a table, and doc 13 is the design.
 
 Bringing it here is four steps: thirteen additions to `AmenityType`, six columns on
-`psycho_house_amenity`, one purchase path that reuses the existing spawner, and the guild
+`housing_amenity`, one purchase path that reuses the existing spawner, and the guild
 hooks from 4.3a. Nothing about it is hard; it is the part of housing that makes the plot worth
 visiting twice.
 
@@ -228,9 +227,9 @@ Anything not in that list goes to P3+.
 
 Engine first, content second:
 
-1. `psycho_house_endeavor` + task tables (doc 04 sec.4.1).
-2. Progress storage: `character_psycho_house_endeavor` for claims; neighborhood-level
-   progress in `psycho_house_neighborhood.endeavorProgress`.
+1. `housing_endeavor` + task tables (doc 04 sec.4.1).
+2. Progress storage: `character_housing_endeavor` for claims; neighborhood-level
+   progress in `character_housing_neighborhood.endeavorProgress`.
 3. Hook points, each one function call:
    - `PlayerScript::OnQuestComplete` -> `EndeavorMgr::OnQuest`
    - `PlayerScript::OnCreatureKill` -> `OnKill`
@@ -240,12 +239,12 @@ Engine first, content second:
 4. Scaling formula, Favor worldstate, hub vendor phase-in, coffer.
 5. Milestone gating: `housing_endeavor_reward.milestone` (1-4) filters vendor stock, matching
    retail's "Reach the Nth milestone" gate on roughly a third of coupon-vendor items.
-6. Then write the six Endeavor definitions as pure SQL. This is where the *time* goes, and
-   it is content design, not engineering.
+6. Then write the Endeavor definitions as pure SQL. Four ship (doc 04 sec.4.2); each is a
+   definition row plus its task rows, and it is content design, not engineering.
 
 ## 7. Phase 4 - storage, pets, guilds
 
-- **Storage**: `character_psycho_house_storage(accountId, decorId, count)`. Placing decrements,
+- **Storage**: `character_housing_storage(accountId, decorId, count)`. Placing decrements,
   removing increments, buying increments; the collection row only gates *permission*.
   This is the retail "four chairs are four chairs" rule and it doubles as a gold sink.
 - **Pet beds**: bed GO with `spellclick`/gossip -> assign a pet; spawn the pet's creature in

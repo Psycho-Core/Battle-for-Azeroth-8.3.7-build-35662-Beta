@@ -479,6 +479,16 @@ namespace Housing
             if (reward.CurrencyId && reward.CurrencyAmount)
                 player->ModifyCurrency(reward.CurrencyId, int32(reward.CurrencyAmount));
 
+            // A reward row may name an item instead of, or as well as, currency. The shipped
+            // rows do not - the catalogue is the reward and the milestone gate is the prize -
+            // but a row that names one is paid rather than silently skipped.
+            if (reward.ItemId && reward.Count)
+            {
+                if (!player->AddItem(reward.ItemId, reward.Count))
+                    player->GetSession()->SendNotification(
+                        "A reward could not be delivered - free a bag slot and ask the Coffer again.");
+            }
+
             if (reward.Xp)
                 sHousingMgr->GrantHouseXp(player, reward.Xp);
         }
