@@ -35,6 +35,7 @@ missing rather than having to diff two files.
 """
 
 import csv
+import glob
 import os
 import re
 import sys
@@ -348,6 +349,66 @@ def check_hunts(label, decor_file):
     return len(hunts)
 
 
+def check_script_bindings():
+    """Every script the module registers is bound by some SQL.
+
+    A script name that appears only in `ScriptMgr` registration is a half-feature: the C++ is
+    compiled and nothing in the world ever runs it. That was true of all five game object
+    scripts until this rule was written - `gameobject_template.ScriptName` is the only way to
+    attach one, and no file set it.
+    """
+    source = ""
+    for pattern in ("src/**/*.cpp", "src/**/*.h"):
+        for path in glob.glob(os.path.join(HERE, pattern), recursive=True):
+            source += read(path)
+
+    bound = ""
+    for pattern in ("tools/sql/*.sql", "sql/**/*.sql", "drafts/*/sql/**/*.sql"):
+        for path in glob.glob(os.path.join(HERE, pattern), recursive=True):
+            bound += read(path)
+
+    # A CommandScript is reached through the command table, not through a database name, so it
+    # is the one kind of script registration that has no binding statement to find.
+    scripts = set(re.findall(r'(?:GameObjectScript|CreatureScript|GuildScript|PlayerScript|'
+                             r'WorldScript)\("?([a-z_]+)"?\)', source))
+    for name in sorted(scripts):
+        if name not in bound:
+            fail("scripts", "`{}` is registered and no SQL binds it".format(name))
+
+    print("  {:>3} script names, every one bound by a statement"
+          .format(len(scripts)))
+
+    return len(scripts)
+
+
+def check_documented_counts():
+    """A number the drafts file states has to be a number the SQL has.
+
+    Doc 10 counts rows ("23 amenity pins", "55 plot templates"), and a row added to the module
+    SQL without the sentence is how a document starts lying. The amenity row is the one that
+    bites, because a coffer added to the SQL and not to the doc leaves the doc describing an
+    Endeavors Area with no chest.
+    """
+    doc = read(os.path.join(HERE, "10-draft-modules.md"))
+    match = re.search(r"(\d+) amenity pins", doc)
+    if not match:
+        fail("counts", "doc 10 no longer states how many amenity pins there are")
+        return 0
+
+    stated = int(match.group(1))
+    sql = ""
+    for path in glob.glob(os.path.join(HERE, "sql/**/*.sql"), recursive=True):
+        sql += read(path)
+
+    found = len(re.findall(r"^\((\d+),\s*\d+,\s*(?:'(?:[^']|'')*'),\s*\d+,", sql, re.M))
+    if found != stated:
+        fail("counts", "doc 10 says {} amenity pins and the module SQL has {}"
+             .format(stated, found))
+
+    print("  {:>3} amenity pins, the number doc 10 states".format(stated))
+    return 1
+
+
 def main():
     print("drafts against the data they are generated from\n")
 
@@ -355,6 +416,8 @@ def main():
     a_hunts = check_hunts("midnight-port", "04_decor_retail.sql")
     b_decor, b_stock = check_native()
     b_hunts = check_hunts("bfa-native", "03_decor_native.sql")
+    check_script_bindings()
+    check_documented_counts()
 
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:

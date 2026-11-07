@@ -105,7 +105,43 @@ SET t.`target` = COALESCE((
 WHERE t.`type` IN (3, 4) AND t.`target_name` <> '';
 
 -- ---------------------------------------------------------------------------
--- 6. The report
+-- 6. Game object scripts
+--
+-- A game object's script is attached by `gameobject_template.ScriptName` and by nothing else.
+-- The module summons its objects from template entries, so an object whose template names no
+-- script does nothing at all: the bulletin board is a board, the portal is scenery, the coffer
+-- cannot be opened and a hunt cache cannot be searched. Every statement is guarded on an empty
+-- ScriptName, so a realm that has its own script on one of these keeps it.
+--
+-- This runs after section 1, because it binds whatever entries section 1 resolved, and the
+-- report in section 7 counts what it managed.
+-- ---------------------------------------------------------------------------
+
+UPDATE `gameobject_template` g
+  JOIN `housing_amenity` a ON a.`gameobject_entry` = g.`entry`
+   SET g.`ScriptName` = CASE a.`type`
+        WHEN 0 THEN 'go_housing_bulletin'
+        WHEN 1 THEN 'go_housing_portal'
+        WHEN 8 THEN 'go_housing_coffer'
+        ELSE g.`ScriptName` END
+ WHERE g.`ScriptName` = '' AND a.`gameobject_entry` <> 0 AND a.`type` IN (0, 1, 8);
+
+UPDATE `gameobject_template` g
+  JOIN `housing_hunt` h ON h.`cache_entry` = g.`entry`
+   SET g.`ScriptName` = 'go_housing_huntcache'
+ WHERE g.`ScriptName` = '';
+
+-- The plot cornerstone is chosen by `Housing.Plot.CornerstoneEntry` rather than by a row, so
+-- there is nothing here to join to. Set it by hand on the entry that key names:
+--
+--   UPDATE `gameobject_template` SET `ScriptName` = 'go_housing_cornerstone'
+--    WHERE `entry` = <the entry in Housing.Plot.CornerstoneEntry>;
+--
+-- An entry whose `go_name` the realm does not have stays at 0 and is not offered, which is the
+-- behaviour section 7's report describes.
+
+-- ---------------------------------------------------------------------------
+-- 7. The report
 -- ---------------------------------------------------------------------------
 
 SELECT 'amenities with an object' AS `what`, COUNT(*) AS `rows`
@@ -118,7 +154,12 @@ UNION ALL SELECT 'portal destinations bound', COUNT(*) FROM `housing_portal` WHE
 UNION ALL SELECT 'decor creatures bound', COUNT(*) FROM `housing_decor_creature` WHERE `creature_entry` <> 0
 UNION ALL SELECT 'endeavor tasks bound', COUNT(*) FROM `housing_endeavor_task` WHERE `target` <> 0
 UNION ALL SELECT 'endeavor tasks unbound (never complete)', COUNT(*)
-    FROM `housing_endeavor_task` WHERE `target` = 0 AND `type` <> 6 AND `type` <> 5;
+    FROM `housing_endeavor_task` WHERE `target` = 0 AND `type` <> 6 AND `type` <> 5
+UNION ALL SELECT 'amenity objects with a housing script', COUNT(*)
+    FROM `gameobject_template` WHERE `ScriptName` LIKE 'go_housing_%'
+UNION ALL SELECT 'hunt caches with a housing script', COUNT(*)
+    FROM `housing_hunt` h JOIN `gameobject_template` g ON g.`entry` = h.`cache_entry`
+    WHERE g.`ScriptName` = 'go_housing_huntcache';
 
 -- What the report means:
 --

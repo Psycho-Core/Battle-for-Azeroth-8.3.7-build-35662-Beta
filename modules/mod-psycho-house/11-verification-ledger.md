@@ -1037,71 +1037,6 @@ ran. The caches were never spawned on a map, no quest was taken, and no piece wa
 rotation, the phase and the gossip ids are checked against the source tree; the behaviour needs
 a server with the world database imported.
 
-### 6.26 The thirty-second revision: checking the answer instead of writing it
-
-The previous pass ended with a sentence: every row of doc 01, with the code that carries it.
-This pass treated that sentence as a claim and built something that could refute it.
-
-- **`check_claims.py`.** Every code span in the completeness entry, and in doc 02's matrix,
-  is checked by shape: an opcode against the protocol checker's own opcode sets (one oracle,
-  not two), a `Housing.*` key against the conf file, `table.column` against the schema,
-  `Class::Member` against `src/`, a file name against the folder. 104 spans. Mutation-tested
-  with a fake member, a fake table and a fake opcode; all three were named. It is the tenth
-  check in `audit.py`.
-- **The key binding.** Doc 01 says the dashboard opens on `H`, and an addon cannot claim a
-  key. `Bindings.xml` declares a CLICK binding on a hidden button, so the window appears in
-  Key Bindings under Addons and the player sets the key. `check_lua.py` gained a `bindings`
-  rule so the XML's frame name and the Lua's frame name cannot drift; renaming the frame in
-  the XML produced exactly one finding.
-- **The eighth substitution.** The Neighbourhood NPC row of doc 01 lists a Lumberjack. The
-  module has no such NPC and the substitution list did not say so, while the entry above
-  claimed nothing else was missing. The record gives the role and no npc id, and
-  `creature_template` is bound by name, so a `'Lumberjack'` row would have made every
-  lumberjack in the world a housing vendor. Doc 02 sec.3 now names the substitution and the
-  coverage: the builder vendors carry that stock, 69 lines for Faarden the Builder, and the
-  Contractor handles shells and rooms.
-
-- **Dyeing got a price.** It was free, and doc 06 sec.2.4 described crafted dye recipes that
-  do not exist three paragraphs after sec.2.3 said no dye is consumed. `Housing.Dye.Cost`
-  (default 0) prices a change and leaves a re-application free; the recipes are gone from the
-  document, replaced by the reason they cannot exist - an `item_template` and a
-  `spell_template` row per colour, and there are no housing dyes in 8.3.7 to copy.
-- **The palette stopped pretending.** Six colour words against retail's seventy-seven is now
-  stated where the table is described, with the rule that a colour exists when the realm's
-  own furniture names carry it.
-- **The third vendor gate is named.** Currency and milestone gating are enforced; the
-  entitlement gate is not, because neither the Deed of Patronage nor *Ever Painting* has an
-  id in the record. Doc 02 sec.3 has it as the ninth substitution instead of leaving it
-  unsaid, and doc 10's "nothing is enforced yet" is corrected.
-
-| checker | result |
-| --- | --- |
-| `check_claims.py` | 0 findings; 104 spans, 33 tables, 141 column names, 59 opcodes, 54 commands, 32 conf keys |
-| `check_reference.py` | 0 findings; 32 settings, 48 commands, 6 client settings, all documented |
-| `check_lua.py` | 0 findings; 15 tabs, one binding, the CLICK frame present |
-| `audit.py` | 0 findings across 10 checks |
-
-### 6.25 The completeness entry
-
-The round asked for everything, not for a systems list. The answer is in the README section
-"Everything doc 01 lists, and where it lives": every row of the retail record, in its own
-order, with the function, table or command that carries it. Writing it that way turned up a
-few claims that had drifted from the code rather than from the record - the settings
-count still said 29 in two places after the conf file reached 31, and doc 02 named a reply
-opcode that the protocol answers with `S:RESULT`. Both are fixed.
-
-The seven substitutions in doc 02 sec.3 are the whole of what is not here, and each one is a
-client or DB2 capability: room tiling, the exterior barber-shop builder, dye on arbitrary
-decor, shop and promotion decor, a true warband unit, a distinct Endeavor currency, and the
-client's View Houses menu. Nothing in doc 01 is dropped because it was inconvenient.
-
-| checker | result |
-| --- | --- |
-| `check_coverage.py` | 0 findings; now also walks both hunt files - reward in the catalogue, cache and reward object in the source tree, ten quests in 900100-900199 |
-| `check_reference.py` | 0 findings; 31 settings, 48 commands, 6 client settings |
-| `verify_drafts.py` | 0 findings; 253 columns |
-| `audit.py` | 0 findings across 9 checks |
-
 ### 6.24 The thirty-first revision: what the schema promised and the code did not
 
 The previous pass added content. This one asked the opposite question of every table and every
@@ -1164,3 +1099,152 @@ The caveat is the same one every pass carries: nothing here was compiled or exec
 checked is that the statement lists, the column names and the call sites agree with each other;
 the eviction sweep firing at the right hour, and the restore showing up in the client, still
 need a server with the world and character databases imported.
+### 6.25 The completeness entry
+
+The round asked for everything, not for a systems list. The answer is in the README section
+"Everything doc 01 lists, and where it lives": every row of the retail record, in its own
+order, with the function, table or command that carries it. Writing it that way turned up a
+few claims that had drifted from the code rather than from the record - the settings
+count still said 29 in two places after the conf file reached 31, and doc 02 named a reply
+opcode that the protocol answers with `S:RESULT`. Both are fixed.
+
+The seven substitutions in doc 02 sec.3 are the whole of what is not here, and each one is a
+client or DB2 capability: room tiling, the exterior barber-shop builder, dye on arbitrary
+decor, shop and promotion decor, a true warband unit, a distinct Endeavor currency, and the
+client's View Houses menu. Nothing in doc 01 is dropped because it was inconvenient.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; now also walks both hunt files - reward in the catalogue, cache and reward object in the source tree, ten quests in 900100-900199 |
+| `check_reference.py` | 0 findings; 31 settings, 48 commands, 6 client settings |
+| `verify_drafts.py` | 0 findings; 253 columns |
+| `audit.py` | 0 findings across 9 checks |
+
+### 6.26 The thirty-second revision: checking the answer instead of writing it
+
+The previous pass ended with a sentence: every row of doc 01, with the code that carries it.
+This pass treated that sentence as a claim and built something that could refute it.
+
+- **`check_claims.py`.** Every code span in the completeness entry, and in doc 02's matrix,
+  is checked by shape: an opcode against the protocol checker's own opcode sets (one oracle,
+  not two), a `Housing.*` key against the conf file, `table.column` against the schema,
+  `Class::Member` against `src/`, a file name against the folder. 104 spans. Mutation-tested
+  with a fake member, a fake table and a fake opcode; all three were named. It is the tenth
+  check in `audit.py`.
+- **The key binding.** Doc 01 says the dashboard opens on `H`, and an addon cannot claim a
+  key. `Bindings.xml` declares a CLICK binding on a hidden button, so the window appears in
+  Key Bindings under Addons and the player sets the key. `check_lua.py` gained a `bindings`
+  rule so the XML's frame name and the Lua's frame name cannot drift; renaming the frame in
+  the XML produced exactly one finding.
+- **The eighth substitution.** The Neighbourhood NPC row of doc 01 lists a Lumberjack. The
+  module has no such NPC and the substitution list did not say so, while the entry above
+  claimed nothing else was missing. The record gives the role and no npc id, and
+  `creature_template` is bound by name, so a `'Lumberjack'` row would have made every
+  lumberjack in the world a housing vendor. Doc 02 sec.3 now names the substitution and the
+  coverage: the builder vendors carry that stock, 69 lines for Faarden the Builder, and the
+  Contractor handles shells and rooms.
+
+- **Dyeing got a price.** It was free, and doc 06 sec.2.4 described crafted dye recipes that
+  do not exist three paragraphs after sec.2.3 said no dye is consumed. `Housing.Dye.Cost`
+  (default 0) prices a change and leaves a re-application free; the recipes are gone from the
+  document, replaced by the reason they cannot exist - an `item_template` and a
+  `spell_template` row per colour, and there are no housing dyes in 8.3.7 to copy.
+- **The palette stopped pretending.** Six colour words against retail's seventy-seven is now
+  stated where the table is described, with the rule that a colour exists when the realm's
+  own furniture names carry it.
+- **The third vendor gate is named.** Currency and milestone gating are enforced; the
+  entitlement gate is not, because neither the Deed of Patronage nor *Ever Painting* has an
+  id in the record. Doc 02 sec.3 has it as the ninth substitution instead of leaving it
+  unsaid, and doc 10's "nothing is enforced yet" is corrected.
+
+| checker | result |
+| --- | --- |
+| `check_claims.py` | 0 findings; 104 spans, 33 tables, 141 column names, 59 opcodes, 54 commands, 32 conf keys |
+| `check_reference.py` | 0 findings; 32 settings, 48 commands, 6 client settings, all documented |
+| `check_lua.py` | 0 findings; 15 tabs, one binding, the CLICK frame present |
+| `audit.py` | 0 findings across 10 checks |
+
+### 6.27 The thirty-third revision: settings that were documented and never consulted
+
+The two passes before this one checked that every system exists and that every name in the
+answer exists. This one asked a different question of the settings file: does anything change
+when the value changes.
+
+- **The archive window was a constant.** `Housing.Evict.GraceDays` is documented as the restore
+  window, the eviction letter counts down in days, and `RestoreArchivedHouse` plus `HasArchive`
+  both used `kArchiveDays = 7`. An operator setting thirty days got seven, and nothing failed.
+  The constant is gone and both queries read the setting.
+- **The fee was in the text and not in the code.** The letter says "restore it for a fee", doc
+  02 repeats it, and the restore was free, which made the regret window better than selling.
+  `Housing.Restore.FeePercent` (default 10) charges a share of the archived `price_paid` before
+  the house is created, so an owner who cannot pay keeps the row.
+- **A new rule, `applied`.** `check_reference.py` now walks every member `LoadConfig` fills and
+  fails when no implementation file reads it after the loader and the constructor are stripped
+  out. Mutation-tested by renaming `_dyeCost` throughout `HousingMgrExtra.cpp`, which produced
+  exactly one finding. It immediately found `Housing.Map.Mode`, whose key fills a local string
+  rather than a member; the rule skips what it cannot follow rather than pretending.
+- **Doc 12 had the wrong binding names,** from the revision where the binding was still an idea.
+  It names the shipped header and the CLICK binding now.
+
+| checker | result |
+| --- | --- |
+| `check_reference.py` | 0 findings; 33 settings, 33 recorded, 33 documented, the new `applied` rule among them |
+| `check_cpp.py` | 0 findings; `kArchiveDays` gone, `_graceDays` and `_restoreFeePercent` read |
+| `check_mariadb.py` | 0 findings; no column changed, one setting added |
+| `check_claims.py` | 0 findings; the README numbers and names still resolve |
+| `audit.py` | 0 findings across 10 checks |
+
+### 6.28 The thirty-fourth revision: features that could not run
+
+A script that is compiled and registered but bound to nothing is a feature that cannot happen,
+and it does not fail a test - it just does not happen. That was the shape of the last hole.
+
+- **Five game object scripts were unbound.** `gameobject_template.ScriptName` is the only way
+  to attach a script to an object, and no file in the module set it. The cornerstone, the
+  portal, the bulletin board, the coffer and the hunt caches were therefore furniture.
+  `bind_housing_content.sql` sec.6 binds them by joining the entries that section 1 resolved,
+  so the binder that already turns names into ids now also turns ids into behaviour.
+- **A rule for it.** `check_coverage.py` fails when a registered script name appears in no SQL
+  file: eleven names, all bound, with `CommandScript` exempt because the command table reaches
+  it. The exemption is in the docstring, not in a comment somebody will delete.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; 11 script names bound, both drafts walked, 10 hunts each |
+| `check_mariadb.py` | 0 findings; the two UPDATE ... JOIN statements parse and target a single table |
+| `audit.py` | 0 findings across 10 checks |
+
+### 6.29 The thirty-fifth revision: the coffer had no object of its own
+
+The binder now attaches scripts, which exposed the next layer: `go_housing_coffer` had nothing
+to attach to. The Endeavors Area is `type = 7`, an area pin that resolves to a banner, and
+there was no coffer row anywhere - so the milestone payout, the one feature retail makes a
+point of, would have been reachable only through the steward's gossip. The fix is a row, not
+a paragraph: `AmenityCoffer = 8`, a `Coffer` pin id 23 beside the area, and the binder maps
+type 8 to the coffer script. The area keeps its banner, the coffer gets a chest.
+- **The row was added to the draft and not to the module SQL.** `build_drafts.py` regenerates
+  `02_world_content.sql` from `sql/world/2026_10_31_00_world_housing_module.sql`, so the row
+  disappeared on the next build while doc 10 said 23. It is in the source SQL now, and
+  `check_coverage.py` compares the number doc 10 states against the rows the SQL has, so the
+  same edit cannot go missing again.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; 11 script names bound |
+| `verify_drafts.py` | 0 findings; 23 amenity rows in both drafts |
+| `audit.py` | 0 findings across 10 checks |
+
+### 6.30 The thirty-sixth revision: a breadcrumb nobody dropped
+
+- **The first quest was not offered.** `OfferIntroQuest` had one caller, the Steward's gossip,
+  and the login hook only completed steps already held. Doc 04 sec.1 calls 900100 a login
+  breadcrumb, so the doc was right about retail and wrong about the module.
+- **The fix is one call.** `OnPlayerLogin` offers it, then runs the progress check. The gossip
+  option is kept for players who abandon the chain.
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings |
+| `check_claims.py` | 0 findings; the inventory line naming `OfferIntroQuest` is now true |
+| `audit.py` | 0 findings across 10 checks |
+

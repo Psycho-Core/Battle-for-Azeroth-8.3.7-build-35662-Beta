@@ -83,6 +83,60 @@ def doc_keys():
     return set(re.findall(r"^\|\s*`(Housing\.[A-Za-z.]+)`", body, re.M))
 
 
+def member_of(key):
+    """The member `LoadConfig` fills for a key, from the note() call beside it."""
+    body = read(MGR).split("void HousingMgr::LoadConfig()")[1].split("\nvoid HousingMgr::")[0]
+    for match in re.finditer(r'note(?:Text)?\("' + re.escape(key) + r'",\s*(_[A-Za-z]+)', body):
+        return match.group(1)
+    return None
+
+
+def applied_keys():
+    """Keys whose member is read somewhere other than the loader and the constructor.
+
+    A setting that is parsed, recorded and printed but never consulted is the quietest kind
+    of dead feature there is: `.housing config` shows a value, the document explains it, and
+    nothing behaves differently when it changes. This walks every member the loader fills and
+    looks for a second reader anywhere in the module's header or its four implementation
+    files, after removing the two places that write it.
+    """
+    source = read(MGR)
+    body = source.split("void HousingMgr::LoadConfig()")[1].split("\nvoid HousingMgr::")[0]
+    keys = re.findall(r'note(?:Text)?\("(Housing\.[A-Za-z.]+)"', body)
+
+    # Everything except the loader itself and the constructor's initialiser list.
+    rest = source.replace(body, "")
+    ctor = rest.split("HousingMgr::HousingMgr()")[1].split("\nvoid HousingMgr::")[0] \
+        if "HousingMgr::HousingMgr()" in rest else ""
+    rest = rest.replace(ctor, "")
+
+    # Implementation files only. The header's declaration is not a reader, and counting it
+    # would make this rule pass for every key that has a member at all.
+    others = ""
+    for name in sorted(os.listdir(os.path.dirname(MGREXTRA))):
+        if not name.endswith(".cpp"):
+            continue
+        path = os.path.join(os.path.dirname(MGREXTRA), name)
+        if path == MGR:
+            continue   # the loader is `rest`, already stripped of the two places that write
+        others += read(path)
+
+    dead = []
+    for key in keys:
+        member = member_of(key)
+        if member is None:
+            # A note() whose argument is a local - `noteText("Housing.Map.Mode", mode)` - cannot
+            # be followed to a member by name. The key is still documented and still recorded;
+            # this rule just has nothing to say about where it is read.
+            continue
+        if member.startswith("_") and member in rest:
+            continue
+        if member.startswith("_") and re.search(r"\b" + member + r"\b", others):
+            continue
+        dead.append((key, member))
+    return dead
+
+
 def command_rows():
     text = read(COMMANDS)
     block = text.split("static std::vector<ChatCommand> housingCommandTable")[1].split("};")[0]
@@ -107,6 +161,12 @@ def doc_client():
 
 def main():
     # ---- settings ---------------------------------------------------------
+    for key, member in applied_keys():
+        if member is None:
+            fail("{} is recorded by LoadConfig with no member beside it".format(key))
+        else:
+            fail("{} fills {} and nothing reads that member".format(key, member))
+
     conf = conf_keys()
     if len(conf) < 2:
         fail("expected a conf dist in each draft, found {}".format(sorted(conf)))
