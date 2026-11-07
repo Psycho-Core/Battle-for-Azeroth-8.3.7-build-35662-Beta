@@ -2292,7 +2292,7 @@ HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
     // One copy in storage, and the first time a piece is learned pays house XP - which is
     // the whole reason a decor collector levels a house.
     AddStorage(accountId, decorId, 1);
-    GrantHouseXp(player, _xpPerDecor);
+    GrantHouseXp(player, _xpPerDecor, true);
 
     return Ok;
 }

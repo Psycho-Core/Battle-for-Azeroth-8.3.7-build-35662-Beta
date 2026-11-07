@@ -203,7 +203,11 @@ namespace Housing
 
         uint8 GetLevelForHousing(uint32 housingId) const;
         uint32 GetXpForHousing(uint32 housingId) const;
-        void GrantHouseXp(Player* player, uint32 xp);
+        /// House XP. Learning a piece of decor pays *both* houses the account owns, which is
+        /// what retail does; Endeavor XP pays only the house whose Endeavor was worked, so the
+        /// two callers pass different answers.
+        void GrantHouseXp(Player* player, uint32 xp, bool bothHouses = false);
+        void GrantHouseXpToPlot(Player* player, HousingPlot* plot, uint32 xp);
 
         /// Grant every piece of decor whose `source_type`/`source_id` names this quest or
         /// achievement. A piece already owned is skipped, so a repeatable quest cannot be

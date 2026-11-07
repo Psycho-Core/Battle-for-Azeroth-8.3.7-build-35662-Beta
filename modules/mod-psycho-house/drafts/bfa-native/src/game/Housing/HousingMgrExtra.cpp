@@ -522,13 +522,30 @@ namespace Housing
         return 0;
     }
 
-    void HousingMgr::GrantHouseXp(Player* player, uint32 xp)
+    void HousingMgr::GrantHouseXp(Player* player, uint32 xp, bool bothHouses)
     {
-        if (!player || !xp)
+        if (!player || !xp || !player->GetSession())
             return;
 
-        HousingPlot* plot = GetOwnedPlot(player);
-        if (!plot || !plot->IsOwned())
+        uint32 const accountId = player->GetSession()->GetAccountId();
+
+        if (bothHouses)
+        {
+            // Retail's rule: a newly learned piece levels both of the warband's houses, so a
+            // collector is not punished for having one on each side. Each house is paid on its
+            // own row, so a house already at the cap simply does not move.
+            for (HousingPlot* owned : GetOwnedPlots(accountId))
+                GrantHouseXpToPlot(player, owned, xp);
+
+            return;
+        }
+
+        GrantHouseXpToPlot(player, GetOwnedPlot(player), xp);
+    }
+
+    void HousingMgr::GrantHouseXpToPlot(Player* player, HousingPlot* plot, uint32 xp)
+    {
+        if (!player || !plot || !plot->IsOwned() || !xp)
             return;
 
         HousingHouse* house = plot->GetHouse();
@@ -551,8 +568,15 @@ namespace Housing
             house->MarkDirty();
 
             if (player->GetSession())
+            {
+                // With a house on each faction the message has to say which one, or a player
+                // who learned one piece is told about a level in a street they are not in.
+                std::string const street = plot->GetNeighborhood()
+                    ? plot->GetNeighborhood()->GetName() : std::string("your house");
+
                 ChatHandler(player->GetSession()).PSendSysMessage(
-                    "Your house reached level %u.", uint32(newLevel));
+                    "%s reached house level %u.", street, uint32(newLevel));
+            }
 
             CheckIntroQuestProgress(player);
         }
@@ -1604,7 +1628,7 @@ namespace Housing
             player->RewardQuest(quest, 0, player, false);
 
         if (granted)
-            GrantHouseXp(player, _xpPerDecor * granted);
+            GrantHouseXp(player, _xpPerDecor * granted, true);
 
         return Ok;
     }
@@ -1706,7 +1730,7 @@ namespace Housing
         TC_LOG_INFO("housing", "account {} earned {} piece(s) of decor from source type {} id {}",
             accountId, granted, uint32(sourceType), sourceId);
 
-        GrantHouseXp(player, _xpPerDecor * granted);
+        GrantHouseXp(player, _xpPerDecor * granted, true);
         SendChunk(player, Trinity::StringFormat("S:RESULT|DECOR|0|{}", granted));
     }
 
