@@ -970,3 +970,69 @@ Unchanged caveat, and it matters more here than anywhere else: no Lua interprete
 ran over this addon. The checks prove the file parses, that the frames are created in a sane
 order, and that every opcode has a sender; they cannot prove a button is where a player expects
 it or that the frame is not clipped. That needs the client.
+
+### 6.23 The thirtieth revision: the ten riddle hunts
+
+Doc 04 section 5 has listed ten riddle treasure hunts since the fourth revision. Nothing else
+in the tree did: there was no table to put a hunt in, no quest to take, no cache to find and
+no button to press. This pass built all four, and wrote down what it had to decide.
+
+- **A hunt is a row, not a paragraph.** `housing_hunt` carries the name, the verse, the quest
+  id, the reward piece, the cache object, an optional authored position and a faction mask.
+  `HousingMgr::LoadHunts` reads it beside the amenities and stays quiet when the table is
+  absent, the same rule every other loader in this module follows.
+- **The reward had to be a real object.** The retail guide names a waterwheel keg, a
+  mushroom cluster, a gryphon feather bundle and a Pepe cameo. None of the four exists in
+  this build, and draft B's native catalogue shares no name with draft A's retail one. The
+  ten rewards are therefore authored `housing_decor` rows - ids 1900-1909 in draft A,
+  2900-2909 in draft B - each built from a game object entry that
+  `check_coverage.py` finds in `generated/source-asset-index.csv`, and each named for the
+  thing its riddle asks the player to look for. Doc 04's table now prints the entry behind
+  every name, so the stretch is visible rather than disguised.
+- **The cache is a world object, and the quest objective is the cache.** `SpawnHuntCaches`
+  spawns one per hunt inside the neighbourhood phase. Authored coordinates win; a row of
+  zeroes lands on a ring sixty-two yards from the town centre, offset by 0.19 radians from
+  the amenity ring so a cache never stands inside a stall. `go_housing_huntcache` is bound
+  through `gameobject_template.ScriptName` and finds its row with `HuntForCache`, which
+  matches the entry and the distance to the anchor - the object cannot carry a row id.
+- **The credit is handed over, not waited for.** A game object script answers
+  `GameObject::Use` before the core reaches the type switch, so the objective the cache is
+  would never have been credited. `CompleteHunt` calls `AreaExploredOrEventHappens` and then
+  `RewardQuest`, grants the piece into `character_housing_collection` with one copy in
+  storage, and pays house XP per new piece.
+- **Two surfaces, no new command.** The Hunts tab sends `C:HUNTS` and `C:HUNT <id>`; the
+  Steward offers the same list as gossip and reads the verse out loud. The Steward's option
+  ids carry the hunt's position in the loaded list, not its database id, because a gossip
+  action id is `GOSSIP_ACTION_INFO_DEF + 30 + n` and a hunt id is not.
+- **One new tab, counted everywhere.** The window has fifteen tabs now, and doc 02 and the
+  README both say fifteen. The rail is twenty-five pixels a button, so 375 of its 380 pixels
+  are used and nothing scrolls.
+
+| Piece | Where |
+| --- | --- |
+| `housing_hunt` DDL and the ten hunt rows | `sql/world/2026_10_31_00_world_housing_module.sql`, `drafts/*/sql/world/08_hunts.sql` |
+| Loader, accessors, cache lookup | `HousingMgr.cpp`, `HousingMgr.h`, `HousingMgrExtra.cpp` |
+| `go_housing_huntcache` | `HousingGo.cpp` |
+| `C:HUNTS`, `C:HUNT`, `S:HUNT`, `S:HUNTEND` | `HousingMgrExtra.cpp`, `Core.lua` |
+| Hunts tab | `Menu.lua` |
+| Steward's riddle list | `HousingNpc.cpp` |
+| Generator | `tools/housing/build_hunts.py` |
+| Addon version 0.10.0 | `HousingUI.toc`, `Core.lua` |
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; `LoadHunts`, `GetHunt`, `HuntForCache`, `AcceptHunt`, `CompleteHunt`, `GetHuntState`, `SpawnHuntCaches`, `AnchorForHunt` declared, defined and called |
+| `check_lua.py` | 0 findings; fifteen tabs, the hunt pane before the redraw chain that touches it |
+| `check_protocol.py` | 0 findings; 57 of 57 dispatched opcodes still reachable, `HUNTS` and `HUNT` among them |
+| `check_sql_columns.py` | 0 findings; `quest_objectives` and `housing_hunt` written with columns the build uses |
+| `check_reference.py` | 0 findings; no new command and no new setting, so 48 and 31 stand |
+| `check_mariadb.py` | 0 findings; the new file parses as MySQL, `DELETE` before `INSERT`, no `INSERT IGNORE` |
+| `verify_drafts.py` | 0 findings; 40 rows in each `08_hunts.sql`, value counts against column counts |
+| `check_coverage.py` | 0 findings; every reward and every cache is a real entry from the source index |
+| `check_psychohouse.py` | 0 findings; draft C's own tables untouched |
+| `audit.py` | 0 findings across 9 checks |
+
+What this does not prove, and the caveat is the same one as every pass before it: nothing here
+ran. The caches were never spawned on a map, no quest was taken, and no piece was granted. The
+rotation, the phase and the gossip ids are checked against the source tree; the behaviour needs
+a server with the world database imported.

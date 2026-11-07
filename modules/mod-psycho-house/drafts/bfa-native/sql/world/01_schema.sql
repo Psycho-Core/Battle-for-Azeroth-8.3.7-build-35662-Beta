@@ -350,6 +350,22 @@ CREATE TABLE IF NOT EXISTS `housing_endeavor_reward` (
 -- map/x/y/z/o are absolute; faction_mask 3 = both.
 -- ---------------------------------------------------------------------------
 
+CREATE TABLE IF NOT EXISTS `housing_hunt` (
+  `id`           INT UNSIGNED NOT NULL,
+  `name`         VARCHAR(64) NOT NULL,
+  `riddle`       VARCHAR(200) NOT NULL DEFAULT '' COMMENT 'the line the riddle hunt is built around',
+  `quest_id`     INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'quest_template id, 0 = the hunt cannot be taken',
+  `reward_name`  VARCHAR(96) NOT NULL DEFAULT '' COMMENT 'decor name the cache rewards, resolved by tools/sql/bind_hunts.sql',
+  `reward_decor` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'housing_decor id, 0 = this realm has no such piece',
+  `cache_name`   VARCHAR(96) NOT NULL DEFAULT '' COMMENT 'gameobject name the cache binds from',
+  `cache_entry`  INT UNSIGNED NOT NULL DEFAULT 0,
+  `x`            FLOAT NOT NULL DEFAULT 0 COMMENT '0,0 places the cache on the hub ring instead',
+  `y`            FLOAT NOT NULL DEFAULT 0,
+  `z`            FLOAT NOT NULL DEFAULT 0,
+  `faction_mask` TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'bit0 alliance, bit1 horde',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Riddle treasure hunts and the cache each one hides';
+
 CREATE TABLE IF NOT EXISTS `housing_portal` (
   `id`         INT UNSIGNED NOT NULL,
   `amenity_id` INT UNSIGNED NOT NULL DEFAULT 0,

@@ -15,7 +15,8 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 | Vendor stock rows | 350, every native decor piece sold somewhere | same file |
 | Currency | gold only | `currency = 0` on every row |
 | Quest rows | 4, the same ids and beats as the port | `sql/world/06_quests.sql` |
-| Client menu | The same seven-tab window - both drafts ship one core | `addon/HousingUI/Menu.lua` |
+| Riddle hunts | 10 hunts, quests 900110-900119, ten reward pieces ids 2900-2909, ten caches | `sql/world/08_hunts.sql` |
+| Client menu | The same fifteen-tab window - both drafts ship one core | `addon/HousingUI/Menu.lua` |
 | Substitution for missing art | none needed | the pieces are real game objects |
 | House levels | 12, the same ladder the port uses, from the same generator | `sql/world/07_progression.sql` |
 | Exteriors, rooms, portals | 6 shells, 18 rooms, 10 portal destinations | same file |
@@ -91,7 +92,8 @@ That keeps the retail placement budgets in doc 01 usable without translating pri
   WHERE ScriptName = ''`:
   `npc_housing_steward`, `npc_housing_contractor`, `npc_housing_coffer`,
   `npc_housing_vendor` in `HousingNpc.cpp`; `go_housing_cornerstone`,
-  `go_housing_coffer`, `go_housing_bulletin`, `go_housing_portal` in `HousingGo.cpp`.
+  `go_housing_coffer`, `go_housing_bulletin`, `go_housing_portal`, `go_housing_huntcache` in
+  `HousingGo.cpp`.
   `02_world_content.sql` binds the two contractors, the Last Architect as the coffer, the
   stewards where a realm has them, and every `housing_vendor` row into the vendor script in
   one join. A creature the realm does not have stays unbound and the command does the same
@@ -107,6 +109,7 @@ sql/world/03_decor_native.sql
 sql/world/04_vendors_native.sql
 sql/world/06_quests.sql
 sql/world/07_progression.sql
+sql/world/08_hunts.sql               (the ten riddle hunts)
 sql/bind/bind_native_vendors.sql        (binds the 8 stall models)
 sql/bind/bind_housing_content.sql       (binds amenities, shells, pet beds, portals, Endeavor targets)
 sql/bind/bind_decor_variants.sql        (optional, fills the dye variant table)

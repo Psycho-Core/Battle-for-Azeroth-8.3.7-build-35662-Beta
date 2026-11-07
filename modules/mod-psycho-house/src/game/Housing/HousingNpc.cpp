@@ -77,7 +77,12 @@ namespace Housing
             StewardHouseNeighbours = GOSSIP_ACTION_INFO_DEF + 20,
             StewardHouseGuild      = GOSSIP_ACTION_INFO_DEF + 21,
             StewardHouseParty      = GOSSIP_ACTION_INFO_DEF + 22,
-            StewardHouseFriends    = GOSSIP_ACTION_INFO_DEF + 23
+            StewardHouseFriends    = GOSSIP_ACTION_INFO_DEF + 23,
+
+            // Riddle hunts: one option that opens the list, then one per hunt. The per-hunt
+            // ids are a block rather than a constant each, because the list is data.
+            StewardHunts           = GOSSIP_ACTION_INFO_DEF + 24,
+            StewardHuntFirst       = GOSSIP_ACTION_INFO_DEF + 30
         };
 
         enum ContractorAction : uint32
@@ -196,6 +201,11 @@ namespace Housing
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Who lives here?", GOSSIP_SENDER_MAIN, StewardMembers);
 
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "What have I earned?", GOSSIP_SENDER_MAIN, StewardMilestones);
+
+            // The hunts, for a player who has no window open. The Steward reads out the
+            // riddle when the option is taken, which is the same text the addon shows.
+            if (!sHousingMgr->GetHunts().empty())
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Any riddles going?", GOSSIP_SENDER_MAIN, StewardHunts);
 
             // The permission checkboxes, for the owner standing at the Steward with no addon.
             // Guests are shown but not offered: the list is the guest menu's job, and a mask
@@ -366,6 +376,30 @@ namespace Housing
                     return true;
                 }
 
+                case StewardHunts:
+                {
+                    // The option id carries the hunt's place in the list rather than its
+                    // database id, so a row numbered in the thousands still fits a gossip id.
+                    std::vector<HuntInfo> const& hunts = sHousingMgr->GetHunts();
+                    uint32 offered = 0;
+
+                    for (uint32 index = 0; index < uint32(hunts.size()) && offered < 20; ++index)
+                    {
+                        if (sHousingMgr->GetHuntState(player, hunts[index].Id) != 0)
+                            continue;
+
+                        AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                            Trinity::StringFormat("A riddle: {}", hunts[index].Name),
+                            GOSSIP_SENDER_MAIN, StewardHuntFirst + index);
+                        ++offered;
+                    }
+
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Nothing for now.",
+                        GOSSIP_SENDER_MAIN, StewardHome);
+
+                    player->PlayerTalkClass->SendGossipMenu(1, creature->GetGUID());
+                    return true;
+                }
                 case StewardMilestones:
                 {
                     ChatHandler earned(player->GetSession());
@@ -396,8 +430,31 @@ namespace Housing
                     Say(player, sHousingMgr->TurnInIntroQuest(player) ? Ok : NotReady,
                         "Done. That is one more thing off the list.");
                     break;
+                case StewardHuntFirst:
                 default:
+                {
+                    // A riddle option. The first one is named so the range has a label a
+                    // checker can see; the rest arrive here by number. Taking an option
+                    // hands over the quest and the verse; the cache itself is a game object
+                    // around the town centre.
+                    if (action < StewardHuntFirst)
+                        break;
+
+                    std::vector<HuntInfo> const& hunts = sHousingMgr->GetHunts();
+                    uint32 const index = action - StewardHuntFirst;
+                    if (index >= uint32(hunts.size()))
+                        break;
+
+                    HuntInfo const& hunt = hunts[index];
+                    HousingResult const result = sHousingMgr->AcceptHunt(player, hunt.Id);
+
+                    Say(player, result, "Then the riddle is yours.");
+
+                    if (result == Ok && player->GetSession())
+                        ChatHandler(player->GetSession()).PSendSysMessage("\"{}\"", hunt.Riddle);
+
                     break;
+                }
             }
 
             player->PlayerTalkClass->SendCloseGossip();

@@ -76,6 +76,10 @@ namespace Housing
     constexpr uint8 kAnchorPerRing = 10;
     constexpr uint8 kAnchorRingGrowth = 2;
     constexpr float kAnchorAmenityRadius = 26.0f;
+    // Riddle-hunt caches sit between the hub ring and the first plot ring, so a hunt is a walk
+    // and not a teleport, and never inside somebody's wall.
+    constexpr float kAnchorHuntRadius = 62.0f;
+    constexpr uint32 kHuntCacheRespawnSeconds = 300;
 
     constexpr uint32 kArchiveDays = 7;
     constexpr uint32 kReservationSeconds = 60;
@@ -525,6 +529,22 @@ namespace Housing
         uint32 Flags = AmenityFlagMapPin;
         uint32 GameObjectEntry = 0;
         uint32 CreatureEntry = 0;
+    };
+
+    /// One riddle hunt: a line of text, a cache hidden somewhere in the hub, a quest and the
+    /// piece the cache rewards. Retail ships these per neighbourhood; the riddles are content
+    /// and the cache is a game object the realm already has.
+    struct TC_GAME_API HuntInfo
+    {
+        uint32 Id = 0;
+        std::string Name;
+        std::string Riddle;
+        uint32 QuestId = 0;
+        uint32 RewardDecor = 0;     // 0 = this realm's catalogue has no such piece
+        uint32 CacheEntry = 0;      // 0 = the cache cannot be spawned yet
+        Position Pos;
+        bool HasSpawn = false;
+        uint8 FactionMask = 3;
     };
 
     struct TC_GAME_API VendorStockEntry
