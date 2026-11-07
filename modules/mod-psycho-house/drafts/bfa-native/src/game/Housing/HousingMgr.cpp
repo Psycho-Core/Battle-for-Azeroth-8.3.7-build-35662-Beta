@@ -783,11 +783,15 @@ void HousingMgr::DissolveNeighborhood(HousingNeighborhood* neighborhood)
     if (!neighborhood)
         return;
 
+    // Every house in the street is parked in its owner's archive before the rows go: a street
+    // that is dissolved because nobody has lived there for a month still had houses in it, and
+    // the owners get the regret window the sale and eviction paths get.
     for (auto const& plot : neighborhood->GetPlots())
     {
         if (!plot->IsOwned())
             continue;
 
+        ArchiveHouse(plot.get());
         ForceSellPlot(plot.get());
     }
 
@@ -1477,6 +1481,44 @@ void HousingMgr::ForceSellPlot(HousingPlot* plot)
     plot->ClearOwner();
 }
 
+void HousingMgr::ArchiveHouse(HousingPlot* plot, uint32 accountId)
+{
+    if (!plot || !plot->IsOwned())
+        return;
+
+    if (!accountId)
+        accountId = plot->GetOwnerAccount();
+
+    if (!accountId)
+        return;
+
+    HousingHouse* house = plot->GetHouse();
+    uint32 const housingId = plot->GetHousingId();
+
+    // The placements travel as a build code, which is the same format a blueprint uses, so
+    // there is one importer for both. The shell, the rooms and the Armillary preset travel in
+    // their own columns: a house that comes back as an empty box is not the house that was
+    // taken away.
+    std::string packed;
+    if (house)
+        packed = BlueprintCodec::Encode(house->GetPlacements(), BlueprintBuild,
+            plot->GetNeighborhood() && plot->GetNeighborhood()->GetFaction() == FactionHorde
+                ? FactionHorde : FactionAlliance);
+
+    std::string safeName = house ? house->GetName() : std::string();
+    CharacterDatabase.EscapeString(safeName);
+
+    CharacterDatabase.DirectPExecute(
+        "REPLACE INTO `character_housing_archive` (`id`, `accountId`, `plotIndex`, `neighborhoodId`, "
+        "`name`, `tier`, `xp`, `shell_id`, `rooms_owned`, `armillary`, `decor`, `price_paid`, `archived`) "
+        "VALUES ({}, {}, {}, {}, '{}', {}, {}, {}, {}, {}, '{}', {}, UNIX_TIMESTAMP())",
+        housingId, accountId, uint32(plot->GetIndex()),
+        plot->GetNeighborhood() ? plot->GetNeighborhood()->GetId() : 0u, safeName,
+        uint32(house ? house->GetTier() : 1), GetXpForHousing(housingId),
+        uint32(house ? house->GetShellId() : 0), uint32(house ? house->GetRoomsOwned() : 0),
+        uint32(house ? house->GetArmillary() : 0), packed, plot->GetPrice());
+}
+
 HousingResult HousingMgr::SellPlot(Player* player)
 {
     if (!_enabled)
@@ -1493,24 +1535,9 @@ HousingResult HousingMgr::SellPlot(Player* player)
     uint32 const housingId = plot->GetHousingId();
     uint32 const accountId = player->GetSession()->GetAccountId();
 
-    // Park the house before it is destroyed: the placements go into the archive as a build
-    // code, which is what makes "I sold my house and regret it" recoverable for a week.
-    std::string packed;
-    if (HousingHouse* house = plot->GetHouse())
-        packed = BlueprintCodec::Encode(house->GetPlacements(), BlueprintBuild,
-            player->GetTeamId() == TEAM_ALLIANCE ? FactionAlliance : FactionHorde);
-
-    std::string safeName = plot->GetHouse() ? plot->GetHouse()->GetName() : std::string();
-    CharacterDatabase.EscapeString(safeName);
-
-    CharacterDatabase.DirectPExecute(
-        "REPLACE INTO `character_housing_archive` (`id`, `accountId`, `plotIndex`, `neighborhoodId`, "
-        "`name`, `tier`, `xp`, `shell_id`, `decor`, `price_paid`, `archived`) "
-        "VALUES ({}, {}, {}, {}, '{}', {}, {}, 0, '{}', {}, UNIX_TIMESTAMP())",
-        housingId, accountId, uint32(plot->GetIndex()),
-        plot->GetNeighborhood() ? plot->GetNeighborhood()->GetId() : 0u, safeName,
-        uint32(plot->GetHouse() ? plot->GetHouse()->GetTier() : 1),
-        GetXpForHousing(housingId), packed, plot->GetPrice());
+    // Park the house before it is destroyed, which is what makes "I sold my house and regret
+    // it" recoverable for a week.
+    ArchiveHouse(plot, accountId);
 
     ForceSellPlot(plot);
 

@@ -19,8 +19,6 @@ CREATE TABLE IF NOT EXISTS `character_housing_neighborhood` (
  `guildId`     BIGINT UNSIGNED NOT NULL DEFAULT 0,
  `ownerAccount`  INT UNSIGNED NOT NULL DEFAULT 0,
  `created`     INT UNSIGNED NOT NULL DEFAULT 0,
- `endeavorId`   INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'reserved, phase 3',
- `endeavorProgress` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'reserved, phase 3',
  PRIMARY KEY (`id`),
  UNIQUE KEY `idx_housing_neighborhood_slot` (`slot`),
  KEY `idx_housing_neighborhood_guild` (`guildId`)
@@ -40,7 +38,6 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
 `rooms_owned` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'rooms bought at the Contractor',
 `armillary` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Hearthlight Armillary preset: 0 default, 1 natural light, 2 unnatural dark, 3 evening calm, 4 midnight',
 `endeavor_id`  INT UNSIGNED NOT NULL DEFAULT 0,
-`edit_session` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 while the owner is in build mode',
  `blueprint`    INT UNSIGNED NOT NULL DEFAULT 0,
  `name`      VARCHAR(64) NOT NULL DEFAULT '',
  `locked`     TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -74,7 +71,6 @@ CREATE TABLE IF NOT EXISTS `character_housing_decor` (
  `dye_group` TINYINT UNSIGNED NOT NULL DEFAULT 0,
  `dye_color` TINYINT UNSIGNED NOT NULL DEFAULT 0,
  `variant_entry` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'the object actually spawned after dyeing',
- `pet_guid` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'creature owned by a pet bed',
  `pet_entry` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'companion assigned to the bed, 0 = the bed default',
  `pet_roaming` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 = the assigned companion wanders',
  PRIMARY KEY (`id`),
@@ -184,10 +180,27 @@ CREATE TABLE IF NOT EXISTS `character_housing_archive` (
  `xp`        INT UNSIGNED NOT NULL DEFAULT 0,
  `shell_id`  INT UNSIGNED NOT NULL DEFAULT 0,
  `rooms_owned` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'rooms bought at the Contractor',
- `night_mode` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 while the Hearthlight Armillary is lit',
+ `armillary` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Hearthlight Armillary preset at the sale: 0 default, 1 natural light, 2 unnatural dark, 3 evening calm, 4 midnight',
  `decor`     MEDIUMTEXT COMMENT 'packed placements, same format as a blueprint code',
  `price_paid` INT UNSIGNED NOT NULL DEFAULT 0,
  `archived`  INT UNSIGNED NOT NULL DEFAULT 0,
  PRIMARY KEY (`id`),
  KEY `idx_housing_archive_account` (`accountId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Sold houses kept for the regret window';
+
+-- ---------------------------------------------------------------------------
+-- Note for an install created before this revision.
+--
+-- The archive used to carry `night_mode`, a lit/unlit flag. It carries `armillary` now, the
+-- preset itself, because a flag cannot tell the four presets apart and a regret window that
+-- restores the wrong one is a house that comes back the wrong colour.
+--
+-- `CREATE TABLE IF NOT EXISTS` leaves an existing table alone, so an install that already has
+-- `character_housing_archive` needs one statement by hand. It is not in this file because it
+-- would be MariaDB-only syntax, and every statement here has to import on MySQL as well:
+--
+--   ALTER TABLE `character_housing_archive`
+--     ADD COLUMN `armillary` TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `rooms_owned`;
+--
+-- The old `night_mode` column can be dropped afterwards; nothing reads it.
+-- ---------------------------------------------------------------------------

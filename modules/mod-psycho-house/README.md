@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 29 server settings, all 48 commands, the six client
+  14-settings-and-commands.md  all 31 server settings, all 48 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -157,6 +157,140 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Everything doc 01 lists, and where it lives
+
+The question this pass answers is whether the package is complete. The way to answer it is to
+walk the retail record row by row rather than to name the systems and stop. Doc 01 is the
+record; the entry below is every row of it, in order, with the thing in the module that does
+the job. Rows that are a deliberate substitution say so and point at doc 02 sec.3.
+
+**Section 1, unlock and getting started.** Intro quest *A House For You* and the four-quest
+chain: `06_quests.sql`, quests 900100-900103, auto-offered by `HousingMgr::OfferIntroQuest`
+and completed by the four module events. House cost 1 000g, no upkeep, no lottery:
+`housing_plot.price`, charged in `HousingMgr::BuyPlot`. Two houses per account, one per
+faction: `character_housing` keyed on account and faction, `TooManyHouses` for the second.
+First purchase by a character of the matching faction, every alt afterwards: `CheckAccess`
+reads the account. Fifty-five plots: `housing_plot`, ten in the centre ring and the rest in
+rings at `90 + 70 * ring` yards. Starter exteriors: `housing_shell` rows 1-6, small Human and
+Orc at level 1, and the Night Elf and Blood Elf small shells alongside them. Alt-wide
+collection: `character_housing_storage` is keyed on the account, and `GrantHouseXp` pays the
+same XP whoever earned it.
+
+**Section 2, travel.** Capital portal: `go_housing_portal`, two-way, entering through the
+plot's own portal entry. Steward at the portal: `npc_housing_steward` with its nine gossip
+options. Homestone with a 15-minute cooldown: `C:HOME`, `.housing home` and the Travel tab, on
+`Housing.Homestone.Cooldown` at 900 seconds. The dashboard is the addon window, on a launcher
+button and `/house`. Routing from other hubs is the part 8.3.7 does differently: there is no
+Dornogal, so the portal sits in Stormwind and Orgrimmar and the town centre portal reaches it.
+Moving house free and keeping the build: `HousingMgr::MoveHouse` rewrites the plot index only
+and respawns the interior. Relinquishing with a regret timer: `ArchiveHouse` and
+`RestoreArchivedHouse`, seven days. Eviction packs the house up: the same archive, called from
+the eviction sweep, a street removal and a dissolved neighbourhood.
+
+**Section 3, house leveling.** XP from a new decor piece at 10: `GrantHouseXp(player,
+kXpPerNewDecor)` in `BuyDecor` and every grant path. XP from Endeavor tasks and the 250 from
+the Coffer: `EndeavorMgr::CompleteTask` and `EndeavorMgr::Claim`. The twelve thresholds, the
+interior, room and outdoor budgets and the room unlocks are one table, `housing_house_level`,
+in `07_progression.sql`, populated with the retail numbers verbatim. Level-up at the General
+Contractor, never automatically: `npc_housing_contractor`, `LevelUpWithGold` or the free claim
+once the XP is there. Medium exteriors at 8 and large at 12: `housing_shell.level_required`
+and `ApplyShell`. The level-10 weekly Arcanostorage Sphere: `OpenArcanostorage`, on
+`Housing.Arcanostorage.Level` and `Housing.Arcanostorage.CooldownDays`.
+
+**Section 4, customization.** Basic mode snapping: `H.SnapValue`, `H.SnapAngle` and
+`H.SnapScale` in the addon, at a grid, angle and scale step set on the Settings tab. Advanced
+mode: `C:PLACE` and `C:MOVE` carry position, yaw, pitch and roll and a scale, and the server
+builds the quaternion and calls `SetObjectScale`. Customize mode is the Dyes tab and the pet
+bed picker. Exterior customization is the one barber-shop row that is not ported: model
+swapping per sub-part needs client work, so facade variants are separate shells (doc 02
+sec.3). Detached geometry: interiors sit on `InteriorPhase`, so the inside is not the outside.
+Floorplan: 18 room shells in `housing_room`, positioned by the server; no arbitrary tiling.
+Separate budgets and a placement bound: `PlaceDecor` picks the pool from the placement and
+refuses anything outside the plot.
+
+**Section 5, decor.** Placement cost 1-5: `budget_cost`. Categories and subcategories: seven
+categories on `housing_decor`, filtered server-side by `C:DECOR`. Warband-wide collection is
+account-wide here: `character_housing_collection`. Individual copies: `character_housing_storage`
+holds a count per piece and placing consumes one. Repurchase: `C:BUYCOPY`. Sources: quests,
+drops, achievements and treasure hunts through `GrantSourceDecor` and `SyncAchievementDecor`,
+vendors through `housing_vendor_stock`. Rarity tiers are a guide convention, not a game
+mechanic, so they are folded into the source type. *Fully Furnished*: the seven collection
+milestones in doc 04, read out of the state the module already keeps. Storage counts: the
+Storage tab. Hearthlight Armillary with five presets: `SetArmillary` and `ToggleArmillary`,
+`character_housing.armillary` 0-4, level 6, worldstate 61202. Pet beds with 100 indoor and 25
+outdoor: `Housing.PetBed.IndoorCap` and `Housing.PetBed.OutdoorCap`, stationary or roaming per
+bed. Dyes: `housing_dye` and `housing_decor_variant`, `DyeDecor` swaps the piece's game object
+for its variant and consumes the dye. Treasure hunts: `housing_hunt`, `LoadHunts`,
+`AcceptHunt`, `CompleteHunt`, `SpawnHuntCaches`, the Hunts tab and the Steward's ten options.
+
+**Section 6, neighborhoods.** Zones: `housing_biome` and the two neighbourhood rows. Fifty-five
+plots: the ring layout above. Persistence: one phase slot per neighbourhood, `NeighborhoodPhase
+= 60000 + slot`. Public, guild and charter types: `FindNeighborhoodFor` opens public ones as
+needed, `GetOrCreateGuildWing` gives a guild its wing under `Housing.Guild.Wings`, and
+`FoundNeighborhood` writes a charter. Minimums and dissolution: `Housing.Neighborhood.PopulationCap`,
+`Housing.Neighborhood.MinResidents` and `RunDissolutionSweep`. Sanctuary: `EnforceBiomeRules`
+re-asserts no-PvP every two seconds on a housing map. No bank and no auction house: nothing on
+the housing maps opens either. Neighbourhood NPCs: steward, contractor, dye crafter, lumberjack,
+decor vendors and the smuggler, all in `HousingNpc.cpp`. Endeavor Coffer: `go_housing_coffer`.
+Plots spaced so yards do not intrude: the ring spacing and `yard_radius`.
+
+**Section 7, permissions.** Plot and house masks, five audiences each, per house:
+`plotMask` and `houseMask` on `character_housing`, the six audience bits 0x01-0x20, `C:ACCESS`
+answering through `S:RESULT` and read back from `S:PLOTINFO`. Immediate ejection: `EnforceAccess` on the 500 ms tick and in
+`SetAccess`. Two houses with different rules: the masks are per row, not per account. The
+settings UI behind the gear: the Access tab.
+
+**Section 7.5, vendor gating.** Three gates that stack: `housing_vendor_stock.currency_id`,
+`.milestone_required` compared against the neighbourhood's Endeavor state, and
+`.required_achievement` or a deed flag. The census numbers in doc 09 sec.6 are reproduced as
+rows, not as prose.
+
+**Section 8, Endeavors.** Monthly rotation: `EndeavorMgr::Update`, one per tick, `(id % size)
++ 1`. Tasks across content: `housing_endeavor_task`, four definitions and 22 tasks, fed by the
+creature, quest, spell and item hooks. Scaling: `ScaledRequirement` from the neighbourhood's
+occupancy. Rewards: currency, favour, house XP, themed decor and NPCs, `SpawnEndeavorTheming`.
+The Coffer: `go_housing_coffer` and `EndeavorMgr::Claim`, once per milestone per account. Named
+Endeavors from 12.1: four definitions carrying the four cultures, with the retail task and decor
+counts as their `base_required` and reward rows. Per-character choice: `character_housing.endeavor_id`
+and the Steward's option for a private street.
+
+**Section 9, blueprints.** Single room, full build and exterior: the `kind` byte in the `PHP1:`
+header. Codes, not files: base62 payload with a checksum, `C:BPEXP` and `C:BPIMP`. Faction
+restrictions for builds and exteriors, rooms agnostic: the faction byte is in the header and
+the room kind has none. Stairwells exported together: a room bundle carries its connected
+rooms. Dyes named in the export: the importer lists the pieces it will skip for a missing dye.
+
+**Section 10, currencies and economy.** Gold for plots and vendor decor, Community Coupons
+(3363) for neighbourhood stock, War Resources (1560) reused for themed vendors,
+`housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
+
+**Settings.** 31 keys in the conf file, all read by `LoadConfig` and all clamped, printable
+with `.housing config`. Six client preferences on the Settings tab. 48 commands, 41 player and
+7 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
+fails if the three disagree.
+
+**What is not here, and why.** Seven rows in doc 02 sec.3 are substitutions rather than
+omissions: room tiling, the exterior barber-shop builder, dye on arbitrary decor, shop and
+promotion decor, a true warband unit, a distinct Endeavor currency, and the client's View
+Houses menu. Each one is a client or DB2 capability that does not exist in build 35662, and
+each one names what players get instead. Nothing else in doc 01 is missing.
+
+## Audit pass, thirty-first revision
+
+The thirtieth pass built the ten riddle hunts. This one went looking for the opposite kind of
+hole: state that exists and does nothing, and a promise the code does not keep. Four things
+came out of it, and three of them had been in the tree since the schema was written.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 162 | **The regret window restored an empty box.** `SellPlot` archived `shell_id` as a literal `0`, never wrote `rooms_owned` or the Armillary preset at all, and `RestoreArchivedHouse` read neither - so a player who sold a finished house and restored it got the shell it started with and nothing else. The archive existed and answered `Ok` | `HousingMgr::ArchiveHouse` reads tier, XP, shell, rooms and preset off the house before the row is deleted, and the restore writes all of them back, sets them on the house object and puts the Armillary's world state on the player. `night_mode`, a lit/unlit flag that could not tell four presets apart, became `armillary`; an install older than this revision needs one `ALTER`, written as a comment in the schema file rather than as MariaDB-only syntax in a file that has to import on MySQL too |
+| 163 | **Eviction threw the house away.** The warning letter says "everything in it moves to your archive, where you can restore it", doc 02 said `ForceSellPlot` archives rather than deletes, and the code called `ForceSellPlot` directly. Same for a removal from a street and for a dissolved neighbourhood. Three paths destroyed a player's decor while two documents said they did not | `ArchiveHouse` is now called on all four paths - sale, eviction, removal, dissolve - and the restore falls back to the player's current neighbourhood when the archived street has gone or the plot has been taken, instead of reporting the house as expired when it is still in the archive |
+| 164 | **Eight columns were created and read by nothing.** `character_housing_neighborhood.endeavorId` and `endeavorProgress`, `character_housing.edit_session`, `character_housing_decor.pet_guid`, `character_housing_archive.night_mode`, and `housing_hunt.reward_name` and `cache_name` were all declared, some seeded, and referenced by no query in the module. A column an operator can fill in and watch do nothing is worse than a missing one | The redundant ones are gone: the Endeavor state lives in its own three tables, build mode is per-player and transient, pet beds keep `pet_entry` and `pet_roaming`, and the hunt's reward and cache are ids rather than names. `armillary` replaced `night_mode` rather than joining it. `verify_drafts.py` gained a rule that fails the build for a column of a table this module creates which no query and no bind file mentions: 253 columns, all with a reader |
+| 165 | **Seven of the ten hunt rewards were named after retail guide entries, not after the objects behind them.** "Wine Vat" was an Atal'ai idol, "Pepe's Nest" a plagued crate, "Gryphon Feather Bundle" a plain banner, "Lighthouse Lantern" a brazier. Doc 04 said in the same section that a piece must say what it is, and the table contradicted the sentence above it. Writing the check for it found the four objects that the index's keyword rule does not classify as furniture at all | Every piece is named after its object - bar keg, iron tomb, cluster display, harbour brazier, wine keg, aerie banner, ridge fire, smuggler's crate, plagued crate, storm brazier - and the vat's idol was replaced with a keg trap, which is the closer object. `check_coverage.py` now walks both hunt files: reward id in the catalogue, cache and reward object present in the source tree, ten quests inside 900100-900199 |
+| 166 | **The addon had a handler for a line the server has never sent.** `H.handlers["PLACEAT"]` printed "placed in front of you (placement N)" and could not fire, because the server answers `C:PLACEAT` with `S:RESULT|PLACEAT|...` like every other action - so the message a player saw after "place in front of me" never appeared. `check_protocol.py` only asked whether every reply had a handler, never whether every handler had a reply | The handler is gone and `S:RESULT` prints the placement sentence for `PLACEAT`. The checker gained an `orphans` rule for the reverse direction, and its reply scanner now recognises `S:XEND;` list markers - without that, twelve live handlers looked orphaned and the rule would have been useless. 37 server opcodes, 37 handled |
+
+Also fixed: draft B's `mod-psycho-house.conf.dist` declared `Housing.Sell.RefundPercent` twice. Same value, so nothing changed behaviour, but a duplicated key in a conf file is a key whose second copy an operator will edit and wonder about.
 
 ## Audit pass, thirtieth revision
 

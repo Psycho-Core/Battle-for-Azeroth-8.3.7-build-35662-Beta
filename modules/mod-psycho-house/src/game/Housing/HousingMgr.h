@@ -366,6 +366,15 @@ namespace Housing
 
         void SaveAll();
         void ForceSellPlot(HousingPlot* plot);
+
+        /// Park a house in the regret window before it is destroyed.
+        ///
+        /// Every path that takes a house away from its owner calls this first - a sale, an
+        /// eviction, a removal from a street, a neighbourhood being dissolved - because the
+        /// archive is what the warning letter promises and what `.housing restore` reads. The
+        /// account is taken from the plot when 0 is passed, which is what the sweeps do: they
+        /// have a plot and no player.
+        void ArchiveHouse(HousingPlot* plot, uint32 accountId = 0);
         std::string BuildAuditReport();
 
         /// The plot standing at a world position, give or take a radius. A gameobject script

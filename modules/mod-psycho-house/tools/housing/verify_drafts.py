@@ -229,6 +229,51 @@ def check_sql_against_own_schema(root, label_root):
     return rows
 
 
+def check_dead_columns(root):
+    """Every column of every table this module creates has a reader somewhere.
+
+    A column that nothing selects and nothing updates is a column an operator will fill in
+    and then wonder why nothing happens. The reference set is the module's own C++ plus the
+    bind files: a column whose only job is to carry a search name to `tools/sql/*.sql` counts
+    as used, because that is where its reader is.
+
+    Matching is on the backticked name, so `armillary` in a comment does not count as a
+    reader for `` `armillary` `` - the query or the UPDATE has to be there.
+    """
+    schema = {}
+    for base, _dirs, names in os.walk(root):
+        for name in sorted(names):
+            if not name.endswith(".sql"):
+                continue
+            text = read(os.path.join(base, name))
+            for match in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?`(\w+)` \((.*?)\n\)",
+                                     text, re.S):
+                columns = [l.strip().split()[0].strip("`") for l in match.group(2).splitlines()
+                           if l.strip().startswith("`")]
+                schema[match.group(1)] = [c for c in columns
+                                          if c not in ("PRIMARY", "KEY", "UNIQUE", "INDEX")]
+
+    references = ""
+    module = os.path.dirname(root)
+    for base, _dirs, names in os.walk(os.path.join(module, "src")):
+        for name in sorted(names):
+            if name.endswith((".cpp", ".h")):
+                references += read(os.path.join(base, name))
+    for name in sorted(os.listdir(os.path.join(module, "tools", "sql"))):
+        if name.endswith(".sql"):
+            references += read(os.path.join(module, "tools", "sql", name))
+
+    checks = 0
+    for table, columns in sorted(schema.items()):
+        for column in columns:
+            checks += 1
+            if "`{}`".format(column) not in references:
+                fail("sql", "{} .{} is created and never read or written".format(table, column))
+    print("{:<52} {:>5} rows  {:>2} checks   (columns with a reader)".format(
+        "module sql columns", checks, checks))
+    return checks
+
+
 def main():
     index = list(csv.DictReader(open(INDEX, newline="", encoding="utf-8")))
     go_entries = {int(r["entry"]) for r in index if r["kind"] == "gameobject" and r["entry"]}
@@ -298,6 +343,7 @@ def main():
 
     # the module's own SQL (not a draft) against its own CREATE TABLEs
     module_rows = check_sql_against_own_schema(os.path.join(HERE, "sql"), "sql/")
+    check_dead_columns(os.path.join(HERE, "sql"))
     print("{:<52} {:>5} rows".format("sql/world + sql/characters", module_rows))
 
     # draft C keeps its own SQL in its own shape, so it is checked the same way

@@ -1036,3 +1036,87 @@ What this does not prove, and the caveat is the same one as every pass before it
 ran. The caches were never spawned on a map, no quest was taken, and no piece was granted. The
 rotation, the phase and the gossip ids are checked against the source tree; the behaviour needs
 a server with the world database imported.
+
+### 6.25 The completeness entry
+
+The round asked for everything, not for a systems list. The answer is in the README section
+"Everything doc 01 lists, and where it lives": every row of the retail record, in its own
+order, with the function, table or command that carries it. Writing it that way turned up a
+few claims that had drifted from the code rather than from the record - the settings
+count still said 29 in two places after the conf file reached 31, and doc 02 named a reply
+opcode that the protocol answers with `S:RESULT`. Both are fixed.
+
+The seven substitutions in doc 02 sec.3 are the whole of what is not here, and each one is a
+client or DB2 capability: room tiling, the exterior barber-shop builder, dye on arbitrary
+decor, shop and promotion decor, a true warband unit, a distinct Endeavor currency, and the
+client's View Houses menu. Nothing in doc 01 is dropped because it was inconvenient.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; now also walks both hunt files - reward in the catalogue, cache and reward object in the source tree, ten quests in 900100-900199 |
+| `check_reference.py` | 0 findings; 31 settings, 48 commands, 6 client settings |
+| `verify_drafts.py` | 0 findings; 253 columns |
+| `audit.py` | 0 findings across 9 checks |
+
+### 6.24 The thirty-first revision: what the schema promised and the code did not
+
+The previous pass added content. This one asked the opposite question of every table and every
+handler: is it read, and does it do what the document beside it says. Three of the four
+findings had been in the tree since the schema was first written.
+
+- **The archive was a promise, not a feature.** `SellPlot` wrote `shell_id = 0` as a literal,
+  left `rooms_owned` and the Armillary out of the row entirely, and `RestoreArchivedHouse`
+  read none of them. Sale and restore both answered `Ok`; what came back was the starting
+  shell on an empty plot. `ArchiveHouse` now reads tier, XP, shell, rooms and preset off the
+  house object before the row is deleted, and the restore writes them back, sets them on the
+  new house and sends the Armillary world state to the player.
+- **Eviction destroyed what it said it would keep.** The warning mail promises an archive,
+  doc 02 claimed `ForceSellPlot` archived, and the sweep called `ForceSellPlot`. Removal from
+  a street and a dissolved neighbourhood did the same. All four paths call `ArchiveHouse`
+  first now, and the restore falls back to the player's current street when the archived one
+  is gone or the plot has been taken, so an evicted player is not told their house expired
+  while the row is still in the table.
+- **Eight columns had no reader.** Two on the neighbourhood table, `edit_session`, `pet_guid`,
+  `night_mode`, and the hunt table's two name columns. The Endeavor's state lives in its own
+  three tables, build mode is per-player and transient, and the hunt already stores ids, so
+  the duplicates went. `night_mode` became `armillary` rather than sitting beside it: a
+  lit/unlit flag cannot hold four presets, and restoring the wrong preset is a house that
+  comes back the wrong colour. An install created before this revision needs
+  one `ALTER`, and it is written as a comment in the schema file: a MariaDB-only
+  `ADD COLUMN IF NOT EXISTS` in the shipped SQL would break the rule that every statement
+  here imports on MySQL as well.
+- **A handler with no line behind it.** `H.handlers["PLACEAT"]` printed the phrase
+  "placed in front of you (placement N)". The server has never sent `S:PLACEAT`; it answers
+  through `S:RESULT` like everything else, so that message could not appear. Deleted, folded
+  into the `S:RESULT` handler, and `check_protocol.py` grew an `orphans` rule for the reverse
+  direction. That rule needed one more correction to be worth having: the reply scanner did
+  not recognise `S:HUNTEND;`-style list markers, so twelve live handlers looked orphaned.
+
+| Piece | Where |
+| --- | --- |
+| `ArchiveHouse`, and the sale using it | `HousingMgr.h`, `HousingMgr.cpp` |
+| Eviction, member removal, dissolve | `HousingMgrExtra.cpp`, `HousingMgr.cpp` |
+| Restore with shell, rooms, preset and a fallback street | `HousingMgrExtra.cpp` |
+| `armillary` replacing `night_mode`, with the upgrade note beside the table | `sql/characters/2026_10_31_00_characters_housing_module.sql` |
+| Columns removed | same file, and `sql/world/2026_10_31_00_world_housing_module.sql` |
+| `orphans` rule and the `S:XEND;` fix | `tools/housing/check_protocol.py` |
+| Dead-column rule | `tools/housing/verify_drafts.py` |
+| `S:RESULT` placement sentence | `addon/HousingUI/Core.lua` |
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; `ArchiveHouse` declared, defined and called on four paths |
+| `check_lua.py` | 0 findings; one handler fewer, no forward references added |
+| `check_protocol.py` | 0 findings; 37 server opcodes, 37 handled, 59 of 59 dispatched opcodes reachable |
+| `check_sql_columns.py` | 0 findings; the archive INSERT matches the new column list |
+| `check_reference.py` | 0 findings; no setting or command changed, so 31 and 48 stand |
+| `check_mariadb.py` | 0 findings; no MariaDB-only statement entered the shipped SQL |
+| `verify_drafts.py` | 0 findings; 253 schema columns and every one has a reader. Mutation-tested by adding a `probe_column` to `housing_hunt`, which it named |
+| `check_coverage.py` | 0 findings; both drafts rebuilt |
+| `check_psychohouse.py` | 0 findings; draft C untouched |
+| `audit.py` | 0 findings across 9 checks |
+
+The caveat is the same one every pass carries: nothing here was compiled or executed. What is
+checked is that the statement lists, the column names and the call sites agree with each other;
+the eviction sweep firing at the right hour, and the restore showing up in the client, still
+need a server with the world and character databases imported.

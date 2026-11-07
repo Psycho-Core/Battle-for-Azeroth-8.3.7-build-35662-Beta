@@ -228,8 +228,11 @@ Anything not in that list goes to P3+.
 Engine first, content second:
 
 1. `housing_endeavor` + task tables (doc 04 sec.4.1).
-2. Progress storage: `character_housing_endeavor` for claims; neighborhood-level
-   progress in `character_housing_neighborhood.endeavorProgress`.
+2. Progress storage: `character_housing_endeavor` for the active Endeavor and its
+   milestone, `character_housing_endeavor_task` for per-task progress and
+   `character_housing_endeavor_claim` for the milestones already paid. The first draft of
+   the schema also carried a neighborhood-level `endeavorProgress` counter, which nothing
+   read; the per-task rows made it redundant and the column is gone.
 3. Hook points, each one function call:
    - `PlayerScript::OnQuestComplete` -> `EndeavorMgr::OnQuest`
    - `PlayerScript::OnCreatureKill` -> `OnKill`

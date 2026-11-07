@@ -22,6 +22,7 @@ import shutil
 import sys
 
 from build_progression import progression_sql, PET_DECOR_NAMES
+from build_hunts import build as build_hunts
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA = os.path.join(ROOT, "data")
@@ -472,6 +473,11 @@ def main():
     build_native()
     copy_binds("midnight-port")
     copy_binds("bfa-native")
+
+    # The hunt file has its own generator because the two drafts number the reward pieces
+    # differently, but it is regenerated here too: a rebuild that leaves one file behind is
+    # how a draft ends up half old.
+    build_hunts()
 
 
 if __name__ == "__main__":
