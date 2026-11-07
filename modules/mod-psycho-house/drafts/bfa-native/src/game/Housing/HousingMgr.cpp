@@ -925,6 +925,13 @@ void HousingMgr::OnPlayerLogin(Player* player)
 
     LoadCollection(player->GetSession()->GetAccountId());
     SyncAchievementDecor(player);
+
+    // The introduction is a login breadcrumb in retail: the first quest is waiting before the
+    // player has spoken to anyone, and the Steward is where it is turned in. Offering it here
+    // is what makes that true - the gossip option stays, because a player who abandoned it
+    // needs a second way back in.
+    OfferIntroQuest(player, nullptr);
+
     CheckIntroQuestProgress(player);
 }
 

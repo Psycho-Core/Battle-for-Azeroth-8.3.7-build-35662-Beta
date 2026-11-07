@@ -404,7 +404,7 @@ INSERT INTO `housing_vendor` (`id`, `name`, `biome_id`, `role`, `creature_entry`
 -- `go_name` and `creature_name` are search strings, not ids: bind_housing_content.sql looks
 -- them up in the realm's own tables and reports what it could not find. An amenity with
 -- neither stays a pin on the addon map, which is what most of them were before.
-DELETE FROM `housing_amenity` WHERE `id` BETWEEN 1 AND 22;
+DELETE FROM `housing_amenity` WHERE `id` BETWEEN 1 AND 23;
 INSERT INTO `housing_amenity` (`id`, `biome_id`, `name`, `type`, `radius`, `flags`,
     `go_name`, `creature_name`) VALUES
 (1,  0, 'Town Center',            4, 60, 1, '', ''),
@@ -428,7 +428,8 @@ INSERT INTO `housing_amenity` (`id`, `biome_id`, `name`, `type`, `radius`, `flag
 (19, 3, 'Mear''s Farm Flight Point',3,5, 1, 'Gryphon', ''),
 (20, 4, 'Gryphon Aerie',          3, 12, 1, 'Gryphon', ''),
 (21, 5, 'Stoneveil Sheep Pasture',5, 25, 1, '', 'Sheep'),
-(22, 6, 'Outer Banks Flight Point',3, 5, 1, 'Gryphon', '');
+(22, 6, 'Outer Banks Flight Point',3, 5, 1, 'Gryphon', ''),
+(23, 0, 'Endeavor Coffer',         8,  3, 1, 'Coffer', '');
 
 -- ---------------------------------------------------------------------------
 -- Public neighbourhood name pool

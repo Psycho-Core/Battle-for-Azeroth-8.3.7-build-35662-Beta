@@ -105,7 +105,7 @@ SET t.`target` = COALESCE((
 WHERE t.`type` IN (3, 4) AND t.`target_name` <> '';
 
 -- ---------------------------------------------------------------------------
--- 7. Game object scripts
+-- 6. Game object scripts
 --
 -- A game object's script is attached by `gameobject_template.ScriptName` and by nothing else.
 -- The module summons its objects from template entries, so an object whose template names no
@@ -113,7 +113,8 @@ WHERE t.`type` IN (3, 4) AND t.`target_name` <> '';
 -- cannot be opened and a hunt cache cannot be searched. Every statement is guarded on an empty
 -- ScriptName, so a realm that has its own script on one of these keeps it.
 --
--- This runs after section 1, because it binds whatever entries section 1 resolved.
+-- This runs after section 1, because it binds whatever entries section 1 resolved, and the
+-- report in section 7 counts what it managed.
 -- ---------------------------------------------------------------------------
 
 UPDATE `gameobject_template` g
@@ -121,9 +122,9 @@ UPDATE `gameobject_template` g
    SET g.`ScriptName` = CASE a.`type`
         WHEN 0 THEN 'go_housing_bulletin'
         WHEN 1 THEN 'go_housing_portal'
-        WHEN 7 THEN 'go_housing_coffer'
+        WHEN 8 THEN 'go_housing_coffer'
         ELSE g.`ScriptName` END
- WHERE g.`ScriptName` = '' AND a.`gameobject_entry` <> 0 AND a.`type` IN (0, 1, 7);
+ WHERE g.`ScriptName` = '' AND a.`gameobject_entry` <> 0 AND a.`type` IN (0, 1, 8);
 
 UPDATE `gameobject_template` g
   JOIN `housing_hunt` h ON h.`cache_entry` = g.`entry`
@@ -137,10 +138,10 @@ UPDATE `gameobject_template` g
 --    WHERE `entry` = <the entry in Housing.Plot.CornerstoneEntry>;
 --
 -- An entry whose `go_name` the realm does not have stays at 0 and is not offered, which is the
--- behaviour section 1's report describes.
+-- behaviour section 7's report describes.
 
 -- ---------------------------------------------------------------------------
--- 6. The report
+-- 7. The report
 -- ---------------------------------------------------------------------------
 
 SELECT 'amenities with an object' AS `what`, COUNT(*) AS `rows`

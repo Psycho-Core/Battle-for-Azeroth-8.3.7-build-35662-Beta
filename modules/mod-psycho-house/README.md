@@ -159,6 +159,18 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
 
+## Audit pass, thirty-sixth revision
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 180 | **The introduction was never offered at login.** Doc 04 sec.1 calls 900100 a login breadcrumb and the inventory said `HousingMgr::OfferIntroQuest` offered it; the only caller was the Steward's gossip, so a new character had to find an NPC in a capital city before discovering the module existed. `CheckIntroQuestProgress` only completes steps that are already held | `OnPlayerLogin` calls `OfferIntroQuest(player, nullptr)` before the progress check, so the first quest is in the log at first login, which is what retail does. The gossip option stays: a player who drops the quest needs a way back in |
+
+## Audit pass, thirty-fifth revision
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 179 | **The Coffer had no object.** Binding the five scripts exposed it: the Endeavors Area is `type = 7`, an area pin that resolves to a banner, and no amenity row was a coffer, so `go_housing_coffer` still had nothing to run on. The milestone payout was reachable only through the steward's gossip, never from the chest retail puts in the neighbourhood | `AmenityCoffer = 8`, amenity 23 `Endeavor Coffer` with `go_name` `Coffer`, and the binder's `CASE` maps type 8 to the script. The area keeps its banner; the coffer is its own pin |
+
 ## Audit pass, thirty-fourth revision
 
 Every round so far checked that a feature exists. This one asked whether it can ever run: a
@@ -167,7 +179,7 @@ no checker in the folder was asking.
 
 | # | Finding | Fix |
 | --- | --- | --- |
-| 177 | **All five game object scripts were registered and unbound.** `go_housing_cornerstone`, `go_housing_portal`, `go_housing_bulletin`, `go_housing_coffer` and `go_housing_huntcache` are compiled and registered, and a game object runs whatever its `gameobject_template.ScriptName` names - which no file set. On a fresh install the cornerstone sold nothing, the portal was scenery, the notice board did nothing, the Coffer could not be opened and a hunt cache could not be searched. The NPC half was bound in `02_world_content.sql` all along, which is exactly why nobody noticed the other half was not | `bind_housing_content.sql` sec.7 attaches the three amenity scripts and the cache script by joining the entries section 1 already resolved, guarded on an empty `ScriptName` so a realm's own script survives. The cornerstone is chosen by a conf key rather than a row, so its statement is written out beside them with the key named. The report gains two lines that count what got bound |
+| 177 | **All five game object scripts were registered and unbound.** `go_housing_cornerstone`, `go_housing_portal`, `go_housing_bulletin`, `go_housing_coffer` and `go_housing_huntcache` are compiled and registered, and a game object runs whatever its `gameobject_template.ScriptName` names - which no file set. On a fresh install the cornerstone sold nothing, the portal was scenery, the notice board did nothing, the Coffer could not be opened and a hunt cache could not be searched. The NPC half was bound in `02_world_content.sql` all along, which is exactly why nobody noticed the other half was not | `bind_housing_content.sql` sec.6 attaches the three amenity scripts and the cache script by joining the entries section 1 already resolved, guarded on an empty `ScriptName` so a realm's own script survives. The cornerstone is chosen by a conf key rather than a row, so its statement is written out beside them with the key named. The report gains two lines that count what got bound |
 | 178 | **Nothing checked that a registered script was reachable.** The NPC scripts had SQL and the GO scripts did not, and every checker passed for two revisions | `check_coverage.py` gained a rule: every `GameObjectScript`, `CreatureScript`, `GuildScript`, `PlayerScript` and `WorldScript` name in `src/` has to appear in some SQL file. Eleven names, all bound; a `CommandScript` is exempt with the reason written down, because the command table reaches it rather than the database |
 
 ## Audit pass, thirty-third revision

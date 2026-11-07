@@ -381,6 +381,34 @@ def check_script_bindings():
     return len(scripts)
 
 
+def check_documented_counts():
+    """A number the drafts file states has to be a number the SQL has.
+
+    Doc 10 counts rows ("23 amenity pins", "55 plot templates"), and a row added to the module
+    SQL without the sentence is how a document starts lying. The amenity row is the one that
+    bites, because a coffer added to the SQL and not to the doc leaves the doc describing an
+    Endeavors Area with no chest.
+    """
+    doc = read(os.path.join(HERE, "10-draft-modules.md"))
+    match = re.search(r"(\d+) amenity pins", doc)
+    if not match:
+        fail("counts", "doc 10 no longer states how many amenity pins there are")
+        return 0
+
+    stated = int(match.group(1))
+    sql = ""
+    for path in glob.glob(os.path.join(HERE, "sql/**/*.sql"), recursive=True):
+        sql += read(path)
+
+    found = len(re.findall(r"^\((\d+),\s*\d+,\s*(?:'(?:[^']|'')*'),\s*\d+,", sql, re.M))
+    if found != stated:
+        fail("counts", "doc 10 says {} amenity pins and the module SQL has {}"
+             .format(stated, found))
+
+    print("  {:>3} amenity pins, the number doc 10 states".format(stated))
+    return 1
+
+
 def main():
     print("drafts against the data they are generated from\n")
 
@@ -389,6 +417,7 @@ def main():
     b_decor, b_stock = check_native()
     b_hunts = check_hunts("bfa-native", "03_decor_native.sql")
     check_script_bindings()
+    check_documented_counts()
 
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:

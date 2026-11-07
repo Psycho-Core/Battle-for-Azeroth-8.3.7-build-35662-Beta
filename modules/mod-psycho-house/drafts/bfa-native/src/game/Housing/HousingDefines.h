@@ -178,7 +178,8 @@ namespace Housing
         AmenityGathering     = 4,
         AmenityScenery       = 5,
         AmenityVendor        = 6,
-        AmenityEndeavor      = 7
+        AmenityEndeavor      = 7,
+        AmenityCoffer        = 8
     };
 
     enum HousingAccess : uint8

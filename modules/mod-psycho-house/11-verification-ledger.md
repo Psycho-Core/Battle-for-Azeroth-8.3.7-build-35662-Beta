@@ -1037,6 +1037,40 @@ ran. The caches were never spawned on a map, no quest was taken, and no piece wa
 rotation, the phase and the gossip ids are checked against the source tree; the behaviour needs
 a server with the world database imported.
 
+### 6.30 The thirty-sixth revision: a breadcrumb nobody dropped
+
+- **The first quest was not offered.** `OfferIntroQuest` had one caller, the Steward's gossip,
+  and the login hook only completed steps already held. Doc 04 sec.1 calls 900100 a login
+  breadcrumb, so the doc was right about retail and wrong about the module.
+- **The fix is one call.** `OnPlayerLogin` offers it, then runs the progress check. The gossip
+  option is kept for players who abandon the chain.
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings |
+| `check_claims.py` | 0 findings; the inventory line naming `OfferIntroQuest` is now true |
+| `audit.py` | 0 findings across 10 checks |
+
+### 6.29 The thirty-fifth revision: the coffer had no object of its own
+
+The binder now attaches scripts, which exposed the next layer: `go_housing_coffer` had nothing
+to attach to. The Endeavors Area is `type = 7`, an area pin that resolves to a banner, and
+there was no coffer row anywhere - so the milestone payout, the one feature retail makes a
+point of, would have been reachable only through the steward's gossip. The fix is a row, not
+a paragraph: `AmenityCoffer = 8`, a `Coffer` pin id 23 beside the area, and the binder maps
+type 8 to the coffer script. The area keeps its banner, the coffer gets a chest.
+- **The row was added to the draft and not to the module SQL.** `build_drafts.py` regenerates
+  `02_world_content.sql` from `sql/world/2026_10_31_00_world_housing_module.sql`, so the row
+  disappeared on the next build while doc 10 said 23. It is in the source SQL now, and
+  `check_coverage.py` compares the number doc 10 states against the rows the SQL has, so the
+  same edit cannot go missing again.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; 11 script names bound |
+| `verify_drafts.py` | 0 findings; 23 amenity rows in both drafts |
+| `audit.py` | 0 findings across 10 checks |
+
 ### 6.28 The thirty-fourth revision: features that could not run
 
 A script that is compiled and registered but bound to nothing is a feature that cannot happen,
@@ -1045,7 +1079,7 @@ and it does not fail a test - it just does not happen. That was the shape of the
 - **Five game object scripts were unbound.** `gameobject_template.ScriptName` is the only way
   to attach a script to an object, and no file in the module set it. The cornerstone, the
   portal, the bulletin board, the coffer and the hunt caches were therefore furniture.
-  `bind_housing_content.sql` sec.7 binds them by joining the entries that section 1 resolved,
+  `bind_housing_content.sql` sec.6 binds them by joining the entries that section 1 resolved,
   so the binder that already turns names into ids now also turns ids into behaviour.
 - **A rule for it.** `check_coverage.py` fails when a registered script name appears in no SQL
   file: eleven names, all bound, with `CommandScript` exempt because the command table reaches
