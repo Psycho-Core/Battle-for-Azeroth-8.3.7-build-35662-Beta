@@ -223,6 +223,7 @@ void HousingMgr::LoadHousingData()
     LoadDecor();
     LoadVendors();
     LoadAmenities();
+    LoadHunts();
     LoadNamePool();
 
     // Level ladder, shells, rooms, dye variants, decor creatures and portals. Runs after the
@@ -231,10 +232,11 @@ void HousingMgr::LoadHousingData()
     sHousingEndeavor->Load();
 
     TC_LOG_INFO("housing", "Loaded %u biomes, %u plots, %u decor items, %u vendors, %u amenities, "
-        "%u levels, %u shells, %u rooms, %u portal(s)",
+        "%u levels, %u shells, %u rooms, %u portal(s), %u hunt(s)",
         uint32(_biomes.size()), uint32(_plotTemplates.size()), uint32(_decor.size()),
         uint32(_vendorList.size()), uint32(_amenityList.size()), uint32(_levels.size()),
-        uint32(_shells.size()), uint32(_rooms.size()), uint32(_portalList.size()));
+        uint32(_shells.size()), uint32(_rooms.size()), uint32(_portalList.size()),
+        uint32(_huntList.size()));
 }
 
 void HousingMgr::LoadBiomes()
@@ -464,6 +466,43 @@ void HousingMgr::LoadAmenities()
         }
         while (result->NextRow());
     }
+}
+
+void HousingMgr::LoadHunts()
+{
+    _hunts.clear();
+    _huntList.clear();
+
+    // The table ships with the module, but an install that updated the character schema and
+    // not the world one still has to boot, so a missing table is a log line and no hunts
+    // rather than a failed start.
+    if (QueryResult result = WorldDatabase.Query(
+        "SELECT `id`, `name`, `riddle`, `quest_id`, `reward_decor`, `cache_entry`, `x`, `y`, `z`, "
+        "`faction_mask` FROM `housing_hunt`"))
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+
+            HuntInfo info;
+            info.Id = fields[0].GetUInt32();
+            info.Name = fields[1].GetString();
+            info.Riddle = fields[2].GetString();
+            info.QuestId = fields[3].GetUInt32();
+            info.RewardDecor = fields[4].GetUInt32();
+            info.CacheEntry = fields[5].GetUInt32();
+            info.Pos = Position(fields[6].GetFloat(), fields[7].GetFloat(), fields[8].GetFloat());
+            info.HasSpawn = info.Pos.m_positionX != 0.0f || info.Pos.m_positionY != 0.0f;
+            info.FactionMask = fields[9].GetUInt8();
+
+            _hunts[info.Id] = info;
+            _huntList.push_back(info);
+        }
+        while (result->NextRow());
+    }
+
+    if (!_huntList.empty())
+        TC_LOG_INFO("housing", "loaded {} riddle hunt(s)", uint32(_huntList.size()));
 }
 
 void HousingMgr::LoadNamePool()

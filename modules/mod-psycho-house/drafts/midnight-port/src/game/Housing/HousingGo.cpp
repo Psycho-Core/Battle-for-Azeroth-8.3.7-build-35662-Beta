@@ -17,6 +17,7 @@
  *   go_housing_coffer        the Endeavor coffer: progress, delivery, the milestone payout
  *   go_housing_bulletin      the notice board: who lives here and which doors are open
  *   go_housing_portal        a portal: out of the neighbourhood, or back into it from a city
+ *   go_housing_huntcache     a riddle hunt's cache: the end of the walk
  *
  * Every one of them works out which plot it belongs to from its own position, because that
  * is the only thing a gameobject can tell a script. `HousingMgr::FindPlotAt` does the search
@@ -428,6 +429,82 @@ namespace Housing
             static constexpr uint32 PortalOut = GOSSIP_ACTION_INFO_DEF + 1;
             static constexpr uint32 PortalIn = GOSSIP_ACTION_INFO_DEF + 2;
         };
+
+        // ---- riddle hunt cache ------------------------------------------------
+
+        /*
+         * The cache is the objective: the hunt is a riddle the Steward hands out, and clicking
+         * the box ends the walk. The row is found from the object's entry and its distance to
+         * the position it was spawned at, because a game object cannot carry a row id.
+         */
+        class go_housing_huntcache : public GameObjectScript
+        {
+        public:
+            go_housing_huntcache() : GameObjectScript("go_housing_huntcache") { }
+
+            bool OnGossipHello(Player* player, GameObject* go) override
+            {
+                if (!sHousingMgr->IsEnabled() || !player)
+                    return false;
+
+                HuntInfo const* hunt = sHousingMgr->HuntForCache(go);
+                if (!hunt)
+                    return false;
+
+                uint8 const state = sHousingMgr->GetHuntState(player, hunt->Id);
+
+                if (state == 0)
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                        Trinity::StringFormat("A {} cache. The riddle has not been given to you yet.",
+                            hunt->Name),
+                        GOSSIP_SENDER_MAIN, CacheNothing);
+                else if (state == 2)
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                        Trinity::StringFormat("The {} cache is empty.", hunt->Name),
+                        GOSSIP_SENDER_MAIN, CacheNothing);
+                else
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                        Trinity::StringFormat("Open the {} cache.", hunt->Name),
+                        GOSSIP_SENDER_MAIN, CacheOpen);
+
+                player->PlayerTalkClass->SendGossipMenu(1, go->GetGUID());
+                return true;
+            }
+
+            bool OnGossipSelect(Player* player, GameObject* go, uint32 /*sender*/, uint32 action) override
+            {
+                if (!player)
+                    return false;
+
+                player->PlayerTalkClass->ClearMenus();
+                ChatHandler handler(player->GetSession());
+
+                if (action == CacheOpen)
+                {
+                    if (HuntInfo const* hunt = sHousingMgr->HuntForCache(go))
+                    {
+                        HousingResult const result = sHousingMgr->CompleteHunt(player, hunt->Id);
+
+                        if (result == Ok && hunt->RewardDecor)
+                        {
+                            if (DecorInfo const* decor = sHousingMgr->GetDecor(hunt->RewardDecor))
+                                handler.PSendSysMessage("The cache held {}.", decor->Name);
+                        }
+                        else
+                            handler.PSendSysMessage("{}", HousingMgr::ResultName(result));
+                    }
+                    else
+                        handler.SendSysMessage("This cache is not part of a hunt.");
+                }
+
+                player->PlayerTalkClass->SendCloseGossip();
+                return true;
+            }
+
+        private:
+            static constexpr uint32 CacheOpen    = GOSSIP_ACTION_INFO_DEF + 1;
+            static constexpr uint32 CacheNothing = GOSSIP_ACTION_INFO_DEF + 2;
+        };
 }
 
 void AddSC_housing_go_scripts()
@@ -436,4 +513,5 @@ void AddSC_housing_go_scripts()
     new Housing::go_housing_coffer();
     new Housing::go_housing_bulletin();
     new Housing::go_housing_portal();
+    new Housing::go_housing_huntcache();
 }

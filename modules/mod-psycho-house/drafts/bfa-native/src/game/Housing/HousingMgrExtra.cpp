@@ -1426,6 +1426,217 @@ namespace Housing
     }
 
     // -------------------------------------------------------------------------
+    // Riddle hunts
+    // -------------------------------------------------------------------------
+
+    HuntInfo const* HousingMgr::GetHunt(uint32 id) const
+    {
+        auto const itr = _hunts.find(id);
+        return itr != _hunts.end() ? &itr->second : nullptr;
+    }
+
+    HuntInfo const* HousingMgr::HuntForCache(GameObject* go) const
+    {
+        if (!go || _huntList.empty())
+            return nullptr;
+
+        uint32 const entry = go->GetEntry();
+
+        HuntInfo const* found = nullptr;
+        float best = 15.0f;
+
+        for (HuntInfo const& hunt : _huntList)
+        {
+            if (!hunt.CacheEntry || hunt.CacheEntry != entry)
+                continue;
+
+            // A derived cache has no authored position, so the distance is measured against
+            // the ring point it was spawned at rather than against 0,0,0.
+            Position const pos = hunt.HasSpawn ? hunt.Pos
+                                               : AnchorForHunt(hunt.Id);
+
+            float const distance = go->GetExactDist(&pos);
+            if (distance < best)
+            {
+                best = distance;
+                found = &hunt;
+            }
+        }
+
+        return found;
+    }
+
+    uint8 HousingMgr::GetHuntState(Player* player, uint32 huntId) const
+    {
+        HuntInfo const* hunt = GetHunt(huntId);
+        if (!player || !hunt || !hunt->QuestId)
+            return 0;
+
+        switch (player->GetQuestStatus(hunt->QuestId))
+        {
+            case QUEST_STATUS_NONE:
+                return 0;
+            case QUEST_STATUS_COMPLETE:
+            case QUEST_STATUS_INCOMPLETE:
+                return 1;
+            default:
+                return 2;
+        }
+    }
+
+    HousingResult HousingMgr::AcceptHunt(Player* player, uint32 huntId)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        if (!player)
+            return InternalError;
+
+        HuntInfo const* hunt = GetHunt(huntId);
+        if (!hunt)
+            return NotFound;
+
+        uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
+        if (!(hunt->FactionMask & factionBit))
+            return WrongFaction;
+
+        if (!hunt->QuestId)
+            return NotFound;
+
+        Quest const* quest = sObjectMgr->GetQuestTemplate(hunt->QuestId);
+        if (!quest)
+            return NotFound;
+
+        QuestStatus const status = player->GetQuestStatus(hunt->QuestId);
+        if (status == QUEST_STATUS_REWARDED)
+            return AlreadyKnown;
+
+        // Held but unfinished is not an error worth a window: the riddle is reprinted instead.
+        if (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_COMPLETE)
+            return NotReady;
+
+        if (!player->CanAddQuest(quest, true))
+            return NotReady;
+
+        player->AddQuest(quest, nullptr);
+        return Ok;
+    }
+
+    HousingResult HousingMgr::CompleteHunt(Player* player, uint32 huntId)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        if (!player)
+            return InternalError;
+
+        HuntInfo const* hunt = GetHunt(huntId);
+        if (!hunt)
+            return NotFound;
+
+        uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
+        if (!(hunt->FactionMask & factionBit))
+            return WrongFaction;
+
+        Quest const* quest = hunt->QuestId ? sObjectMgr->GetQuestTemplate(hunt->QuestId) : nullptr;
+        if (!quest)
+            return NotFound;
+
+        if (player->GetQuestStatus(hunt->QuestId) == QUEST_STATUS_REWARDED)
+            return AlreadyKnown;
+
+        // The objective is the cache, so opening it finishes the quest. A player who found
+        // somebody else's cache without taking the riddle is told to go and take it rather
+        // than being handed a piece they never looked for.
+        if (player->GetQuestStatus(hunt->QuestId) == QUEST_STATUS_NONE)
+            return NotReady;
+
+        // The cache is the objective. A game object script intercepts the click before the
+        // core credits the objective, so the credit is handed over here rather than waited
+        // for - the quest log line and the completion arrive on the same click.
+        if (player->GetQuestStatus(hunt->QuestId) == QUEST_STATUS_INCOMPLETE)
+            player->AreaExploredOrEventHappens(hunt->QuestId);
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        LoadCollection(accountId);
+
+        uint32 granted = 0;
+
+        if (hunt->RewardDecor)
+        {
+            DecorInfo const* decor = GetDecor(hunt->RewardDecor);
+            if (decor && (decor->FactionMask & factionBit) && !(decor->Flags & DecorFlagHidden)
+                && !HasUnlocked(accountId, decor->Id))
+            {
+                CharacterDatabase.DirectPExecute(
+                    "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, "
+                    "`source_id`, `acquired`) VALUES ({}, {}, {}, {}, UNIX_TIMESTAMP())",
+                    accountId, decor->Id, uint32(SourceTreasureHunt), hunt->Id);
+
+                _collection[accountId].insert(decor->Id);
+                AddStorage(accountId, decor->Id, 1);
+                ++granted;
+            }
+        }
+
+        // Anything the realm bound to the hunt's own source id, which is how a hunt can hand
+        // out more than one piece without a second table.
+        GrantSourceDecor(player, SourceTreasureHunt, hunt->Id);
+
+        if (player->GetQuestStatus(hunt->QuestId) == QUEST_STATUS_COMPLETE)
+            player->RewardQuest(quest, 0, player, false);
+
+        if (granted)
+            GrantHouseXp(player, kXpPerNewDecor * granted);
+
+        return Ok;
+    }
+
+    Position HousingMgr::AnchorForHunt(uint32 index) const
+    {
+        // A wider ring than the amenities, and a half-step offset so a cache never lands on
+        // top of an amenity that shares its angle.
+        uint32 const count = std::max<uint32>(1, uint32(_huntList.size()));
+        float const angle = 6.2831853f * float(index % count) / float(count) + 0.19f;
+
+        return Position(_townCenter.m_positionX + std::cos(angle) * kAnchorHuntRadius,
+            _townCenter.m_positionY + std::sin(angle) * kAnchorHuntRadius,
+            _townCenter.m_positionZ, angle + 3.1415927f);
+    }
+
+    void HousingMgr::SpawnHuntCaches(HousingNeighborhood* neighborhood, Map* map)
+    {
+        if (!neighborhood || !map || _huntList.empty())
+            return;
+
+        // The cache belongs to the neighbourhood, so it is spawned in the neighbourhood phase
+        // and disappears with it. Only the hunts whose cache entry the realm actually has are
+        // spawned; the rest stay rows waiting for a binding.
+        uint32 const phase = NeighborhoodPhase(neighborhood->GetSlot());
+        uint8 const factionBit = neighborhood->GetFaction() == FactionAlliance ? 0x01 : 0x02;
+        uint32 spawned = 0;
+
+        for (HuntInfo const& hunt : _huntList)
+        {
+            if (!hunt.CacheEntry || !(hunt.FactionMask & factionBit))
+                continue;
+
+            Position pos = hunt.HasSpawn ? hunt.Pos : AnchorForHunt(hunt.Id);
+
+            if (GameObject* object = GameObject::CreateGameObject(hunt.CacheEntry, map, pos,
+                QuaternionData::fromEulerAnglesZYX(pos.GetOrientation(), 0.0f, 0.0f), 255, GO_STATE_READY))
+            {
+                PhasingHandler::AddPhase(object, phase, false);
+                map->AddToMap(object);
+                ++spawned;
+            }
+        }
+
+        if (spawned)
+            TC_LOG_INFO("housing", "neighbourhood {} hid {} hunt cache(s)", neighborhood->GetId(), spawned);
+    }
+
+    // -------------------------------------------------------------------------
     // Names
     // -------------------------------------------------------------------------
 
@@ -2104,6 +2315,11 @@ namespace Housing
 
             ++index;
         }
+
+        // The caches: one per hunt row, hidden on the wide ring around the hub. Placed after
+        // the amenities so a cache is never inside a stall, and before the plots so the ring
+        // is filled whatever the plot count is.
+        SpawnHuntCaches(neighborhood, map);
 
         for (auto const& entry : neighborhood->GetPlots())
         {
@@ -2954,6 +3170,41 @@ namespace Housing
 
             SendResult(player, "CLAIM", sHousingEndeavor->Claim(player, uint8(milestone))
                 ? Ok : EndeavorIncomplete);
+            return true;
+        }
+
+        // ---- riddle hunts ----------------------------------------------------
+
+        if (op == "HUNTS")
+        {
+            // One line per hunt with the state the player is in, because the window has to
+            // say "take", "still looking" or "found" without a second request.
+            std::string payload;
+
+            for (HuntInfo const& hunt : GetHunts())
+            {
+                DecorInfo const* reward = hunt.RewardDecor ? GetDecor(hunt.RewardDecor) : nullptr;
+
+                payload += Trinity::StringFormat("S:HUNT|{}|{}|{}|{}|{}|{};", hunt.Id,
+                    uint32(GetHuntState(player, hunt.Id)), hunt.Name, hunt.Riddle,
+                    reward ? reward->Name : std::string("unbound"), hunt.QuestId);
+            }
+
+            payload += "S:HUNTEND;";
+            SendChunk(player, payload);
+            return true;
+        }
+
+        if (op == "HUNT")
+        {
+            uint32 huntId = 0;
+            if (fields.size() < 2 || !HousingAddon::ParseUInt(fields[1], huntId))
+            {
+                SendResult(player, "HUNT", NotFound);
+                return true;
+            }
+
+            SendResult(player, "HUNT", AcceptHunt(player, huntId), huntId);
             return true;
         }
 

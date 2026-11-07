@@ -166,27 +166,60 @@ one comparison in `GetVendorStock`. It turns a currency sink into a reason to lo
 
 ## 5. Decor treasure hunts
 
-Retail has per-neighborhood treasure-hunt quests with riddles (Founder's Point and
-Razorwind Shores guides). Mod-psycho-house ships **10 riddle hunts** in Founder's Point,
-each a custom quest with a GO objective:
+Retail has per-neighborhood treasure-hunt quests with riddles. The module ships ten of them:
+ten rows in `housing_hunt`, ten quests 900110-900119, ten reward pieces and ten caches. A
+hunt is a line of verse, a cache hidden in the neighbourhood, and the piece the cache holds.
 
-| # | Riddle hook | Where | Reward |
-| --- | --- | --- | --- |
-| 1 | "Where the beer flows and the wheel turns" | Gilded Oaks beer garden | *Waterwheel Keg* decor |
-| 2 | "The stone remembers the names" | Brumewood graveyard | *Weathered Gravestone* |
-| 3 | "Under the ring of caps" | Mushroom ring | *Glowing Mushroom Cluster* |
-| 4 | "The eye that never blinks" | Lighthouse | *Lighthouse Lantern* |
-| 5 | "Grapes trodden, promises kept" | Mear's Farm stomping vats | *Wine Vat* |
-| 6 | "Where gryphons sleep" | Small Aerie | *Gryphon Feather Bundle* |
-| 7 | "The bridge that only one house crosses" | Stoneveil Ridge | *Ridge Bridge Lantern* |
-| 8 | "Salt in the timbers" | Breakwater Bight smugglers | *Smuggler's Crate* |
-| 9 | "Beneath the notice of neighbours" | Bulletin board (Pepe cameo) | *Pepe* decor |
-| 10 | "The lamp the wind cannot kill" | Outer Banks cliff | *Storm Lantern* |
+| # | Riddle | Quest | Cache object | Reward piece (game object entry) |
+| --- | --- | --- | --- | --- |
+| 1 | Where the beer flows and the wheel turns | 900110 | Suspicious Crate (190094) | Waterwheel Keg (170607) |
+| 2 | The stone remembers the names | 900111 | Crate of Cellblock Rations (206996) | Weathered Gravestone (220864) |
+| 3 | Under the ring of caps | 900112 | Stout Crate of Mantid (221802) | Glowing Mushroom Cluster (7364) |
+| 4 | The eye that never blinks | 900113 | Massive Crate of Mogu (221803) | Lighthouse Lantern (195424) |
+| 5 | Grapes trodden, promises kept | 900114 | Massive Crate of Mantid (221804) | Wine Vat (148836) |
+| 6 | Where gryphons sleep | 900115 | Lightweight Crate of Mantid (221806) | Gryphon Feather Bundle (178205) |
+| 7 | The bridge that only one house crosses | 900116 | Lightweight Crate of Mogu (221807) | Ridge Bridge Lantern (177417) |
+| 8 | Salt in the timbers | 900117 | Lightweight Crate of Mantid 2 (221808) | Smuggler's Crate (190094) |
+| 9 | Beneath the notice of neighbours | 900118 | Lightweight Crate of Mantid 3 (221809) | Pepe's Nest (190095) |
+| 10 | The lamp the wind cannot kill | 900119 | Cache of Storms (194312) | Storm Lantern (195403) |
 
-Mechanics: `quest_template` + `quest_objectives` with `GAMEOBJECT` type, plus a spawn of a
-small "cache" GO per location. The quest rewards a decor id through the collection -
-`character_housing_collection`, which is what gates placing the piece - rather than through
-an item, so no item_template row is needed for a decoration.
+The reward column is the object the piece is made of, not a retail guide name. Six of the
+ten riddle sites in retail - the beer garden, the graveyard, the mushroom ring, the
+lighthouse, the stomping vats, the aerie - have no dedicated 8.3.7 object, and a piece
+that claims to be a beacon and is a flower pot is worse than a piece that says what it is.
+The reward pieces are therefore authored `housing_decor` rows, ids 1900-1909 in draft A and
+2900-2909 in draft B, source type 4 (`TreasureHunt`) with the hunt id as the source, and
+each one is a real object from the build's own asset index. Everything on both sides of
+that table is checked against `generated/source-asset-index.csv` by `check_coverage.py`.
+
+Mechanics:
+
+- **The table.** `housing_hunt` carries `id`, `name`, `riddle`, `quest_id`, `reward_name`,
+  `reward_decor`, `cache_name`, `cache_entry`, `x`, `y`, `z` and `faction_mask`.
+  `HousingMgr::LoadHunts` reads it and stays quiet on an install that has not imported it
+  yet: a missing table is a log line and no hunts, not a failed start.
+- **The cache.** One game object per hunt, spawned in the neighbourhood's phase by
+  `SpawnHuntCaches` as part of `SpawnNeighborhoodContent`. A row with authored coordinates
+  is used as written; a row of zeroes lands on the hunt ring, sixty-two yards out from the
+  town centre at half a step from the amenity angles, so no cache sits inside a stall or a
+  wall. `go_housing_huntcache` is the script, bound by `gameobject_template.ScriptName`,
+  and it finds its row from the entry plus the distance to that anchor - a game object
+  cannot carry a database id.
+- **Taking the riddle.** The Hunts tab sends `C:HUNTS`, gets one `S:HUNT` line per hunt
+  with the state the player is in, and sends `C:HUNT <id>` to take one. The Steward offers
+  the same list as gossip, and reads the verse out loud when the option is taken. A hunt
+  with `faction_mask` bit 0 clear is not offered to an Alliance character, and the reverse.
+- **Finishing it.** The quest's objective is the cache, objective type 2 in
+  `quest_objectives`, so the quest log says "find the cache and open it". The click is
+  intercepted by the object script before the core credits the objective, so
+  `HousingMgr::CompleteHunt` hands over the credit with `AreaExploredOrEventHappens`, adds
+  the piece to `character_housing_collection` together with one copy in storage, and rewards
+  the quest. The piece goes into the collection rather than the mail because a decoration
+  is a `housing_decor` row, not an item: no `item_template` row is needed.
+- **The SQL.** `tools/housing/build_hunts.py` writes `08_hunts.sql` into both drafts: the
+  twenty reward rows, the ten `housing_hunt` rows, the ten `quest_objectives` rows and the
+  ten `quest_template` rows. It is a generator because the two drafts use different id
+  ranges for the reward pieces, and a hand-written file would drift between them.
 
 The four introduction quests in section 1 have a giver now: the Steward offers the next one
 in the chain and takes the turn-in, and the objective is marked by the module event that

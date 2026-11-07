@@ -86,6 +86,28 @@ namespace Housing
         VendorInfo const* GetVendor(uint32 id) const;
         AmenityInfo const* GetAmenity(uint32 id) const;
 
+        // ---- riddle hunts ----------------------------------------------------
+
+        std::vector<HuntInfo> const& GetHunts() const { return _huntList; }
+        HuntInfo const* GetHunt(uint32 id) const;
+
+        /// Which hunt a cache game object belongs to, by entry and nearest position. Null when
+        /// the object is not one of the module's caches.
+        HuntInfo const* HuntForCache(GameObject* go) const;
+
+        /// Take a hunt: adds the quest if the player may have it.
+        HousingResult AcceptHunt(Player* player, uint32 huntId);
+
+        /// The cache is opened. Completes the quest, records the reward in the account's
+        /// collection and reports the piece by name.
+        HousingResult CompleteHunt(Player* player, uint32 huntId);
+
+        /// 0 not taken, 1 taken and incomplete, 2 finished. What the window shows.
+        uint8 GetHuntState(Player* player, uint32 huntId) const;
+
+        /// Places the cache for every hunt that has an entry, in the neighbourhood's phase.
+        void SpawnHuntCaches(HousingNeighborhood* neighborhood, Map* map);
+
         std::map<uint32, DecorInfo> const& GetDecorCatalogue() const { return _decor; }
 
         std::vector<PlotTemplate> const& GetPlotTemplates(uint32 mapId) const;        std::vector<VendorInfo> const& GetVendors() const { return _vendorList; }
@@ -391,6 +413,8 @@ namespace Housing
         std::map<uint32, std::vector<VendorStockEntry>> _vendorStock;
         std::map<uint32, AmenityInfo> _amenities;
         std::vector<AmenityInfo> _amenityList;
+        std::vector<HuntInfo> _huntList;
+        std::map<uint32, HuntInfo> _hunts;
         std::vector<VendorInfo> _vendorList;
         std::map<uint32, std::vector<std::string>> _namePool;           // faction -> names
         std::map<uint8, HouseLevelInfo> _levels;
@@ -432,6 +456,7 @@ namespace Housing
         void LoadDecor();
         void LoadVendors();
         void LoadAmenities();
+        void LoadHunts();
         void LoadNamePool();
         void LoadLevels();
         void LoadShells();
@@ -452,6 +477,7 @@ namespace Housing
         /// The plot's front door, with the ground height filled in when the row asked for it.
         Position PlotSpawn(HousingPlot* plot, Player* player);
         Position AnchorForAmenity(uint32 index) const;
+        Position AnchorForHunt(uint32 index) const;
         void SpawnPlotShell(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
         void SpawnCornerstone(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
 

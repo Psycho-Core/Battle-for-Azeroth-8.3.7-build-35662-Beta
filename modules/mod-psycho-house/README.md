@@ -34,13 +34,13 @@ modules/mod-psycho-house/
     bfa-native/          draft B - 8.3.7 ids only, gold only
   src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
                          neighbourhoods, the houses, the Endeavor engine, the four NPC
-                         scripts and the four gameobject scripts
+                         scripts and the five gameobject scripts
   src/scripts/Housing/   commands (48 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
   addon/HousingUI/       the client addon: Core.lua (transport, grid snapping) and
-                         Menu.lua (the fourteen-tab housing window)
+                         Menu.lua (the fifteen-tab housing window)
   legacy-prototype/      the original prototype notes and patches, kept verbatim as
                          history - the numbered documents are the current set
   tools/housing/         scrapers, indexers, the draft builder, the installer,
@@ -101,6 +101,7 @@ publish entry ids for the interior quests.
 | `tools/housing/audit.py` | Nine checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping, and the settings-and-commands reference. Exits non-zero on a finding. |
 | `tools/housing/check_reference.py` | The four lists that have to agree: conf keys, the keys `LoadConfig` records, and the keys doc 14 lists; the command table and the commands doc 14 lists; the addon's defaults and the client settings doc 14 lists; and that in-game help is read out of the command table rather than typed out. Mutation-tested four ways - a dropped setting row, a renamed command, a renamed client default and a deleted `note` call were each reported. |
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
+| `tools/housing/build_hunts.py` | Writes `08_hunts.sql` into both drafts: the ten reward pieces (1900-1909 and 2900-2909), the ten `housing_hunt` rows, the ten `quest_objectives` rows and the ten riddle quests 900110-900119. Separate from the quest builder because the two drafts number the reward pieces differently. |
 | `tools/housing/check_sql_columns.py` | Harvests every column the build's `sql/` writes to, then checks the module's SQL and all three drafts against that vocabulary. Catches a column that only exists in my head. |
 | `tools/housing/build_register_appendix.py` | Writes `generated/town-center-full-stock.md`: one table per vendor with every captured line, price, currency and id. |
 | `tools/housing/verify_drafts.py` | Reads the three `drafts/` trees and the module's own `sql/` as SQL: column lists against the schema, value counts, foreign keys, game object entries against the source index, and that every captured item id reaches draft A. |
@@ -156,6 +157,21 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, thirtieth revision
+
+The twenty-ninth pass made the window able to reach every opcode. This one went back to a
+document: doc 04 section 5 has carried a table of ten riddle treasure hunts since the fourth
+revision, and none of the ten existed as a table, a row, a quest, an object or a button.
+Content that only exists in a spec is content the player cannot play.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 157 | Ten riddle hunts were specified in doc 04 with a riddle, a location and a reward each, and the only thing in the tree about them was the spec. No `housing_hunt` table, no quest rows, no cache, no window entry: doc 04 described a feature this module did not have | `housing_hunt` added to the world schema, ten rows generated into `08_hunts.sql` for both drafts, ten quests 900110-900119 with gameobject objectives, ten reward pieces, and one cache per hunt spawned in the neighbourhood phase on a ring sixty-two yards out from the town centre |
+| 158 | The reward column named pieces that the 8.3.7 catalogue cannot supply. A waterwheel keg, a mushroom cluster, a gryphon feather bundle and a Pepe cameo have no object in this build, and draft B's native catalogue has none of the ten retail-site names at all | The ten rewards are authored `housing_decor` rows built from real objects from the source index - a keg, a tomb, a cluster display, a brazier, an idol, a banner, a fire, a crate, a plagued crate, a brazier - each named after the thing the riddle asks for, and doc 04's table now says which object each piece is made of |
+| 159 | A gameobject script intercepts the click before the core reaches the objective, so a quest whose objective is a cache would never be credited: the cache would open, the piece would drop into the collection, and the quest would sit unfinished forever | `CompleteHunt` credits the objective with `AreaExploredOrEventHappens` and then rewards the quest, so the log line and the completion arrive on the same click. The objective row stays, because it is what the quest log shows before the cache is found |
+| 160 | A gossip action id is a small number and a hunt id is not, so the Steward's per-hunt options could not carry the hunt id; and a gameobject cannot carry a row id at all | The Steward's options carry the hunt's position in the loaded list, and `HuntForCache` finds a cache from its entry plus the distance to the anchor it was spawned at. Both are the same rule: the world object is matched to its row, the row is never smuggled through an id that cannot hold it |
+| 161 | With the Hunts tab the window has fifteen tabs, and doc 02 and this file both counted fourteen | Both count fifteen. The rail fits them at twenty-five pixels each without scrolling, and `HuntForCache`, `SpawnHuntCaches` and the ten rows are checked in both drafts by the same nine checkers that were already there |
 
 ## Audit pass, twenty-ninth revision
 

@@ -18,13 +18,14 @@ system is actually about.
 | Endeavor milestones | 4, with 59 stock rows on six vendors locked behind them. Not enforced yet - phase 3 | `../../04-content-spec-quests-endeavors.md` |
 | Currency | Community Coupons 3363, plus Tricky Treat item 33226 for the Hallow's End stall | `04_decor_retail.sql`, `currency` column |
 | Quest rows | 4, ids 900100-900103, money in the row and everything else module-side | `sql/world/06_quests.sql` |
+| Riddle hunts | 10 hunts, quests 900110-900119, ten reward pieces ids 1900-1909, ten caches | `sql/world/08_hunts.sql` |
 | House levels | 12, retail's ladder: XP and the three decor budgets per level | `sql/world/07_progression.sql` |
 | Exteriors | 6 shells, 1-6, by size class and level | same file |
 | Rooms | 18, each with its budget cost and level requirement | same file |
 | Portals | 10 destinations, bound to the realm's own `game_tele` rows by name | same file |
 | Endeavors | 4, 24 tasks across them, 16 reward rows | same file |
 | Decor creatures | 3 pet beds, each with a creature bound by name | same file |
-| Client menu | Seven-tab housing window, `/house` or the House button by the minimap | `addon/HousingUI/Menu.lua` |
+| Client menu | Fifteen-tab housing window, `/house` or the House button by the minimap | `addon/HousingUI/Menu.lua` |
 
 Every vendor row keeps the retail npc id in the table comment, so the mapping between a
 Midnight npc and whichever 8.3.7 creature I end up using for the model is never lost.
@@ -162,7 +163,8 @@ sees each of those two paths twice, at two prices, and buys the cheaper one.
   WHERE ScriptName = ''`:
   `npc_housing_steward`, `npc_housing_contractor`, `npc_housing_coffer`,
   `npc_housing_vendor` in `HousingNpc.cpp`; `go_housing_cornerstone`,
-  `go_housing_coffer`, `go_housing_bulletin`, `go_housing_portal` in `HousingGo.cpp`.
+  `go_housing_coffer`, `go_housing_bulletin`, `go_housing_portal`, `go_housing_huntcache` in
+  `HousingGo.cpp`.
   `02_world_content.sql` binds the two contractors, the Last Architect as the coffer, the
   stewards where a realm has them, and every `housing_vendor` row into the vendor script in
   one join. A creature the realm does not have stays unbound and the command does the same
@@ -186,6 +188,7 @@ sql/world/04_decor_retail.sql
 sql/world/05_stock_retail.sql
 sql/world/06_quests.sql
 sql/world/07_progression.sql
+sql/world/08_hunts.sql               (the ten riddle hunts)
 sql/bind/bind_town_center_vendors.sql    (binds the 39 stall models)
 sql/bind/bind_housing_content.sql        (binds amenities, shells, pet beds, portals, Endeavor targets)
 sql/bind/bind_decor_variants.sql         (optional, fills the dye variant table)

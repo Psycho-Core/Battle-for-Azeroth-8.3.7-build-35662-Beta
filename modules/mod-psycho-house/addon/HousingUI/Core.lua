@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.9.0"
+H.version = "0.10.0"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -299,6 +299,7 @@ H.shells = {}
 H.portals = {}
 H.endeavor = {}
 H.tasks = {}
+H.hunts = {}
 
 H.handlers["FINDER"] = function(fields)
     H.finder[#H.finder + 1] = {
@@ -363,6 +364,18 @@ H.handlers["ENDTASKEND"] = function()
     local e = H.endeavor
     Print("endeavor " .. tostring(e.id) .. " milestone " .. tostring(e.milestone) ..
         "/4, " .. #H.tasks .. " tasks")
+end
+
+H.handlers["HUNT"] = function(fields)
+    H.hunts[#H.hunts + 1] = {
+        id = tonumber(fields[2]), state = tonumber(fields[3]),
+        name = fields[4], riddle = fields[5], reward = fields[6],
+        quest = tonumber(fields[7]),
+    }
+end
+
+H.handlers["HUNTEND"] = function()
+    Print("riddle hunts: " .. #H.hunts .. " (/house, Hunts tab)")
 end
 
 H.handlers["PLACEAT"] = function(fields)

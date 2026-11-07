@@ -55,6 +55,7 @@ local TABS = {
     { id = "neighbours", label = "Neighbours" },
     { id = "travel", label = "Travel" },
     { id = "endeavors", label = "Endeavors" },
+    { id = "hunts", label = "Hunts" },
     { id = "blueprints", label = "Blueprints" },
     { id = "access", label = "Access" },
     { id = "guide", label = "Guide" },
@@ -1362,6 +1363,124 @@ Menu.onShow.endeavors = function()
 end
 
 -- ---------------------------------------------------------------------------
+-- Hunts
+--
+-- The ten riddle treasure hunts: one line of text, a cache hidden somewhere around the
+-- town centre, and the piece the cache holds. Taking a riddle is a quest; opening the
+-- cache is the objective. The tab lists every hunt the realm has bound, so a hunt whose
+-- cache entry nobody has authored says so rather than vanishing.
+-- ---------------------------------------------------------------------------
+
+local huntPane = NewPane("hunts")
+
+local huntHeader = NewLabel(huntPane, "GameFontNormalLarge", "TOPLEFT", 0, 0)
+huntHeader:SetText("Riddle hunts")
+
+local huntIntro = NewLabel(huntPane, nil, "TOPLEFT", 0, -24)
+huntIntro:SetWidth(540)
+huntIntro:SetText("Ten caches are hidden around the town centre, each one behind a line of " ..
+    "verse. Take a riddle here, walk the ring until the cache answers, and open it for the " ..
+    "piece it holds. A cache is only open to the player holding its riddle.")
+
+local huntSummary = NewLabel(huntPane, "GameFontHighlightSmall", "TOPLEFT", 0, -80)
+
+NewButton(huntPane, "Refresh", 80, 0, -100, function()
+    H.hunts = {}
+    H.Send("C:HUNTS")
+end)
+
+local huntScroll = CreateFrame("ScrollFrame", "PsychoHouseHuntScroll", huntPane, "UIPanelScrollFrameTemplate")
+huntScroll:SetPoint("TOPLEFT", huntPane, "TOPLEFT", 0, -130)
+huntScroll:SetPoint("BOTTOMRIGHT", huntPane, "BOTTOMRIGHT", -28, 0)
+
+local huntContent = CreateFrame("Frame", nil, huntScroll)
+huntContent:SetSize(520, 1)
+huntScroll:SetScrollChild(huntContent)
+
+Menu.huntRows = {}
+
+local HUNT_STATE = {
+    [0] = "not taken",
+    [1] = "looking",
+    [2] = "found",
+}
+
+local function BuildHunts()
+
+    for _, row in ipairs(Menu.huntRows) do
+        row:Hide()
+    end
+
+    table.sort(H.hunts or {}, function(left, right) return left.id < right.id end)
+
+    local found = 0
+
+    for _, hunt in ipairs(H.hunts or {}) do
+        if (hunt.state or 0) == 2 then
+            found = found + 1
+        end
+    end
+
+    huntSummary:SetText(string.format("%s%d hunt(s), %d found%s", DIM,
+        #(H.hunts or {}), found, RESET))
+
+    for index = 1, math.min(#(H.hunts or {}), 40) do
+        local hunt = H.hunts[index]
+        local row = Menu.huntRows[index]
+
+        if not row then
+            row = CreateFrame("Frame", nil, huntContent)
+            row:SetSize(500, 54)
+            row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+            row.name:SetWidth(380)
+            row.name:SetJustifyH("LEFT")
+            row.riddle = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            row.riddle:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -18)
+            row.riddle:SetWidth(380)
+            row.riddle:SetJustifyH("LEFT")
+            row.state = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+            row.state:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -38)
+            row.state:SetWidth(380)
+            row.state:SetJustifyH("LEFT")
+            row.take = NewButton(row, "Take", 70, 400, -4, nil)
+            Menu.huntRows[index] = row
+        end
+
+        local state = hunt.state or 0
+        local reward = hunt.reward or "unbound"
+
+        row:SetPoint("TOPLEFT", huntContent, "TOPLEFT", 0, -((index - 1) * 58))
+        row.name:SetText(string.format("%s%s|r  %s(%s)%s", GOLD, hunt.name or ("hunt " .. tostring(hunt.id)),
+            DIM, reward, RESET))
+        row.riddle:SetText("\"" .. tostring(hunt.riddle or "") .. "\"")
+        row.state:SetText(string.format("%s%s%s", state == 2 and GOOD or DIM,
+            HUNT_STATE[state] or "unknown", RESET))
+
+        if state == 0 then
+            row.take:Enable()
+        else
+            row.take:Disable()
+        end
+
+        row.take:SetScript("OnClick", function()
+            H.Send("C:HUNT|" .. tostring(hunt.id))
+        end)
+
+        row:Show()
+    end
+
+    huntContent:SetHeight(math.max(1, math.min(#(H.hunts or {}), 40) * 58))
+end
+
+Menu.BuildHunts = BuildHunts
+
+Menu.onShow.hunts = function()
+    H.hunts = {}
+    H.Send("C:HUNTS")
+end
+
+-- ---------------------------------------------------------------------------
 -- Dyes
 -- ---------------------------------------------------------------------------
 
@@ -2348,6 +2467,16 @@ H.handlers["ENDTASKEND"] = function(fields)
     end
     if Menu.current == "endeavors" then
         RefreshEndeavor()
+    end
+end
+
+local previousHuntEnd = H.handlers["HUNTEND"]
+H.handlers["HUNTEND"] = function(fields)
+    if previousHuntEnd then
+        previousHuntEnd(fields)
+    end
+    if Menu.current == "hunts" then
+        BuildHunts()
     end
 end
 
