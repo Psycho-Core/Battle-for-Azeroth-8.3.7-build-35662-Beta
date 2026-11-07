@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.10.0"
+H.version = "0.10.1"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -211,6 +211,15 @@ end
 
 H.handlers["RESULT"] = function(fields)
     H.lastResult = { op = fields[2], code = tonumber(fields[3]), extra = fields[4] }
+
+    -- PLACEAT answers with the placement id as its extra field, so "place in front of me"
+    -- gets a sentence rather than a result code. There used to be a handler for a line the
+    -- server has never sent, and the message it printed never appeared.
+    if fields[2] == "PLACEAT" and fields[3] == "0" then
+        Print("placed in front of you (placement " .. tostring(fields[4]) .. ")")
+        return
+    end
+
     Print("|cffffcc00" .. tostring(fields[2]) .. "|r -> " .. tostring(fields[3]) ..
         (fields[4] and (" (" .. fields[4] .. ")") or ""))
 end
@@ -376,14 +385,6 @@ end
 
 H.handlers["HUNTEND"] = function()
     Print("riddle hunts: " .. #H.hunts .. " (/house, Hunts tab)")
-end
-
-H.handlers["PLACEAT"] = function(fields)
-    if fields[3] == "0" then
-        Print("placed in front of you (placement " .. tostring(fields[4]) .. ")")
-    else
-        Print("|cffff5555could not place: code " .. tostring(fields[3]) .. "|r")
-    end
 end
 
 H.selectedPlacement = nil

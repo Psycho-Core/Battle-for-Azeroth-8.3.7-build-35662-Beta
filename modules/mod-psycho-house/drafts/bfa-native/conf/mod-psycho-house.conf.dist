@@ -123,8 +123,6 @@ Housing.Homestone.Cooldown = 900
 
 Housing.Sell.RefundPercent = 50
 
-Housing.Sell.RefundPercent = 50
-
 #   Housing.Gryphon.Cost
 #       Description: Gold the Steward charges to fly a player to their own door. 0 is free.
 #       Default:     5

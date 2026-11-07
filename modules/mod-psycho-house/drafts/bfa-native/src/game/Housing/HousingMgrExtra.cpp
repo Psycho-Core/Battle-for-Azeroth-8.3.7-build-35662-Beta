@@ -50,6 +50,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 
 namespace Housing
 {
@@ -817,9 +818,14 @@ namespace Housing
             return NotOwner;
 
         // A resident's house goes back on the market when they are removed: the plot is the
-        // membership, and an ex-resident keeping a plot in the street is not a street.
+        // membership, and an ex-resident keeping a plot in the street is not a street. The
+        // house is parked in their archive first, because being removed from a street is not
+        // the same thing as losing everything that was in the house.
         if (HousingPlot* plot = neighborhood->FindPlotOfAccount(targetAccount))
+        {
+            ArchiveHouse(plot, targetAccount);
             ForceSellPlot(plot);
+        }
 
         neighborhood->RemoveMember(targetAccount);
         return Ok;
@@ -2076,8 +2082,8 @@ namespace Housing
         uint32 const accountId = player->GetSession()->GetAccountId();
 
         QueryResult result = CharacterDatabase.Query(
-            "SELECT `id`, `plotIndex`, `neighborhoodId`, `name`, `tier`, `xp`, `shell_id`, `decor` "
-            "FROM `character_housing_archive` WHERE `accountId` = {} "
+            "SELECT `id`, `plotIndex`, `neighborhoodId`, `name`, `tier`, `xp`, `shell_id`, "
+            "`rooms_owned`, `armillary`, `decor` FROM `character_housing_archive` WHERE `accountId` = {} "
             "AND `archived` > (UNIX_TIMESTAMP() - {}) ORDER BY `archived` DESC LIMIT 1",
             accountId, kArchiveDays * 86400);
 
@@ -2088,40 +2094,82 @@ namespace Housing
         uint32 const archiveId = fields[0].GetUInt32();
 
         HousingNeighborhood* neighborhood = GetNeighborhood(fields[2].GetUInt32());
-        if (!neighborhood)
-            return ArchiveExpired;
 
-        uint8 const plotIndex = fields[1].GetUInt8();
-        HousingPlot* plot = neighborhood->GetPlot(plotIndex);
+        uint8 plotIndex = fields[1].GetUInt8();
+        HousingPlot* plot = neighborhood ? neighborhood->GetPlot(plotIndex) : nullptr;
+
+        // The street may be gone - dissolved, or a guild wing that closed - and the plot may
+        // have been taken by somebody else in the meantime. The house is still in the archive,
+        // so the restore looks for a plot in whatever street the player belongs to now rather
+        // than telling them their house has expired when it has not.
         if (!plot || plot->IsOwned())
-            return PlotTaken;
+        {
+            HousingNeighborhood* fallback = FindNeighborhoodFor(player);
+            if (!fallback)
+                return ArchiveExpired;
+
+            plot = nullptr;
+            for (auto const& candidate : fallback->GetPlots())
+            {
+                if (candidate->IsOwned())
+                    continue;
+
+                plot = candidate.get();
+                neighborhood = fallback;
+                break;
+            }
+
+            if (!plot)
+                return NeighborhoodFull;
+
+            plotIndex = plot->GetIndex();
+        }
 
         if (HasArchive(accountId) == false)
             return ArchiveExpired;
 
         // Take the plot back at the archived level. The decor comes back through the code in
-        // the `decor` column, the same format a blueprint uses, so there is one importer.
+        // the `decor` column, the same format a blueprint uses, so there is one importer; the
+        // shell, the rooms and the Armillary preset come back from their own columns, because
+        // a house that returns as an empty box is not the house that was sold.
         uint32 const housingId = GenerateHousingId();
         std::string name = fields[3].GetString();
+        uint32 const shellId = fields[6].GetUInt32();
+        uint8 const roomsOwned = fields[7].GetUInt8();
+        uint8 const armillary = fields[8].GetUInt8();
         CharacterDatabase.EscapeString(name);
 
         CharacterDatabase.DirectPExecute(
             "INSERT INTO `character_housing` (`id`, `neighborhoodId`, `plotIndex`, `ownerAccount`, "
-            "`ownerGuid`, `ownerName`, `tier`, `xp`, `shell_id`, `name`, `locked`, `budget_indoor`, "
-            "`budget_outdoor`, `budget_room`, `purchase_time`, `last_edited`) "
-            "VALUES ({}, {}, {}, {}, {}, '{}', {}, {}, {}, '{}', 0, 0, 0, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())",
+            "`ownerGuid`, `ownerName`, `tier`, `xp`, `shell_id`, `rooms_owned`, `armillary`, `name`, "
+            "`locked`, `budget_indoor`, `budget_outdoor`, `budget_room`, `purchase_time`, `last_edited`) "
+            "VALUES ({}, {}, {}, {}, {}, '{}', {}, {}, {}, {}, {}, '{}', 0, 0, 0, 0, UNIX_TIMESTAMP(), "
+            "UNIX_TIMESTAMP())",
             housingId, neighborhood->GetId(), uint32(plotIndex), accountId,
             player->GetGUID().GetCounter(), name, uint32(fields[4].GetUInt8()), fields[5].GetUInt32(),
-            fields[6].GetUInt32(), name);
+            shellId, uint32(roomsOwned), uint32(armillary), name);
 
         plot->SetOwner(housingId, accountId, player->GetGUID(), fields[3].GetString(),
             fields[4].GetUInt8(), 0, fields[3].GetString(), false);
 
+        if (HousingHouse* house = plot->GetHouse())
+        {
+            // `shell_id` is one byte on the house object and six shells ship, so the cast is
+            // safe for every row this module can write; a row edited by hand into the hundreds
+            // falls back to the default shell rather than wrapping round.
+            house->SetShellId(shellId <= uint32(std::numeric_limits<uint8>::max()) ? uint8(shellId) : 0);
+            house->SetRoomsOwned(roomsOwned);
+            house->SetArmillary(armillary);
+
+            if (house->IsNightMode())
+                player->SendUpdateWorldState(kArmillaryWorldState, uint32(armillary));
+        }
+
         CharacterDatabase.DirectPExecute(
             "DELETE FROM `character_housing_archive` WHERE `id` = {}", archiveId);
 
-        if (!fields[7].IsNull() && !fields[7].GetString().empty())
-            ImportBlueprint(player, fields[7].GetString());
+        if (!fields[9].IsNull() && !fields[9].GetString().empty())
+            ImportBlueprint(player, fields[9].GetString());
 
         return Ok;
     }
@@ -2742,6 +2790,9 @@ namespace Housing
             TC_LOG_INFO("housing", "Evicting housed plot %u/%u for inactivity",
                 entry.first, entry.second);
 
+            // The warning letter tells the owner their house and everything in it moves to
+            // their archive. That sentence is only true if this line is here.
+            ArchiveHouse(plot);
             ForceSellPlot(plot);
             ++sold;
         }
@@ -2839,10 +2890,8 @@ namespace Housing
             if (!neighborhood)
                 continue;
 
-            for (auto const& plot : neighborhood->GetPlots())
-                if (plot->IsOwned())
-                    ForceSellPlot(plot.get());
-
+            // DissolveNeighborhood parks every owned house in its owner's archive before the
+            // rows go, so there is nothing to do here but say why it happened.
             TC_LOG_INFO("housing", "Dissolving neighbourhood %u: nobody has lived there for %u day(s)",
                 id, _dissolveGraceDays);
 

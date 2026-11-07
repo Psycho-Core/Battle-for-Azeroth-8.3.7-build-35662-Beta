@@ -13,6 +13,9 @@ Three things are checked, all by reading the source of both halves:
   window   every op the server dispatches is reachable from the housing window, not only
            from a slash command - two exceptions, HELLO and PING, are the handshake and
            have no business on a button
+  orphans  every handler in the addon is for a line the server actually sends. A handler
+           for an op nobody sends is dead code with a friendly message in it, and it hides
+           the fact that the feature it belongs to reports nothing
 
 That last check is the one that matters most: a handler reading fields[14] from a line
 that has twelve fields prints `nil` at runtime and looks like a server bug. There is no
@@ -84,7 +87,10 @@ def server_ops():
             continue
         current = None
         for line in read(os.path.join(GAME_DIR, name)).splitlines():
-            opened = re.search(r'"(S:([A-Z]+)(?:\|([^"]*))?)"', line)
+            # A list ends with a marker line rather than a payload - `S:HUNTEND;` - so the
+            # closing quote may follow a semicolon. Without that the end markers look like
+            # handlers for lines nobody sends, which is exactly backwards.
+            opened = re.search(r'"(S:([A-Z]+)(?:\|([^"]*))?);?"', line)
             if opened:
                 current = opened.group(2)
                 fields = 1 + opened.group(0).count("|")
@@ -128,6 +134,12 @@ def main():
     missing = sorted(set(replies) - set(handlers) - inline)
     for op in missing:
         fail("the server sends S:{} and the addon has no handler".format(op))
+
+    # A handler for a line the server never builds is a feature that prints its own success
+    # message into the void. S:CHUNK is the transport envelope and is handled by the frame
+    # reader rather than by a table entry, so it is the one legitimate exception.
+    for op in sorted({o for o in handlers if not o.startswith("_max_")} - set(replies) - inline):
+        fail("the addon handles S:{} and the server never sends it".format(op))
 
     reachable = window_ops()
     for op in sorted(dispatched - reachable - WINDOW_EXEMPT):

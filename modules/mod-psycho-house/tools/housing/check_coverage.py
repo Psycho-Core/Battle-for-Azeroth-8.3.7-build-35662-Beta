@@ -11,6 +11,18 @@ generated SQL, then walks the SQL and looks for the data.
                             vendor_npc_ids.csv, town-center-go-map.csv
   draft B (bfa-native)      generated/source-asset-index.csv
 
+Both drafts are also walked for their riddle hunts: every reward the hunt table names has to
+be a decor row in the same draft, and every cache and every reward object has to be a game
+object the source tree names. The two are different questions - a hunt can name a decor id
+that exists while its object entry was a guess - and the second failure is a crate that never
+spawns.
+
+A reward object has to be named by the tree, not classified as furniture by the keyword
+heuristic. The index's `decor` column is a guess made from constant names, and four of the ten
+reward objects are real objects the heuristic does not recognise (a tomb, a cluster display, an
+idol, a fire); refusing them would mean refusing every object whose constant lacks a furniture
+word, which is not the question being asked here. What is asked is whether the entry exists.
+
 Both directions matter and they fail differently. A row in the CSV that never reaches the
 draft is content that was silently dropped; a row in the draft that is not in the CSV is
 content invented by the generator. The three lines the seventeenth revision lost to a
@@ -282,20 +294,77 @@ def check_native():
     return len(decor), len(sold)
 
 
+def check_hunts(label, decor_file):
+    """The hunt table against the catalogue and against the build's own objects."""
+    source = os.path.join(DRAFTS, label, "sql", "world")
+    hunt_sql = read(os.path.join(source, "08_hunts.sql"))
+    hunts = sql_tuples(hunt_sql, "housing_hunt")
+
+    # The ten reward pieces are catalogue rows too, and they live in the hunt file because
+    # that is the file that generates them, so the catalogue is both files together.
+    decor = sql_tuples(read(os.path.join(source, decor_file)), "housing_decor")
+    decor += sql_tuples(hunt_sql, "housing_decor")
+
+    index = rows_of(INDEX)
+    objects = {row["entry"]: row for row in index if row["kind"] == "gameobject"}
+    decorated = {entry for entry, row in objects.items() if row["decor"] == "yes"}
+
+    decor_by_id = {int(row[0]): row for row in decor}
+    decor_object = {int(row[0]): row[2].strip() for row in decor}
+
+    if len(hunts) != 10:
+        fail(label, "{} riddle hunts, where there are ten".format(len(hunts)))
+
+    for row in hunts:
+        hunt_id, quest_id = int(row[0]), int(row[3])
+        reward, cache = int(row[4]), row[5].strip()
+
+        if reward not in decor_by_id:
+            fail(label, "hunt {} rewards decor {} which is not in the catalogue"
+                 .format(hunt_id, reward))
+        else:
+            entry = decor_object[reward]
+            if entry not in objects:
+                fail(label, "hunt {} rewards '{}', object {} which the source tree does "
+                            "not name".format(hunt_id, unquote(decor_by_id[reward][1]), entry))
+            elif int(decor_by_id[reward][4]) not in range(1, 6):
+                fail(label, "hunt {} rewards '{}' with budget cost {}, outside 1-5"
+                     .format(hunt_id, unquote(decor_by_id[reward][1]), decor_by_id[reward][4]))
+
+        if cache not in objects:
+            fail(label, "hunt {} puts its cache at entry {}, which is not a game object in "
+                        "the source tree".format(hunt_id, cache))
+
+        if quest_id // 100 != 9001:
+            fail(label, "hunt {} carries quest {}, outside 900100-900199"
+                 .format(hunt_id, quest_id))
+
+    rewards = {int(row[4]) for row in hunts}
+    shaped = sum(1 for reward in rewards
+                 if decor_object.get(reward) in decorated)
+    print("  {:>3} hunts, {:>3} reward pieces, {} of them furniture-shaped in the index, "
+          "every object named by the tree".format(len(hunts), len(rewards), shaped))
+
+    return len(hunts)
+
+
 def main():
     print("drafts against the data they are generated from\n")
 
     a_decor, a_stock = check_midnight()
+    a_hunts = check_hunts("midnight-port", "04_decor_retail.sql")
     b_decor, b_stock = check_native()
+    b_hunts = check_hunts("bfa-native", "03_decor_native.sql")
 
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:
         print("  " + line)
 
     if not findings:
-        print("\nDraft A: {} catalogue rows, {} stock rows, all from data/.".format(a_decor, a_stock))
-        print("Draft B: {} catalogue rows, {} stock rows, all from the source tree.".format(
-            b_decor, b_stock))
+        print("\nDraft A: {} catalogue rows, {} stock rows, all from data/; {} hunts.".format(
+            a_decor, a_stock, a_hunts))
+        print("Draft B: {} catalogue rows, {} stock rows, all from the source tree; {} hunts."
+              .format(b_decor, b_stock, b_hunts))
         print("Nothing in either draft is missing from its own data, and nothing in either")
         print("data set is missing from the draft without being named as a comment.")
 

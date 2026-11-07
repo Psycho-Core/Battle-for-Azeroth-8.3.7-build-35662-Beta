@@ -15,29 +15,29 @@
 
 DELETE FROM `housing_decor` WHERE `id` BETWEEN 1900 AND 1909;
 INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES
-(1900, 'Waterwheel Keg', 170607, 0, 1, 3, 2, 'Accents', 4, 1, 0, 0, 3, 0.5, 3, 0),
-(1901, 'Weathered Gravestone', 220864, 0, 1, 3, 2, 'Accents', 4, 2, 0, 0, 3, 0.5, 3, 0),
-(1902, 'Glowing Mushroom Cluster', 7364, 0, 1, 3, 2, 'Accents', 4, 3, 0, 0, 3, 0.5, 3, 0),
-(1903, 'Lighthouse Lantern', 195424, 0, 1, 3, 2, 'Accents', 4, 4, 0, 0, 3, 0.5, 3, 0),
-(1904, 'Wine Vat', 148836, 0, 1, 3, 2, 'Accents', 4, 5, 0, 0, 3, 0.5, 3, 0),
-(1905, 'Gryphon Feather Bundle', 178205, 0, 1, 3, 2, 'Accents', 4, 6, 0, 0, 3, 0.5, 3, 0),
-(1906, 'Ridge Bridge Lantern', 177417, 0, 1, 3, 2, 'Accents', 4, 7, 0, 0, 3, 0.5, 3, 0),
+(1900, 'Bar Keg', 170607, 0, 1, 3, 2, 'Accents', 4, 1, 0, 0, 3, 0.5, 3, 0),
+(1901, 'Iron Gravestone', 220864, 0, 1, 3, 2, 'Accents', 4, 2, 0, 0, 3, 0.5, 3, 0),
+(1902, 'Blue Cluster Display', 7364, 0, 1, 3, 2, 'Accents', 4, 3, 0, 0, 3, 0.5, 3, 0),
+(1903, 'Harbour Brazier', 195424, 0, 1, 3, 2, 'Accents', 4, 4, 0, 0, 3, 0.5, 3, 0),
+(1904, 'Wine Keg', 171941, 0, 1, 3, 2, 'Accents', 4, 5, 0, 0, 3, 0.5, 3, 0),
+(1905, 'Aerie Banner', 178205, 0, 1, 3, 2, 'Accents', 4, 6, 0, 0, 3, 0.5, 3, 0),
+(1906, 'Ridge Fire', 177417, 0, 1, 3, 2, 'Accents', 4, 7, 0, 0, 3, 0.5, 3, 0),
 (1907, 'Smuggler''s Crate', 190094, 0, 1, 3, 2, 'Accents', 4, 8, 0, 0, 3, 0.5, 3, 0),
-(1908, 'Pepe''s Nest', 190095, 0, 1, 3, 2, 'Accents', 4, 9, 0, 0, 3, 0.5, 3, 0),
-(1909, 'Storm Lantern', 195403, 0, 1, 3, 2, 'Accents', 4, 10, 0, 0, 3, 0.5, 3, 0);
+(1908, 'Plagued Crate', 190095, 0, 1, 3, 2, 'Accents', 4, 9, 0, 0, 3, 0.5, 3, 0),
+(1909, 'Storm Brazier', 195403, 0, 1, 3, 2, 'Accents', 4, 10, 0, 0, 3, 0.5, 3, 0);
 
 DELETE FROM `housing_hunt` WHERE `id` BETWEEN 1 AND 10;
-INSERT INTO `housing_hunt` (`id`, `name`, `riddle`, `quest_id`, `reward_name`, `reward_decor`, `cache_name`, `cache_entry`, `x`, `y`, `z`, `faction_mask`) VALUES
-(1, 'The Beer Garden Cache', 'Where the beer flows and the wheel turns.', 900110, 'Waterwheel Keg', 1900, 'Suspicious Crate', 190094, 0, 0, 0, 3),
-(2, 'The Graveyard Cache', 'The stone remembers the names.', 900111, 'Weathered Gravestone', 1901, 'Crate of Cellblock Rations', 206996, 0, 0, 0, 3),
-(3, 'The Mushroom Ring Cache', 'Under the ring of caps.', 900112, 'Glowing Mushroom Cluster', 1902, 'Stout Crate of Mantid', 221802, 0, 0, 0, 3),
-(4, 'The Lighthouse Cache', 'The eye that never blinks.', 900113, 'Lighthouse Lantern', 1903, 'Massive Crate of Mogu', 221803, 0, 0, 0, 3),
-(5, 'The Stomping Vat Cache', 'Grapes trodden, promises kept.', 900114, 'Wine Vat', 1904, 'Massive Crate of Mantid', 221804, 0, 0, 0, 3),
-(6, 'The Aerie Cache', 'Where gryphons sleep.', 900115, 'Gryphon Feather Bundle', 1905, 'Lightweight Crate of Mantid', 221806, 0, 0, 0, 3),
-(7, 'The Ridge Cache', 'The bridge that only one house crosses.', 900116, 'Ridge Bridge Lantern', 1906, 'Lightweight Crate of Mogu', 221807, 0, 0, 0, 3),
-(8, 'The Breakwater Cache', 'Salt in the timbers.', 900117, 'Smuggler''s Crate', 1907, 'Lightweight Crate of Mantid 2', 221808, 0, 0, 0, 3),
-(9, 'The Notice Board Cache', 'Beneath the notice of neighbours.', 900118, 'Pepe''s Nest', 1908, 'Lightweight Crate of Mantid 3', 221809, 0, 0, 0, 3),
-(10, 'The Cliff Cache', 'The lamp the wind cannot kill.', 900119, 'Storm Lantern', 1909, 'Cache of Storms', 194312, 0, 0, 0, 3);
+INSERT INTO `housing_hunt` (`id`, `name`, `riddle`, `quest_id`, `reward_decor`, `cache_entry`, `x`, `y`, `z`, `faction_mask`) VALUES
+(1, 'The Beer Garden Cache', 'Where the beer flows and the wheel turns.', 900110, 1900, 190094, 0, 0, 0, 3),
+(2, 'The Graveyard Cache', 'The stone remembers the names.', 900111, 1901, 206996, 0, 0, 0, 3),
+(3, 'The Mushroom Ring Cache', 'Under the ring of caps.', 900112, 1902, 221802, 0, 0, 0, 3),
+(4, 'The Lighthouse Cache', 'The eye that never blinks.', 900113, 1903, 221803, 0, 0, 0, 3),
+(5, 'The Stomping Vat Cache', 'Grapes trodden, promises kept.', 900114, 1904, 221804, 0, 0, 0, 3),
+(6, 'The Aerie Cache', 'Where gryphons sleep.', 900115, 1905, 221806, 0, 0, 0, 3),
+(7, 'The Ridge Cache', 'The bridge that only one house crosses.', 900116, 1906, 221807, 0, 0, 0, 3),
+(8, 'The Breakwater Cache', 'Salt in the timbers.', 900117, 1907, 221808, 0, 0, 0, 3),
+(9, 'The Notice Board Cache', 'Beneath the notice of neighbours.', 900118, 1908, 221809, 0, 0, 0, 3),
+(10, 'The Cliff Cache', 'The lamp the wind cannot kill.', 900119, 1909, 194312, 0, 0, 0, 3);
 
 DELETE FROM `quest_objectives` WHERE `QuestID` BETWEEN 900110 AND 900119;
 INSERT INTO `quest_objectives` (`ID`, `QuestID`, `Type`, `Order`, `StorageIndex`, `ObjectID`, `Amount`, `Flags`, `Flags2`, `ProgressBarWeight`, `Description`, `VerifiedBuild`) VALUES

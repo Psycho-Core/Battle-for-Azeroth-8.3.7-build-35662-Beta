@@ -172,30 +172,43 @@ hunt is a line of verse, a cache hidden in the neighbourhood, and the piece the 
 
 | # | Riddle | Quest | Cache object | Reward piece (game object entry) |
 | --- | --- | --- | --- | --- |
-| 1 | Where the beer flows and the wheel turns | 900110 | Suspicious Crate (190094) | Waterwheel Keg (170607) |
-| 2 | The stone remembers the names | 900111 | Crate of Cellblock Rations (206996) | Weathered Gravestone (220864) |
-| 3 | Under the ring of caps | 900112 | Stout Crate of Mantid (221802) | Glowing Mushroom Cluster (7364) |
-| 4 | The eye that never blinks | 900113 | Massive Crate of Mogu (221803) | Lighthouse Lantern (195424) |
-| 5 | Grapes trodden, promises kept | 900114 | Massive Crate of Mantid (221804) | Wine Vat (148836) |
-| 6 | Where gryphons sleep | 900115 | Lightweight Crate of Mantid (221806) | Gryphon Feather Bundle (178205) |
-| 7 | The bridge that only one house crosses | 900116 | Lightweight Crate of Mogu (221807) | Ridge Bridge Lantern (177417) |
+| 1 | Where the beer flows and the wheel turns | 900110 | Suspicious Crate (190094) | Bar Keg (170607) |
+| 2 | The stone remembers the names | 900111 | Crate of Cellblock Rations (206996) | Iron Gravestone (220864) |
+| 3 | Under the ring of caps | 900112 | Stout Crate of Mantid (221802) | Blue Cluster Display (7364) |
+| 4 | The eye that never blinks | 900113 | Massive Crate of Mogu (221803) | Harbour Brazier (195424) |
+| 5 | Grapes trodden, promises kept | 900114 | Massive Crate of Mantid (221804) | Wine Keg (171941) |
+| 6 | Where gryphons sleep | 900115 | Lightweight Crate of Mantid (221806) | Aerie Banner (178205) |
+| 7 | The bridge that only one house crosses | 900116 | Lightweight Crate of Mogu (221807) | Ridge Fire (177417) |
 | 8 | Salt in the timbers | 900117 | Lightweight Crate of Mantid 2 (221808) | Smuggler's Crate (190094) |
-| 9 | Beneath the notice of neighbours | 900118 | Lightweight Crate of Mantid 3 (221809) | Pepe's Nest (190095) |
-| 10 | The lamp the wind cannot kill | 900119 | Cache of Storms (194312) | Storm Lantern (195403) |
+| 9 | Beneath the notice of neighbours | 900118 | Lightweight Crate of Mantid 3 (221809) | Plagued Crate (190095) |
+| 10 | The lamp the wind cannot kill | 900119 | Cache of Storms (194312) | Storm Brazier (195403) |
 
-The reward column is the object the piece is made of, not a retail guide name. Six of the
-ten riddle sites in retail - the beer garden, the graveyard, the mushroom ring, the
-lighthouse, the stomping vats, the aerie - have no dedicated 8.3.7 object, and a piece
-that claims to be a beacon and is a flower pot is worse than a piece that says what it is.
-The reward pieces are therefore authored `housing_decor` rows, ids 1900-1909 in draft A and
-2900-2909 in draft B, source type 4 (`TreasureHunt`) with the hunt id as the source, and
-each one is a real object from the build's own asset index. Everything on both sides of
-that table is checked against `generated/source-asset-index.csv` by `check_coverage.py`.
+The piece is named after the object it is made of, not after the retail guide entry it
+stands in for. None of the ten riddle sites in retail - the beer garden, the graveyard, the
+mushroom ring, the lighthouse, the stomping vats, the aerie, the ridge, the breakwater, the
+notice board, the cliff - has a dedicated 8.3.7 object, so each piece is a real object from
+the build's own asset index chosen to sit where the retail piece would: a bar keg for the
+beer garden, an iron tomb for the graveyard, a cluster display for the mushroom ring, a
+brazier for the lighthouse, a keg trap for the vats, a banner for the aerie, an Elune fire
+for the ridge, a suspicious crate for the breakwater, a plagued crate for the notice board
+and a second brazier for the cliff.
+
+A piece called "Wine Vat" whose object is an idol is worse than a piece that says what it
+is, which is why the names are the objects. The reward pieces are authored `housing_decor`
+rows, ids 1900-1909 in draft A and 2900-2909 in draft B, source type 4 (`TreasureHunt`)
+with the hunt id as the source.
+
+`check_coverage.py` walks this table too: every reward id has to be a row in the same
+draft's catalogue, every cache and every reward object has to be a game object entry the
+source tree names, and the ten quests have to sit inside the module's reserved range. Seven
+of the ten reward objects are furniture-shaped by the index's own keyword rule and three
+are not - a tomb, a cluster display and a fire - so the rule the checker applies is that
+the entry exists, not that a keyword agrees it is a chair.
 
 Mechanics:
 
-- **The table.** `housing_hunt` carries `id`, `name`, `riddle`, `quest_id`, `reward_name`,
-  `reward_decor`, `cache_name`, `cache_entry`, `x`, `y`, `z` and `faction_mask`.
+- **The table.** `housing_hunt` carries `id`, `name`, `riddle`, `quest_id`, `reward_decor`,
+  `cache_entry`, `x`, `y`, `z` and `faction_mask`.
   `HousingMgr::LoadHunts` reads it and stays quiet on an install that has not imported it
   yet: a missing table is a log line and no hunts, not a failed start.
 - **The cache.** One game object per hunt, spawned in the neighbourhood's phase by
