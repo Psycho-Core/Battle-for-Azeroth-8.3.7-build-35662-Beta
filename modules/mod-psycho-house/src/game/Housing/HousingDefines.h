@@ -77,11 +77,10 @@ namespace Housing
     constexpr uint8 kAnchorRingGrowth = 2;
     constexpr float kAnchorAmenityRadius = 26.0f;
     // Riddle-hunt caches sit between the hub ring and the first plot ring, so a hunt is a walk
-    // and not a teleport, and never inside somebody's wall.
+    // and not a teleport, and never inside somebody's wall. A cache is not consumed when one
+    // player opens it - the quest is per character - so there is no respawn timer to configure.
     constexpr float kAnchorHuntRadius = 62.0f;
-    constexpr uint32 kHuntCacheRespawnSeconds = 300;
 
-    constexpr uint32 kReservationSeconds = 60;
 
     // Cost channels. `housing_decor.currency` is 0 for gold, a currency id for a real
     // currency, or an item id for stock that is paid for in a tradable item. 33226
@@ -100,7 +99,7 @@ namespace Housing
     constexpr size_t kAddonMaxChunk = 200;           // payload bytes per chunk
     constexpr uint32 kRateLimitMessages = 20;        // per window
     constexpr uint32 kRateLimitWindowMs = 10000;
-    constexpr uint32 kChunkReassemblyTimeoutMs = 10000;
+    // Reassembly happens in the addon (`CHUNK_TIMEOUT` in Core.lua); the server only splits.
 
     // -------------------------------------------------------------------------
     // Enums (wire values - never renumber, the addon mirrors them)
@@ -428,8 +427,8 @@ namespace Housing
         return level <= kMaxLevel ? rooms[level] : rooms[kMaxLevel];
     }
 
-    constexpr uint32 kXpPerNewDecor = 10;
-    constexpr uint32 kXpPerEndeavorTask = 50;
+    // The coffer's payout is retail's own number and stays a constant; a realm that wants to
+    // change what learning decor or a task pays sets the two keys instead.
     constexpr uint32 kXpPerEndeavor = 250;
 
     inline uint8 LevelForXp(uint32 xp)

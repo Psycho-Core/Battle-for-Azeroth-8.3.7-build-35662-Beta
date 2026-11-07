@@ -1248,3 +1248,47 @@ type 8 to the coffer script. The area keeps its banner, the coffer gets a chest.
 | `check_claims.py` | 0 findings; the inventory line naming `OfferIntroQuest` is now true |
 | `audit.py` | 0 findings across 10 checks |
 
+### 6.31 The thirty-seventh revision: what only a compiler could change
+
+- **Six constants became keys.** The reservation window, the smuggler's mark-up, the two
+  Endeavor scaling clamps and the two XP rates were `constexpr`: documented in prose, recorded
+  in `.housing config` nowhere, and fixed for every realm that installed the module. They are
+  `Housing.Plot.ReservationSeconds`, `Housing.Smuggler.MarkupPercent`,
+  `Housing.Endeavor.ScaleFloor`, `Housing.Endeavor.ScaleCap`, `Housing.Xp.PerDecor` and
+  `Housing.Xp.PerEndeavorTask`; thirty-three settings became thirty-nine.
+- **Four constants were left dead.** `kReservationSeconds`, `kXpPerNewDecor` and
+  `kXpPerEndeavorTask` were superseded, and `kHuntCacheRespawnSeconds` had never been read by
+  anything in any revision. All four are removed, and the header says why a hunt cache has no
+  respawn: the quest is per character, so the cache is never consumed.
+- **The Homestone had no choice to make.** With one house per faction an account can own two,
+  and every "your house" lookup returned the first plot the neighbourhood map yielded. The
+  Homestone now uses `character_housing.selected`, set by `C:SELECTHOME` and listed by
+  `C:HOMES`, and `HousingMgr::GetOwnedPlot` prefers the player's own faction before falling
+  back to the other house.
+- **Two result codes were anonymous.** `RateLimited` and `NoBattlePet` printed "unknown".
+- **One retail rule had no owner and the substitution list did not mention it.** Doc 01 sec.5
+  keeps a house's decor copies with the house; the module holds one pool per account. That is a
+  design decision with a consequence for every purchase, so it is written down as the tenth
+  substitution in doc 02 sec.3 rather than left for a reader to discover.
+- **Decor XP went to one house instead of both.** Doc 01 sec.3 is explicit: a newly learned
+  piece levels both houses, Endeavor XP only the one the work went into. `GrantHouseXp` grew a
+  `bothHouses` flag, the three decor paths pass true, and the level-up message names the street.
+- **The neighbourhood limit was a rule with no name.** One founded street per account was a
+  loop inside `FoundNeighborhood` with the reasoning in a comment above it.
+  `Housing.Neighborhood.MaxFounded` makes it a number a realm can move, and 0 removes it.
+  Forty settings, forty recorded, forty documented.
+- **A dead constant had outlived three rewrites.** `kChunkReassemblyTimeoutMs` described a
+  server-side reassembly timer that does not exist; the addon owns that timeout. `check_cpp.py`
+  now fails any `constexpr` in the header that nothing reads, with the declaration line stripped
+  out of the corpus so a constant cannot vouch for itself. 33 constants, all read, and a planted
+  one fails the rule.
+- **The rule that reads settings grew an eye for accessors.** `Housing.Xp.PerEndeavorTask` is
+  read through `GetXpPerEndeavorTask()`, an inline header accessor, which the `applied` rule
+  would have called dead - it now follows the accessor as far as its call sites.
+
+| checker | result |
+| --- | --- |
+| `check_reference.py` | 0 findings; 40 settings (2 drafts), 40 recorded, 40 documented, 48 commands, 6 client settings |
+| `check_protocol.py` | 0 findings; `C:HOMES` and `C:SELECTHOME` reachable from the Travel tab, both replies handled |
+| `check_sql_columns.py` | 0 findings; `character_housing.selected` is created and read |
+| `audit.py` | 0 findings across 10 checks |

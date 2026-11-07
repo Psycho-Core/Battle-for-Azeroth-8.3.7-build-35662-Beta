@@ -125,6 +125,18 @@ HousingPlot* HousingNeighborhood::FindPlotOfAccount(uint32 accountId) const
     return nullptr;
 }
 
+HousingPlot* HousingNeighborhood::FindPlotOfHousingId(uint32 housingId) const
+{
+    if (!housingId)
+        return nullptr;
+
+    for (auto const& plot : _plots)
+        if (plot->GetHousingId() == housingId)
+            return plot.get();
+
+    return nullptr;
+}
+
 bool HousingNeighborhood::IsMember(uint32 accountId) const
 {
     return _members.find(accountId) != _members.end();

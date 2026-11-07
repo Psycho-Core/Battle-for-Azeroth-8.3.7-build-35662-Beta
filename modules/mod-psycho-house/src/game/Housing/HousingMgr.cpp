@@ -177,6 +177,39 @@ void HousingMgr::LoadConfig()
     _cornerstoneEntry = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Plot.CornerstoneEntry", 0)));
     note("Housing.Plot.CornerstoneEntry", _cornerstoneEntry);
 
+    // How long looking at a plot holds it for the person looking. Retail reserves a plot while
+    // the purchase window is open; a minute is long enough to walk a yard and short enough that
+    // an abandoned reservation does not lock a street up for the evening.
+    _reservationSeconds = uint32(std::max(5, sConfigMgr->GetIntDefault("Housing.Plot.ReservationSeconds", 60)));
+    note("Housing.Plot.ReservationSeconds", _reservationSeconds);
+
+    // A smuggler sells the other faction's furniture at a mark-up. Retail's smugglers are the
+    // only cross-faction shop in the neighbourhood, and the number was a quarter in the code
+    // before it was a key.
+    _smugglerMarkupPercent = uint32(std::min(500, std::max(0,
+        sConfigMgr->GetIntDefault("Housing.Smuggler.MarkupPercent", 25))));
+    note("Housing.Smuggler.MarkupPercent", _smugglerMarkupPercent);
+
+    // Endeavor requirements scale with how many people live in the street, as
+    // `base * clamp(residents / 10, floor, cap)`. The two numbers are what stops a street of
+    // three being handed a raid's worth of kills and a street of forty being trivial.
+    _endeavorScaleFloor = std::max(0.1f, sConfigMgr->GetFloatDefault("Housing.Endeavor.ScaleFloor", 0.5f));
+    _endeavorScaleCap = std::max(_endeavorScaleFloor, sConfigMgr->GetFloatDefault("Housing.Endeavor.ScaleCap", 3.0f));
+    note("Housing.Endeavor.ScaleFloor", _endeavorScaleFloor);
+    note("Housing.Endeavor.ScaleCap", _endeavorScaleCap);
+
+    // House XP. Retail pays 10 for learning a piece the house has never held, once per piece;
+    // the Endeavor task number is this module's own, because the record does not publish one.
+    _xpPerDecor = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Xp.PerDecor", 10)));
+    _xpPerEndeavorTask = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Xp.PerEndeavorTask", 50)));
+    note("Housing.Xp.PerDecor", _xpPerDecor);
+    note("Housing.Xp.PerEndeavorTask", _xpPerEndeavorTask);
+
+    // How many streets one account may found. Retail's charter neighbourhoods are one per
+    // player; a realm that wants to run more sets a number, and 0 lifts the limit entirely.
+    _maxFounded = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MaxFounded", 1)));
+    note("Housing.Neighborhood.MaxFounded", _maxFounded);
+
     std::string const mode = sConfigMgr->GetStringDefault("Housing.Map.Mode", "native");
     _nativeMap = mode != "anchor";
     noteText("Housing.Map.Mode", mode);
@@ -924,6 +957,7 @@ void HousingMgr::OnPlayerLogin(Player* player)
     }
 
     LoadCollection(player->GetSession()->GetAccountId());
+    LoadHouseSelection(player->GetSession()->GetAccountId());
     SyncAchievementDecor(player);
 
     // The introduction is a login breadcrumb in retail: the first quest is waiting before the
@@ -1339,12 +1373,112 @@ HousingPlot* HousingMgr::GetOwnedPlot(Player* player)
         return nullptr;
 
     uint32 const accountId = player->GetSession()->GetAccountId();
+    uint8 const faction = player->GetTeamId() == TEAM_ALLIANCE ? FactionAlliance : FactionHorde;
+
+    // An account can hold one house per faction, so "my house" means the house on my side
+    // first. A character of the other faction still gets the other house when that is the
+    // only one the account owns - retail lets any warband character live in either.
+    for (auto const& entry : _neighborhoods)
+        if (entry.second->GetFaction() == faction)
+            if (HousingPlot* plot = entry.second->FindPlotOfAccount(accountId))
+                return plot;
 
     for (auto const& entry : _neighborhoods)
         if (HousingPlot* plot = entry.second->FindPlotOfAccount(accountId))
             return plot;
 
     return nullptr;
+}
+
+std::vector<HousingPlot*> HousingMgr::GetOwnedPlots(uint32 accountId)
+{
+    std::vector<HousingPlot*> owned;
+
+    if (!accountId)
+        return owned;
+
+    for (auto const& entry : _neighborhoods)
+        for (auto const& plot : entry.second->GetPlots())
+            if (plot->IsOwned() && plot->GetOwnerAccount() == accountId)
+                owned.push_back(plot.get());
+
+    std::sort(owned.begin(), owned.end(), [](HousingPlot* left, HousingPlot* right)
+    {
+        return left->GetHousingId() < right->GetHousingId();
+    });
+
+    return owned;
+}
+
+void HousingMgr::LoadHouseSelection(uint32 accountId)
+{
+    if (!accountId)
+        return;
+
+    // 0 records "asked, nothing chosen", so a player with one house does not re-query the row
+    // every time the Homestone is pressed.
+    _selectedHouse[accountId] = 0;
+
+    if (QueryResult result = CharacterDatabase.Query(
+        "SELECT `id` FROM `character_housing` WHERE `ownerAccount` = {} AND `selected` = 1 "
+        "ORDER BY `id` LIMIT 1", accountId))
+    {
+        _selectedHouse[accountId] = result->Fetch()[0].GetUInt32();
+    }
+}
+
+HousingPlot* HousingMgr::GetHomePlot(uint32 accountId)
+{
+    if (!accountId)
+        return nullptr;
+
+    auto const selected = _selectedHouse.find(accountId);
+    if (selected == _selectedHouse.end())
+        LoadHouseSelection(accountId);
+
+    auto const chosen = _selectedHouse.find(accountId);
+    if (chosen != _selectedHouse.end() && chosen->second)
+        for (auto const& entry : _neighborhoods)
+            if (HousingPlot* plot = entry.second->FindPlotOfHousingId(chosen->second))
+                if (plot->GetOwnerAccount() == accountId)
+                    return plot;
+
+    // No choice yet, or the chosen house has been sold since: the first house the account
+    // owns answers instead, which is what the addon shows as selected.
+    std::vector<HousingPlot*> owned = GetOwnedPlots(accountId);
+    return owned.empty() ? nullptr : owned.front();
+}
+
+HousingResult HousingMgr::SelectHouse(Player* player, uint32 housingId)
+{
+    if (!_enabled)
+        return Disabled;
+
+    if (!player || !player->GetSession())
+        return InternalError;
+
+    uint32 const accountId = player->GetSession()->GetAccountId();
+    HousingPlot* target = nullptr;
+
+    for (auto const& entry : _neighborhoods)
+        if (HousingPlot* plot = entry.second->FindPlotOfHousingId(housingId))
+        {
+            target = plot;
+            break;
+        }
+
+    if (!target || target->GetOwnerAccount() != accountId)
+        return NotOwner;
+
+    // One selection per account: clearing the rest in the same statement means a stale flag
+    // cannot survive a house being sold and restored.
+    CharacterDatabase.DirectPExecute(
+        "UPDATE `character_housing` SET `selected` = (`id` = {}) WHERE `ownerAccount` = {}",
+        housingId, accountId);
+
+    _selectedHouse[accountId] = housingId;
+
+    return Ok;
 }
 
 HousingPlot* HousingMgr::GetPlotForEdit(Player* player)
@@ -1731,7 +1865,7 @@ HousingResult HousingMgr::TeleportHome(Player* player)
     if (!state)
         return InternalError;
 
-    HousingPlot* plot = GetOwnedPlot(player);
+    HousingPlot* plot = GetHomePlot(player->GetSession()->GetAccountId());
     if (!plot)
         return NoHouse;
 
@@ -2056,9 +2190,10 @@ uint32 HousingMgr::GetPurchasePrice(Player* player, DecorInfo const& info) const
                     price = entry.Price;
     }
 
-    // The smuggler's mark-up is a quarter, applied to the same number the shop would quote.
-    if (player && !(info.FactionMask & (player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02)))
-        price += price / 4;
+    // The smuggler's mark-up, applied to the same number the shop would quote.
+    if (player && _smugglerMarkupPercent
+        && !(info.FactionMask & (player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02)))
+        price += uint32(uint64(price) * _smugglerMarkupPercent / 100);
 
     return price;
 }
@@ -2157,7 +2292,7 @@ HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
     // One copy in storage, and the first time a piece is learned pays house XP - which is
     // the whole reason a decor collector levels a house.
     AddStorage(accountId, decorId, 1);
-    GrantHouseXp(player, kXpPerNewDecor);
+    GrantHouseXp(player, _xpPerDecor, true);
 
     return Ok;
 }

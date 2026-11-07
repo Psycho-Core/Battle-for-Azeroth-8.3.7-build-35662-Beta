@@ -306,6 +306,7 @@ H.gryphon = 0
 H.storage = {}
 H.shells = {}
 H.portals = {}
+H.houses = {}
 H.endeavor = {}
 H.tasks = {}
 H.hunts = {}
@@ -320,6 +321,22 @@ end
 H.handlers["FINDEREND"] = function()
     Print("public neighbourhoods: " .. #H.finder .. " (/housing visit <id> <plot>)")
 end
+
+-- Which house the Homestone uses. Two lines per account at most - retail grants one house per
+-- faction - and the Travel tab is where the choice is offered.
+H.handlers["HOMES"] = function(fields)
+    local housingId = tonumber(fields[2])
+    if not housingId then
+        return
+    end
+    H.houses[housingId] = {
+        plot = tonumber(fields[3]), neighborhoodId = tonumber(fields[4]),
+        name = fields[5], selected = tonumber(fields[6]) or 0,
+        size = tonumber(fields[7]) or 1,
+    }
+end
+
+H.handlers["HOMESEND"] = function() end
 
 H.handlers["STORAGE"] = function(fields)
     H.storage[tonumber(fields[2])] = tonumber(fields[3])

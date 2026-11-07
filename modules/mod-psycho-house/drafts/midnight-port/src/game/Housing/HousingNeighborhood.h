@@ -62,6 +62,10 @@ namespace Housing
         HousingPlot* FindFreePlot() const;
         HousingPlot* FindPlotOfAccount(uint32 accountId) const;
 
+        /// A house is identified by its row, not by who is standing in it: an account can own
+        /// two, and the one the Homestone uses is chosen by id.
+        HousingPlot* FindPlotOfHousingId(uint32 housingId) const;
+
         // ---- membership (guild / private neighbourhoods only) ----------------
 
         bool IsMember(uint32 accountId) const;

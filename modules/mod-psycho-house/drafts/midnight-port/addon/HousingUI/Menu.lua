@@ -2208,11 +2208,83 @@ NewButton(travelPane, "Portals", 90, 222, -92, function()
     H.Send("C:PORTALS")
 end)
 
-local portalHeading = NewLabel(travelPane, nil, "TOPLEFT", 0, -122)
+-- The two houses an account can own. Retail's dashboard lists both and the Homestone goes
+-- to the chosen one, so the choice belongs here, next to the Homestone button rather than at
+-- the bottom of a settings page.
+local housesHeading = NewLabel(travelPane, nil, "TOPLEFT", 0, -122)
+housesHeading:SetText(GOLD .. "Your houses" .. RESET)
+
+Menu.houseRows = {}
+
+local function BuildHouses()
+
+    for _, row in ipairs(Menu.houseRows) do
+        row:Hide()
+    end
+
+    local sorted = {}
+
+    for id, house in pairs(H.houses or {}) do
+        sorted[#sorted + 1] = { id = id, plot = house.plot, name = house.name,
+            selected = house.selected, size = house.size }
+    end
+
+    table.sort(sorted, function(left, right) return left.id < right.id end)
+
+    if #sorted == 0 then
+        if not Menu.houseEmpty then
+            Menu.houseEmpty = NewLabel(travelPane, nil, "TOPLEFT", 0, -144)
+            Menu.houseEmpty:SetWidth(540)
+            Menu.houseEmpty:SetText(DIM .. "No house yet. Buy a plot and it appears here." .. RESET)
+        end
+        Menu.houseEmpty:SetPoint("TOPLEFT", travelPane, "TOPLEFT", 0, -144)
+        Menu.houseEmpty:Show()
+        return
+    end
+
+    if Menu.houseEmpty then
+        Menu.houseEmpty:Hide()
+    end
+
+    for index = 1, math.min(#sorted, 2) do
+        local house = sorted[index]
+        local row = Menu.houseRows[index]
+
+        if not row then
+            row = CreateFrame("Frame", nil, travelPane)
+            row:SetSize(540, 22)
+            row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
+            row.label:SetWidth(380)
+            row.label:SetJustifyH("LEFT")
+            row.choose = NewButton(row, "Homestone here", 130, 390, 0, nil)
+            Menu.houseRows[index] = row
+        end
+
+        row:SetPoint("TOPLEFT", travelPane, "TOPLEFT", 0, -144 - ((index - 1) * 24))
+        row.label:SetText(string.format("%s  %splot %d, %s place%s", tostring(house.name),
+            DIM, (house.plot or 0) + 1, tostring(house.size or 1), RESET))
+
+        if house.selected == 1 then
+            row.choose:SetText("Selected")
+            row.choose:Disable()
+        else
+            row.choose:SetText("Homestone here")
+            row.choose:Enable()
+            row.choose:SetScript("OnClick", function()
+                H.Send("C:SELECTHOME|" .. tostring(house.id))
+            end)
+        end
+
+        row:Show()
+    end
+end
+
+local portalHeading = NewLabel(travelPane, nil, "TOPLEFT", 0, -200)
 portalHeading:SetText(GOLD .. "Portal destinations" .. RESET)
 
 local portalScroll = CreateFrame("ScrollFrame", "PsychoHousePortalScroll", travelPane, "UIPanelScrollFrameTemplate")
-portalScroll:SetPoint("TOPLEFT", travelPane, "TOPLEFT", 0, -144)
+portalScroll:SetPoint("TOPLEFT", travelPane, "TOPLEFT", 0, -222)
 portalScroll:SetPoint("BOTTOMRIGHT", travelPane, "BOTTOMRIGHT", -28, 0)
 
 local portalContent = CreateFrame("Frame", nil, portalScroll)
@@ -2264,7 +2336,9 @@ end
 
 Menu.onShow.travel = function()
     H.portals = {}
+    H.houses = {}
     H.Send("C:PORTALS")
+    H.Send("C:HOMES")
 end
 
 -- ---------------------------------------------------------------------------
@@ -2469,6 +2543,16 @@ H.handlers["STORAGEEND"] = function(fields)
     end
     if Menu.current == "storage" then
         BuildStorage()
+    end
+end
+
+local previousHouseEnd = H.handlers["HOMESEND"]
+H.handlers["HOMESEND"] = function(fields)
+    if previousHouseEnd then
+        previousHouseEnd(fields)
+    end
+    if Menu.current == "travel" then
+        BuildHouses()
     end
 end
 

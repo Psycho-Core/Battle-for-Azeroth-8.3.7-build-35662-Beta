@@ -352,7 +352,7 @@ namespace Housing
                 continue;
 
             if (Player* owner = entry.second->GetAnyResident())
-                sHousingMgr->GrantHouseXp(owner, kXpPerEndeavorTask);
+                sHousingMgr->GrantHouseXp(owner, sHousingMgr->GetXpPerEndeavorTask());
             break;
         }
     }

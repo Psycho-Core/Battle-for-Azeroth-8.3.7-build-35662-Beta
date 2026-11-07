@@ -160,6 +160,48 @@ Housing.Restore.FeePercent = 10
 
 Housing.Plot.CornerstoneEntry = 0
 
+#   Housing.Plot.ReservationSeconds
+#       Description: how long inspecting a plot holds it for that account, in seconds. Set by
+#                    anyone who opens the purchase window and released on logout.
+#       Default:     60
+
+Housing.Plot.ReservationSeconds = 60
+
+#   Housing.Smuggler.MarkupPercent
+#       Description: mark-up a smuggler adds when selling the other faction's furniture, as a
+#                    percentage of the price the piece would have at home. 0 sells at cost.
+#       Default:     25
+
+Housing.Smuggler.MarkupPercent = 25
+
+#   Housing.Endeavor.ScaleFloor
+#       Description: the lowest factor an Endeavor requirement is scaled by. Requirements are
+#                    `base * clamp(residents / 10, floor, cap)`, so a street of three is not
+#                    handed a raid's worth of kills.
+#       Default:     0.5
+
+Housing.Endeavor.ScaleFloor = 0.5
+
+#   Housing.Endeavor.ScaleCap
+#       Description: the highest factor a requirement is scaled by. Never below the floor.
+#       Default:     3.0
+
+Housing.Endeavor.ScaleCap = 3.0
+
+#   Housing.Xp.PerDecor
+#       Description: house XP paid the first time a house learns a piece of decor. Retail pays
+#                    10; a piece already held pays nothing.
+#       Default:     10
+
+Housing.Xp.PerDecor = 10
+
+#   Housing.Xp.PerEndeavorTask
+#       Description: house XP paid for finishing one Endeavor task. The record does not publish
+#                    this number, so 50 is this module's own rate.
+#       Default:     50
+
+Housing.Xp.PerEndeavorTask = 50
+
 ###################################################################################################
 #   Neighbourhoods
 ###################################################################################################
@@ -172,6 +214,13 @@ Housing.Plot.CornerstoneEntry = 0
 #       Default:     0
 
 Housing.Neighborhood.MinResidents = 0
+
+#   Housing.Neighborhood.MaxFounded
+#       Description: how many private or guild neighbourhoods one account may found. 0 lifts
+#                    the limit, which lets a single account allocate every slot on the map.
+#       Default:     1
+
+Housing.Neighborhood.MaxFounded = 1
 
 #   Housing.Neighborhood.DissolveGraceDays
 #       Description: Days an empty neighbourhood is left standing before it is dissolved.
