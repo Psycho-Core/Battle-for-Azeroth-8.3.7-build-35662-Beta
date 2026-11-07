@@ -15,7 +15,7 @@ local CHUNK_TIMEOUT = 10
 HousingUI = HousingUI or {}
 local H = HousingUI
 
-H.version = "0.8.0"
+H.version = "0.9.0"
 H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
@@ -328,7 +328,9 @@ H.handlers["SHELL"] = function(fields)
 end
 
 H.handlers["SHELLEND"] = function()
-    Print("shells: " .. #H.shells .. " (/housing shell <id>)")
+    local count = 0
+    for _ in pairs(H.shells) do count = count + 1 end
+    Print("shells: " .. count .. " (/housing shell <id>)")
 end
 
 H.handlers["PORTAL"] = function(fields)
@@ -336,14 +338,18 @@ H.handlers["PORTAL"] = function(fields)
 end
 
 H.handlers["PORTALEND"] = function()
-    Print("portal destinations: " .. #H.portals)
+    local count = 0
+    for _ in pairs(H.portals) do count = count + 1 end
+    Print("portal destinations: " .. count)
 end
 
 H.handlers["ENDEAVOR"] = function(fields)
     H.endeavor = {
         neighborhood = tonumber(fields[2]), id = tonumber(fields[3]),
         milestone = tonumber(fields[4]), done = tonumber(fields[5]),
+        name = fields[6], ends = tonumber(fields[7]) or 0,
     }
+    H.tasks = {}
 end
 
 H.handlers["ENDTASK"] = function(fields)
@@ -515,15 +521,13 @@ end
 -- ---------------------------------------------------------------------------
 -- Blueprint codes (doc 06 sec.3)
 --
---   PCH1-<kind>-<faction>-<payload>-<checksum>
+--   PHP1:<base62 payload>
 --
--- kind is R, B or E; faction is 0, 1 or 2; the payload is base62 text; the checksum is
--- four base62 characters, the CRC32 of the payload. The payload carries no hyphen, so a
--- plain split on "-" is safe.
---
--- There is no blueprint opcode yet - import and export are phase 4 - so this checks a code
--- against the format and nothing else. It is here rather than in the menu because the
--- format is the thing that has to be right before a single code is written.
+-- The payload is a byte string: version, kind, faction, uint16 count, then a record per
+-- piece, with a checksum byte at the end. The server both makes and reads it
+-- (`C:BPEXP` / `C:BPIMP`), so the addon never decodes one - it checks the envelope, shows
+-- the length, and lets the server accept or reject the contents. That is the only split
+-- that cannot drift: one implementation of the format, on the side that owns the data.
 -- ---------------------------------------------------------------------------
 
 local CRC_TABLE = nil
@@ -578,27 +582,27 @@ function H.Checksum(payload)
     return H.Base62(H.Crc32(payload), 4)
 end
 
-local BLUEPRINT_KINDS = { R = true, B = true, E = true }
+local BLUEPRINT_KINDS = { "build", "room", "exterior" }
 
+-- Envelope only: the header, the base62 alphabet, and a length that could hold a header and
+-- one piece. The server's decoder is the authority on everything past that.
 function H.ValidateBlueprint(code)
-    local kind, faction, payload, checksum =
-        string.match(code or "", "^PHP1%:([%w]+)$")
+    local payload = string.match(code or "", "^PHP1%:([0-9A-Za-z]+)$")
 
-    if not kind then
-        return false, "not a PCH1 code (PCH1-<kind>-<faction>-<payload>-<checksum>)"
+    if not payload then
+        return false, "not a PHP1 code - the form is PHP1: followed by base62 characters"
     end
-    if not BLUEPRINT_KINDS[kind] then
-        return false, "kind '" .. kind .. "' is not R, B or E"
+    if #payload < 12 then
+        return false, "payload is " .. #payload .. " characters, too short to hold a house"
     end
-    if faction ~= "0" and faction ~= "1" and faction ~= "2" then
-        return false, "faction '" .. faction .. "' is not 0, 1 or 2"
-    end
-    if H.Checksum(payload) ~= checksum then
-        return false, "checksum is " .. H.Checksum(payload) .. ", code says " .. checksum
+    if #payload > 16384 then
+        return false, "payload is " .. #payload .. " characters, longer than any code the server writes"
     end
 
-    return true, kind, faction, payload
+    return true, "code", "?", payload
 end
+
+H.BLUEPRINT_KINDS = BLUEPRINT_KINDS
 
 -- ---------------------------------------------------------------------------
 -- Slash commands
@@ -706,10 +710,9 @@ SlashCmdList["HOUSING"] = function(input)
             Print("usage: /housing guest add <name> <flags> | /housing guest del <name>")
         end
     elseif command == "bp" or command == "blueprint" then
-        local ok, reason, faction, payload = H.ValidateBlueprint(rest)
+        local ok, reason, payload = H.ValidateBlueprint(rest)
         if ok then
-            Print("blueprint ok: kind " .. reason .. ", faction " .. faction ..
-                ", payload " .. #payload .. " chars")
+            Print("blueprint envelope ok: " .. #payload .. " characters of payload")
         else
             Print("|cffff5555" .. reason .. "|r")
         end

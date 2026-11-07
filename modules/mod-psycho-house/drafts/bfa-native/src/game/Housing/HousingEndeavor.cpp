@@ -292,6 +292,12 @@ namespace Housing
         }
     }
 
+    uint32 EndeavorMgr::GetEnds(uint32 neighborhoodId) const
+    {
+        auto const state = _states.find(neighborhoodId);
+        return state != _states.end() ? state->second.Ends : 0;
+    }
+
     uint32 EndeavorMgr::GetRequired(uint32 neighborhoodId, EndeavorTask const& task) const
     {
         // A street of forty has to work four times as hard for the same milestone as a street

@@ -90,7 +90,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | 03 asset catalogue | 28 314 named constants, 1 570 game objects, 988 decor shaped | Recounted from the index this round: 1 570, 460 item, 4 912 creature constants |
 | 04 content spec | Quest ids 900100-900103, Endeavor tables, reward bands | Complete; the four quests are now rows in `06_quests.sql` in both drafts, and the two agree with this spec line for line |
 | 05 build plan | Phase 0 to phase 6, file lists per phase | Complete; the file lists match the shipped `src/` tree |
-| 06 blueprint, dye, pet bed | `PCH1` payload format, checksum, dye channels | Complete. The checksum is no longer only specified: `Crc32`, `Base62`, `Checksum` and `ValidateBlueprint` are in `Core.lua`, called by the Blueprints tab and by `/housing bp`, and the CRC matches the standard check value |
+| 06 blueprint, dye, pet bed | `PHP1` payload format, checksum, dye channels | Complete. The checksum is no longer only specified: `Crc32`, `Base62`, `Checksum` and `ValidateBlueprint` are in `Core.lua`, called by the Blueprints tab and by `/housing bp`, and the CRC matches the standard check value |
 | 07 client patching | `.toc`, `## Interface: 80300`, message prefix, DB2 notes | Complete; the addon ships as `addon/HousingUI/` and is renamed on install |
 | 08 source appendix | Pointer to the generated index | Regenerated from `build_appendix.py`; header, 14 sections and the per-section totals agree with the CSV |
 | 09 town centre register | 39 vendors, 1 056 rows, 739 ids, 87 blanks | Current. The 99 rows still behind the page cap are named in doc 09 sec.7.4 |
@@ -911,3 +911,62 @@ document the number in the table.
 | `audit.py` | 0 findings across 9 checks |
 
 Unchanged caveat: no compiler ran over this code and no server executed this SQL.
+
+### 6.22 The twenty-ninth revision: the window, opcode by opcode
+
+The twenty-eighth pass made the documents agree with the files. This one took the sentence
+"the addon is the interface" literally and asked it of every opcode: the window sent nineteen
+of the fifty-seven the server dispatches, so thirty-eight features were reachable only by typing
+`.housing <verb>`.
+
+- **The window is now the primary surface.** Rooms (shells and interior rooms), Storage (copies),
+  Travel (homestone, gryphon, arcanostorage, portals) are new tabs. Neighbours gained buying,
+  reserving, moving, founding, leaving, the favour display and the public-neighbourhood finder
+  with a Join button per street. Endeavors, Blueprints and Dyes were rebuilt from static text
+  into working panes. House gained sell and level-up; Placed gained build mode, place-in-front
+  and exact placement; Access gained the guest list.
+- **The rule that keeps it true.** `check_protocol.py`'s `window` rule parses only actual
+  `H.Send("C:...")` calls in `Menu.lua` - not the Guide tab's prose, which names every opcode -
+  and fails on any dispatched opcode that is not sent from the window. `HELLO` and `PING` are
+  the two exemptions, and they are the handshake. Mutation-tested by renaming one send: the
+  check named both the unknown opcode and the feature that had lost its button.
+- **Two panes were lying about what they could do.** The Dyes tab called a function that did
+  not exist, so it threw on open; the Blueprints pane described a `PCH1-kinded` format the
+  server has never emitted, so its validator rejected every real code and the pane advertised
+  import as future work while `C:BPEXP`/`C:BPIMP` were implemented. Both now do the thing.
+- **Layout defects are defects.** The Placed tab drew its buttons over its own list and had one
+  button above the top edge of the pane, where a click cannot reach it. Four control rows, list
+  below. The Map row's click sent a decor id where the plot index belonged.
+- **A result read as a boolean.** `S:ROOM`'s fifth field is a `HousingResult`; 0 means the room
+  can be bought. Read as a flag, the pane hid every room a player could actually buy.
+- **A class of bug, not an instance.** Adding sixteen buttons meant adding handlers that run
+  later but are written earlier, and Lua resolves locals at compile time: a handler defined
+  above the label it updates reads a nil global, silently. `check_lua.py` gained a `forward`
+  rule for exactly that, plus duplicate file-scope locals. Mutation-tested with a probe
+  function, which it reported with both line numbers.
+
+| Piece | Where |
+| --- | --- |
+| `window` rule | `tools/housing/check_protocol.py` |
+| Four new tabs, three rebuilt, guest list, sell, level-up, build mode, exact placement | `addon/HousingUI/Menu.lua` |
+| Palette from server data, real `PHP1` envelope check, shell/portal counts, `S:ENDEAVOR` name and end | `addon/HousingUI/Core.lua` |
+| `EndeavorMgr::GetEnds` and the two extra `S:ENDEAVOR` fields | `HousingEndeavor.h/.cpp`, `HousingMgrExtra.cpp` |
+| Addon version 0.9.0 | `HousingUI.toc`, `Core.lua` |
+
+| checker | result |
+| --- | --- |
+| `check_protocol.py` | 0 findings; 57 of 57 dispatched opcodes reachable from the window, `S:ENDEAVOR` at 6 fields and the addon reads 6, `S:PLOTINFO` at 17 and reads 17 |
+| `check_lua.py` | 0 findings; fourteen tabs, the new panes, the redraw chain |
+| `check_cpp.py` | 0 findings; `GetEnds` declared, defined and called |
+| `check_sql_columns.py` | 0 findings |
+| `check_reference.py` | 0 findings; 48 commands |
+| `check_mariadb.py` | 0 findings |
+| `verify_drafts.py` | 0 findings; both drafts rebuilt |
+| `check_coverage.py` | 0 findings |
+| `check_psychohouse.py` | 0 findings; draft C untouched |
+| `audit.py` | 0 findings across 9 checks |
+
+Unchanged caveat, and it matters more here than anywhere else: no Lua interpreter and no client
+ran over this addon. The checks prove the file parses, that the frames are created in a sane
+order, and that every opcode has a sender; they cannot prove a button is where a player expects
+it or that the frame is not clipped. That needs the client.

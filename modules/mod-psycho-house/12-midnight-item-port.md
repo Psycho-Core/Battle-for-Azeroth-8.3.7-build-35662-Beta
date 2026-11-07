@@ -227,7 +227,7 @@ API, and its FrameXML is its own. What it can be is the same arrangement, rebuil
 | Neighbourhood directory | Neighbours tab: every plot with owner, tier, and a Visit button |
 | Hub amenities (stage, mailbox, board) | Access tab: the amenity list comes from the server (`C:VAREA`), not from the addon |
 | Endeavor track and milestones | Endeavors tab: the four milestones and what each unlocks |
-| Blueprint share codes | Blueprints tab: the `PCH1` format, with copy and paste |
+| Blueprint share codes | Blueprints tab: export, import and the `PHP1` code |
 | Nothing equivalent | Guide tab: the opcode list, so the transport is never a mystery |
 
 That is `addon/HousingUI/Menu.lua` plus `Core.lua`, in the ported draft at

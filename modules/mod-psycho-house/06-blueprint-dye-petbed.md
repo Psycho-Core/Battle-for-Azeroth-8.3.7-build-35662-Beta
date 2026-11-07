@@ -113,23 +113,25 @@ the addon is a dumb transport.
 ### 3.1 Wire format
 
 ```
-PCH1-<kind>-<faction>-<payload>-<checksum>
+PHP1:<base62 payload>
 ```
 
 | Field | Values |
 | --- | --- |
-| `PCH1` | magic + version |
-| `kind` | `R` room, `B` build, `E` exterior |
-| `faction` | `0` any, `1` alliance, `2` horde (builds and exteriors only) |
-| `payload` | base62 of a zlib-packed bitstream |
-| `checksum` | 4 base62 chars, CRC32 of the payload |
+| `PHP1:` | magic + version, in ASCII, followed by a colon |
+| payload | every byte of section 3.2, base62-encoded as one big integer |
+| checksum | the last byte of the payload, `(sum * 31 + byte) & 0xFF` over the bytes before it |
 
-That checksum is implemented, not just specified. `H.Crc32`, `H.Base62`, `H.Checksum` and
-`H.ValidateBlueprint` live in `addon/HousingUI/Core.lua`, the Blueprints tab calls them, and
-`/housing bp <code>` and `/housing crc <text>` do the same from the command line. The CRC32
-uses the standard 0xEDB88320 table and matches the usual check value: CRC32 of `123456789`
-is `CBF43926`. Import and export stay phase 4 - what works today is that a code can be told
-apart from a corrupted one before anything is saved.
+The payload carries the kind and the faction as its second and third bytes, so the code does
+not repeat them in text. Import and export are both implemented and both server-side:
+`BlueprintCodec::Encode` / `Decode` in `HousingBlueprint.cpp`, reached by `C:BPEXP` and
+`C:BPIMP` and by `.housing bpexp` / `.housing bpimp`. The addon validates the envelope -
+header, alphabet, length - and leaves the contents to the server, because a format with two
+implementations is a format with two bugs.
+
+`H.Crc32` and `H.Base62` in `addon/HousingUI/Core.lua` were the earlier client-side checksum
+idea; they remain for the CRC32 reference value (CRC32 of `123456789` is `CBF43926`) and are
+no longer on the blueprint path.
 
 ### 3.2 Payload layout
 
@@ -156,8 +158,9 @@ already had room for and a 300-piece build grows by 300 bytes. The decoder requi
 record - ten bytes per piece on version 2, nine on version 1 - which it did not always do: the
 earlier guard counted only the three coordinates and then read six more bytes.
 
-Delta encoding + 2-byte coordinates keeps a 300-piece build at roughly 3-4 KB raw,
-**~1.2-1.6 KB compressed**, which is 8-10 addon messages of 200 bytes. Acceptable.
+No compression: a 300-piece build is about 3.3 KB of base62, which is 17 addon messages of
+200 bytes. Acceptable, and it means a truncated paste is a length error rather than a
+half-inflated stream.
 
 ### 3.3 Import validation
 
