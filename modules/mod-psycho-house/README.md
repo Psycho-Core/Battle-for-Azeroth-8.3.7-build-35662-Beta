@@ -40,7 +40,7 @@ modules/mod-psycho-house/
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
   addon/HousingUI/       the client addon: Core.lua (transport, grid snapping) and
-                         Menu.lua (the eleven-tab housing window)
+                         Menu.lua (the fourteen-tab housing window)
   legacy-prototype/      the original prototype notes and patches, kept verbatim as
                          history - the numbered documents are the current set
   tools/housing/         scrapers, indexers, the draft builder, the installer,
@@ -109,8 +109,8 @@ publish entry ids for the interior quests.
 | `tools/housing/check_psychohouse.py` | The third draft's checker: the 34 core calls it makes, each against the declaration in this source tree, and every include those calls need; SQL columns and row widths, catalogue kinds and prices, a resolver for every unbound facility and no orphans, phase range against the uint16 space and the neighbourhood range, config keys in both directions, the draft README's arithmetic, fourteen statements this document makes about build 35662 checked against the source tree, and the MariaDB rules: printf dialect and argument counts, a 64-bit house key on both sides, `COLLATE` on every table, no `INSERT IGNORE`, no bare scalar subquery, no config section header. |
 | `tools/housing/check_mariadb.py` | Reads the module's SQL and all three drafts the way MariaDB 11.8.6 would: every table pinned to InnoDB and utf8mb4 with an explicit COLLATE, NOT NULL columns with no default that an INSERT forgets (error 1364), integer and string literals wider than the column (1264 and 1406), duplicate primary and unique keys inside one file (1062), a decor category straddling two surface bands, and the statements that are MariaDB-only or that make an install unrepeatable. |
 | `tools/housing/check_coverage.py` | Both drafts against the data they are generated from, in both directions: every vendor, every priced line, every resolved retail item id and every catalogue row has to appear on both sides, and anything the data cannot supply has to be named in the file as a comment. Mutation-tested three ways: a dropped stock tuple, a decor row with its item id zeroed, and a native entry that is not in the source tree were each reported. |
-| `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, and a `.toc` whose files exist. |
-| `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, and no handler reads past the last field of its line. |
+| `tools/housing/check_lua.py` | Structural check on the addon: block balance, unterminated strings, globals that were never declared, file-scope locals read above their own declaration, duplicate file-scope locals, and a `.toc` whose files exist. |
+| `tools/housing/check_protocol.py` | Reads both halves of the addon protocol: every `C:` opcode sent is dispatched, every `S:` opcode sent is handled, no handler reads past the last field of its line, and every opcode the server dispatches is sent from a button in the housing window. |
 | `tools/housing/fetch_vendor_stock.py` | Scrapes all 39 neighborhood vendor pages into a CSV (`vendor, item, price, currency, coords, npc_id`) ready for `housing_vendor_stock`. |
 | `vendor-slugs.txt` | The 39 vendor slugs the scraper consumes. |
 | `tools/sql/psycho_house_harvest.sql` | The same harvest as pure SQL for people who do not want to run Python: candidate queries per furniture family, plus the report I use to spot gaps. |
@@ -156,6 +156,26 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
+
+## Audit pass, twenty-ninth revision
+
+The twenty-eighth pass made the documents agree with the files. This one asked the question the
+window had never been asked: for every opcode the server dispatches, is there a button? The
+answer was no for thirty-eight of fifty-seven - the features existed and were reachable only by
+typing a slash command, which is the opposite of what "the addon is the interface" means.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 147 | The window sent nineteen of the fifty-seven opcodes. Rooms, shells, storage, portals, the gryphon, the arcanostorage, the finder, joining, reserving, moving house, the guest list, level-up, selling, build mode, exact placement, blueprint import and export, the coffer and the four milestone claims had no interface at all | Four new tabs (Rooms, Storage, Travel) and three rebuilt ones (Neighbours, Endeavors, Blueprints); the House, Placed and Access tabs gained the buttons they were missing. `check_protocol.py` now fails if any dispatched opcode is not sent from `Menu.lua`, with `HELLO` and `PING` exempt as the handshake: 57 of 57 |
+| 148 | The Dyes tab called `BuildDyeButtons()`, which was never defined. Opening it was a Lua error, not a dye | The palette is built from the server's own `C:DYES` rows, sorted by id, rebuilt when the tab is opened or the list arrives, and a colour is only offered if the server sent it. Strip is colour 0 through the same call |
+| 149 | The Blueprints tab documented `PCH1-<kind>-<faction>-<payload>-<checksum>` and its validator matched that shape. The server emits `PHP1:<base62>` and nothing else, so every real code was rejected and the pane said import was "phase 4" while `C:BPEXP` and `C:BPIMP` had been implemented | The pane is an actual importer: envelope check, Export with a kind selector, Import, Check, Copy (into the chat box, which is the only clipboard 8.3.7 has), Restore for an archived house. Doc 06 sec.3.1 states the real format and the real checksum |
+| 150 | The Endeavors tab was four paragraphs of static text: the bar never moved, "Open the coffer" sent `C:ENDEAVOR`, and there was no way to claim a milestone - or to see a single task | Live pane: name, milestone, progress bar from the server's own completed count, the task list with each task's progress against its scaled requirement, the coffer button on `C:DELIVER`, and four claim buttons on `C:CLAIM`. `S:ENDEAVOR` grew a name and an end time so the window can say what the street is working on and how long is left |
+| 151 | The Placed tab drew its controls over its own list - the scroll started at the top of the pane, under the buttons - and "Pitch -" was positioned 12 pixels *above* the pane, where nothing can be clicked | Four control rows above the list and the list below them: select and remove, tilt boxes with both steps, the three pet buttons, place-in-front-of-me, build mode, and the numeric advanced-mode row. Every button inside the pane |
+| 152 | A click on a Map row sent `C:PLACEAT` with the plot index in the decor-id field - a request to place decor id 3 three metres ahead | A click selects the plot and switches to the House tab. Buying and reserving live on Neighbours, next to the free-plot list where they belong |
+| 153 | The Rooms pane read `S:ROOM`'s fifth field as a boolean "owned" flag. It is a `HousingResult`: 0 means the server would sell the room | Read as a result: 0 shows the Add button, anything else prints the code and hides it |
+| 154 | The guest list was dispatched and had no interface. The exception that overrides both permission masks could be managed only by typing | A guest block on the Access tab: name box, flags box, Add, Refresh, and one row per name with a Remove button on `C:GUESTDEL` |
+| 155 | `#H.shells` and `#H.portals` were printed as counts, but both tables are keyed by id, so the count was always zero | Counted with `pairs`, in the handlers that report them |
+| 156 | Nothing checked that a pane's handler appears *after* the local it touches. Lua resolves locals at compile time, so a function defined above the label it updates silently reads a nil global - no error, no update. That shape is what left the dye target label frozen | The Dyes pane reaches the label through `Menu.PlacementSelected` instead. `check_lua.py` gained a `forward` rule: a file-scope local mentioned above its own declaration is a finding, and a local declared twice at file scope is one too. Mutation-tested by adding a probe function above the dye pane, which it named with both line numbers |
 
 ## Audit pass, twenty-eighth revision
 

@@ -2917,9 +2917,13 @@ namespace Housing
             EndeavorInfo const* info = sHousingEndeavor->GetInfo(sHousingEndeavor->GetActiveId(neighborhoodId));
             uint8 const milestone = sHousingEndeavor->GetMilestone(neighborhoodId);
 
-            std::string payload = Trinity::StringFormat("S:ENDEAVOR|{}|{}|{}|{};", neighborhoodId,
+            // Name and end time ride along so the window can say what the street is working
+            // on and how long is left; neither is derivable from the addon's own state.
+            std::string payload = Trinity::StringFormat("S:ENDEAVOR|{}|{}|{}|{}|{}|{};", neighborhoodId,
                 sHousingEndeavor->GetActiveId(neighborhoodId), uint32(milestone),
-                sHousingEndeavor->GetCompletedTasks(neighborhoodId));
+                sHousingEndeavor->GetCompletedTasks(neighborhoodId),
+                info ? info->Name : std::string("none"),
+                uint32(sHousingEndeavor->GetEnds(neighborhoodId)));
 
             if (info)
             {

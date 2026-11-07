@@ -52,6 +52,9 @@ namespace Housing
         uint32 GetTaskProgress(uint32 neighborhoodId, uint32 taskId) const;
         uint32 GetCompletedTasks(uint32 neighborhoodId) const;
 
+        /// When the running Endeavor rolls over, as a unix timestamp; 0 when none is running.
+        uint32 GetEnds(uint32 neighborhoodId) const;
+
         /// What a task costs this neighbourhood, which is not what the row says: an Endeavor
         /// scales with how many people live in the street.
         uint32 GetRequired(uint32 neighborhoodId, EndeavorTask const& task) const;

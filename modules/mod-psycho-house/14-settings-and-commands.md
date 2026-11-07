@@ -108,7 +108,7 @@ server dispatches.
 | `.housing levelup` | `-` | player | pay the Contractor to reach the next level without the experience |
 | `.housing shell` | `[id]` | player | list the exterior shells, or choose one by id |
 | `.housing dye` | `<placement> <colour> [group]` | player | dye one placed piece; colour 0 strips it, and the group defaults to whichever one this piece keeps that colour in |
-| `.housing bp` | `[kind] [name]` | player | export a build code, PCH1 format |
+| `.housing bp` | `[kind] [name]` | player | export a build code, PHP1 format |
 | `.housing bpimport` | `<code>` | player | import a build code |
 | `.housing restore` | `-` | player | recover a sold or evicted house from the archive |
 | `.housing portal` | `<id>` | player | use one of the house portals |

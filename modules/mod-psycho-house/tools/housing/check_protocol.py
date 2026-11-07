@@ -10,6 +10,9 @@ Three things are checked, all by reading the source of both halves:
            inline, as S:CHUNK is)
   fields   every field index the addon reads is inside the field count of the line the
            server builds for that op
+  window   every op the server dispatches is reachable from the housing window, not only
+           from a slash command - two exceptions, HELLO and PING, are the handshake and
+           have no business on a button
 
 That last check is the one that matters most: a handler reading fields[14] from a line
 that has twelve fields prints `nil` at runtime and looks like a server bug. There is no
@@ -22,6 +25,10 @@ import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ADDON = os.path.join(HERE, "addon", "HousingUI")
+MENU = os.path.join(ADDON, "Menu.lua")
+
+# Ops that are transport, not features: the window cannot usefully offer them.
+WINDOW_EXEMPT = {"HELLO", "PING"}
 PROTOCOL = os.path.join(HERE, "src", "game", "Housing", "HousingMgrProtocol.cpp")
 GAME_DIR = os.path.join(HERE, "src", "game", "Housing")
 
@@ -92,6 +99,23 @@ def server_ops():
     return dispatched, replies
 
 
+def window_ops():
+    """The C:OPS the window itself sends.
+
+    A feature that a player can only reach by typing `.housing <verb>` is a feature with no
+    interface, and the documents say the window is the interface. This is the check that
+    keeps the two honest.
+    """
+    text = read(MENU)
+
+    # Only an actual send counts. The Guide tab prints every opcode as text, and a check that
+    # counted those would pass on the documentation alone - which is the failure mode this
+    # rule exists to catch.
+    ops = set(re.findall(r'H\.Send\(\s*"C:([A-Z]+)', text))
+    ops.update(re.findall(r'H\.Send\(\s*string\.format\(\s*"C:([A-Z]+)', text))
+    return ops
+
+
 def main():
     sends, handlers = addon_ops()
     dispatched, replies = server_ops()
@@ -105,6 +129,11 @@ def main():
     for op in missing:
         fail("the server sends S:{} and the addon has no handler".format(op))
 
+    reachable = window_ops()
+    for op in sorted(dispatched - reachable - WINDOW_EXEMPT):
+        fail("the server dispatches C:{} and the window never sends it - a slash command is "
+             "the only way in".format(op))
+
     for op in sorted(set(replies) & set(handlers)):
         sent = replies[op]
         looked = handlers.get("_max_" + op)
@@ -117,6 +146,8 @@ def main():
 
     print("{} C: opcodes sent by the addon, {} dispatched by the server".format(
         len(sends_ops), len(dispatched)))
+    print("{} of {} dispatched opcodes reachable from the window".format(
+        len(dispatched & (reachable | WINDOW_EXEMPT)), len(dispatched)))
     print("{} S: opcodes sent by the server, {} handled in the addon".format(
         len(replies), len(set(replies) & set(handlers))))
     for op in sorted(replies):

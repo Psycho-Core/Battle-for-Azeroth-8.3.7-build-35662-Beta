@@ -12,6 +12,9 @@ be done without one:
   strings     every string literal is terminated on its own line
   globals     any global the addon assigns is declared once at the top, so a typo shows up
               as a second global rather than a nil at runtime
+  forward     a file-scope local is not mentioned above its own declaration: Lua resolves
+              locals at compile time, so a function defined earlier that reads a local
+              declared later reads a global that is nil
   toc         the `.toc` lists files that exist
 
 A clean run means the file will parse. It does not mean the addon behaves - that needs
@@ -105,6 +108,70 @@ def saved_variables():
     return set()
 
 
+def code_only(text):
+    """The same text with comments and string bodies blanked, newlines kept.
+
+    Line numbers have to survive, because every finding this file prints is a line number.
+    """
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("--[[", i):
+            end = text.find("]]", i)
+            end = n if end < 0 else end + 2
+            out.append("\n" * text.count("\n", i, end))
+            i = end
+        elif text.startswith("--", i):
+            while i < n and text[i] != "\n":
+                i += 1
+        elif text[i] in "\"'":
+            quote = text[i]
+            i += 1
+            out.append(" ")
+            while i < n and text[i] != quote and text[i] != "\n":
+                i += 2 if text[i] == "\\" else 1
+            if i < n and text[i] == quote:
+                i += 1
+        elif text.startswith("[[", i):
+            end = text.find("]]", i)
+            end = n if end < 0 else end + 2
+            out.append("\n" * text.count("\n", i, end))
+            i = end
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
+def check_forward(name, text):
+    """A file-scope local read above its declaration.
+
+    This is the shape of a real bug that shipped: a pane's button handler was written before
+    the label it updated, so at runtime the handler read a nil global and the label never
+    changed - with no error, because reading a global is legal.
+    """
+    body = code_only(text)
+    lines = body.splitlines()
+
+    declared = {}
+    for number, line in enumerate(lines, 1):
+        match = re.match(r"local\s+(?:function\s+)?([A-Za-z_]\w*)", line)
+        if not match:
+            continue
+        if match.group(1) in declared:
+            fail(name, "line {}: '{}' is declared local twice at file scope".format(
+                number, match.group(1)))
+        declared[match.group(1)] = number
+
+    for local, where in sorted(declared.items(), key=lambda pair: pair[1]):
+        pattern = re.compile(r"(?<![.:\w])" + re.escape(local) + r"(?![\w])")
+        for number, line in enumerate(lines[:where - 1], 1):
+            if pattern.search(line):
+                fail(name, "line {}: '{}' is used before its declaration on line {}".format(
+                    number, local, where))
+                break
+
+
 def check_globals(name, text):
     """A global that is assigned outside a table constructor and never declared.
 
@@ -158,6 +225,7 @@ def main():
             fail(name, "non-ASCII byte")
         lines = check_blocks(name, text)
         check_globals(name, text)
+        check_forward(name, text)
         total += lines
         print("{:<28} {:>4} lines".format(name, lines))
     check_toc()
