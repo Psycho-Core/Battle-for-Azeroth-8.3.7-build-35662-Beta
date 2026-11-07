@@ -35,6 +35,7 @@ missing rather than having to diff two files.
 """
 
 import csv
+import glob
 import os
 import re
 import sys
@@ -348,6 +349,38 @@ def check_hunts(label, decor_file):
     return len(hunts)
 
 
+def check_script_bindings():
+    """Every script the module registers is bound by some SQL.
+
+    A script name that appears only in `ScriptMgr` registration is a half-feature: the C++ is
+    compiled and nothing in the world ever runs it. That was true of all five game object
+    scripts until this rule was written - `gameobject_template.ScriptName` is the only way to
+    attach one, and no file set it.
+    """
+    source = ""
+    for pattern in ("src/**/*.cpp", "src/**/*.h"):
+        for path in glob.glob(os.path.join(HERE, pattern), recursive=True):
+            source += read(path)
+
+    bound = ""
+    for pattern in ("tools/sql/*.sql", "sql/**/*.sql", "drafts/*/sql/**/*.sql"):
+        for path in glob.glob(os.path.join(HERE, pattern), recursive=True):
+            bound += read(path)
+
+    # A CommandScript is reached through the command table, not through a database name, so it
+    # is the one kind of script registration that has no binding statement to find.
+    scripts = set(re.findall(r'(?:GameObjectScript|CreatureScript|GuildScript|PlayerScript|'
+                             r'WorldScript)\("?([a-z_]+)"?\)', source))
+    for name in sorted(scripts):
+        if name not in bound:
+            fail("scripts", "`{}` is registered and no SQL binds it".format(name))
+
+    print("  {:>3} script names, every one bound by a statement"
+          .format(len(scripts)))
+
+    return len(scripts)
+
+
 def main():
     print("drafts against the data they are generated from\n")
 
@@ -355,6 +388,7 @@ def main():
     a_hunts = check_hunts("midnight-port", "04_decor_retail.sql")
     b_decor, b_stock = check_native()
     b_hunts = check_hunts("bfa-native", "03_decor_native.sql")
+    check_script_bindings()
 
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:

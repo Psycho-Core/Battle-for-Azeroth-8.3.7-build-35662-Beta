@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 32 server settings, all 48 commands, the six client
+  14-settings-and-commands.md  all 33 server settings, all 48 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -159,6 +159,29 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
 
+## Audit pass, thirty-fourth revision
+
+Every round so far checked that a feature exists. This one asked whether it can ever run: a
+script that is compiled, registered and bound to nothing is a feature that cannot happen, and
+no checker in the folder was asking.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 177 | **All five game object scripts were registered and unbound.** `go_housing_cornerstone`, `go_housing_portal`, `go_housing_bulletin`, `go_housing_coffer` and `go_housing_huntcache` are compiled and registered, and a game object runs whatever its `gameobject_template.ScriptName` names - which no file set. On a fresh install the cornerstone sold nothing, the portal was scenery, the notice board did nothing, the Coffer could not be opened and a hunt cache could not be searched. The NPC half was bound in `02_world_content.sql` all along, which is exactly why nobody noticed the other half was not | `bind_housing_content.sql` sec.7 attaches the three amenity scripts and the cache script by joining the entries section 1 already resolved, guarded on an empty `ScriptName` so a realm's own script survives. The cornerstone is chosen by a conf key rather than a row, so its statement is written out beside them with the key named. The report gains two lines that count what got bound |
+| 178 | **Nothing checked that a registered script was reachable.** The NPC scripts had SQL and the GO scripts did not, and every checker passed for two revisions | `check_coverage.py` gained a rule: every `GameObjectScript`, `CreatureScript`, `GuildScript`, `PlayerScript` and `WorldScript` name in `src/` has to appear in some SQL file. Eleven names, all bound; a `CommandScript` is exempt with the reason written down, because the command table reaches it rather than the database |
+
+## Audit pass, thirty-third revision
+
+This pass went looking for settings that are documented and never consulted, because that is
+the failure the previous two could not see: the key is in the conf file, it is in doc 14, it is
+printed by `.housing config`, and nothing behaves differently when it changes.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 174 | **The archive window was a compile-time constant.** `Housing.Evict.GraceDays` is documented as "the window the owner gets to restore", the warning letter counts down in days, and `RestoreArchivedHouse` and `HasArchive` both used a `kArchiveDays = 7` constant - so an operator who set the window to thirty days got seven, with no error anywhere | Both read `_graceDays`, the constant is gone, and the letter, the conf comment and the code now describe the same number. `check_reference.py` gained an `applied` rule that fails when a member `LoadConfig` fills is read nowhere else - it found `Housing.Map.Mode` immediately (a false positive, since that one fills a local), which is why the rule now skips what it cannot follow |
+| 175 | **"Restorable for a fee" and there was no fee.** The eviction letter promises a restore "for a fee", doc 02 repeats it, and `RestoreArchivedHouse` created the house free of charge - a player could sell a house, keep the refund, and buy it back for nothing | `Housing.Restore.FeePercent` (default 10, clamped 0-100) charges a share of the archived `price_paid` before anything is created, so a player who cannot pay keeps the row and can come back. Thirty-three settings |
+| 176 | **Doc 12 documented two binding names that do not exist.** It named `BINDING_HEADER_PSYCHO_HOUSE` and `BINDING_NAME_PSYCHO_HOUSE_TOGGLE`; the shipped `Bindings.xml` uses `BINDING_HEADER_PSYCHOHOUSE` and a `CLICK` name, and nothing compared them | Doc 12 now states what ships, including that an addon cannot claim a key and the player chooses it |
+
 ## Audit pass, thirty-second revision
 
 The last pass answered the completeness question by walking doc 01 row by row. This one did
@@ -204,7 +227,8 @@ in Key Bindings) and on `/house`. Routing from other hubs is the part 8.3.7 does
 Dornogal, so the portal sits in Stormwind and Orgrimmar and the town centre portal reaches it.
 Moving house free and keeping the build: `HousingMgr::MoveHouse` rewrites the plot index only
 and respawns the interior. Relinquishing with a regret timer: `ArchiveHouse` and
-`RestoreArchivedHouse`, seven days. Eviction packs the house up: the same archive, called from
+`RestoreArchivedHouse`, `Housing.Evict.GraceDays` days and a fee of `Housing.Restore.FeePercent`
+of what the plot cost. Eviction packs the house up: the same archive, called from
 the eviction sweep, a street removal and a dissolved neighbourhood.
 
 **Section 3, house leveling.** XP from a new decor piece at 10: `GrantHouseXp(player,
@@ -286,7 +310,7 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 (3363) for neighbourhood stock, War Resources (1560) reused for themed vendors,
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
-**Settings.** 32 keys in the conf file, all read by `LoadConfig` and all clamped, printable
+**Settings.** 33 keys in the conf file, all read by `LoadConfig` and all clamped, printable
 with `.housing config`. Six client preferences on the Settings tab. 48 commands, 41 player and
 7 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.

@@ -144,6 +144,13 @@ Housing.Gryphon.Cooldown = 300
 
 Housing.Dye.Cost = 0
 
+#   Housing.Restore.FeePercent
+#       Description: Share of the archived plot price charged to bring a sold or evicted house
+#                    back out of the archive. 0 makes restoring free.
+#       Default:     10
+
+Housing.Restore.FeePercent = 10
+
 #   Housing.Plot.CornerstoneEntry
 #       Description: gameobject entry spawned on every free plot, so the plot can be bought by
 #                    clicking it. The entry must exist in gameobject_template and carry the

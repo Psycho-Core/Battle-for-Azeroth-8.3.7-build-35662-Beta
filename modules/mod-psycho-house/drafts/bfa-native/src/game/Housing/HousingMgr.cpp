@@ -140,6 +140,12 @@ void HousingMgr::LoadConfig()
     _dyeCost = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Dye.Cost", 0)));
     note("Housing.Dye.Cost", _dyeCost);
 
+    // Recovering an archived house costs a share of what the plot cost. The warning letter
+    // and the conf file both said "for a fee" long before there was one; this is the fee.
+    _restoreFeePercent = uint32(std::min(100, std::max(0,
+        sConfigMgr->GetIntDefault("Housing.Restore.FeePercent", 10))));
+    note("Housing.Restore.FeePercent", _restoreFeePercent);
+
     // Dissolving a private or guild neighbourhood nobody lives in any more. 0 residents means
     // the sweep never runs: an empty street might be one somebody is about to move into.
     _minResidents = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MinResidents", 0)));

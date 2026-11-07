@@ -249,8 +249,10 @@ before the addon menu works:
   menu bar Lua in `Interface/FrameXML/` inside a patch, or - far safer - creating the button
   from the addon and anchoring it to `MicroMenu`. The addon route cannot break the default
   UI; the patch route can.
-- **A key binding.** `Bindings.xml` in the addon, one entry, `BINDING_HEADER_PSYCHO_HOUSE`
-  and `BINDING_NAME_PSYCHO_HOUSE_TOGGLE`, calling the same toggle the button calls.
+- **A key binding.** Shipped: `Bindings.xml` declares one entry in the Addons section of Key
+  Bindings, a `CLICK PsychoHouseToggleButton:LeftButton` on a hidden button that calls the same
+  toggle the launcher button calls, headed `BINDING_HEADER_PSYCHOHOUSE`. An addon cannot claim
+  a key, so nothing is bound until the player binds it - retail's `H` is the obvious choice.
 
 What I would not do: patch the collections journal to add a housing tab. The journal is
 driven by DB2 rows and secure code, and a broken collections frame is a support ticket that

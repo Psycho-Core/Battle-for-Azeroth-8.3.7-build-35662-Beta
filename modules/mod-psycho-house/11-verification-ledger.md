@@ -1037,6 +1037,56 @@ ran. The caches were never spawned on a map, no quest was taken, and no piece wa
 rotation, the phase and the gossip ids are checked against the source tree; the behaviour needs
 a server with the world database imported.
 
+### 6.28 The thirty-fourth revision: features that could not run
+
+A script that is compiled and registered but bound to nothing is a feature that cannot happen,
+and it does not fail a test - it just does not happen. That was the shape of the last hole.
+
+- **Five game object scripts were unbound.** `gameobject_template.ScriptName` is the only way
+  to attach a script to an object, and no file in the module set it. The cornerstone, the
+  portal, the bulletin board, the coffer and the hunt caches were therefore furniture.
+  `bind_housing_content.sql` sec.7 binds them by joining the entries that section 1 resolved,
+  so the binder that already turns names into ids now also turns ids into behaviour.
+- **A rule for it.** `check_coverage.py` fails when a registered script name appears in no SQL
+  file: eleven names, all bound, with `CommandScript` exempt because the command table reaches
+  it. The exemption is in the docstring, not in a comment somebody will delete.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; 11 script names bound, both drafts walked, 10 hunts each |
+| `check_mariadb.py` | 0 findings; the two UPDATE ... JOIN statements parse and target a single table |
+| `audit.py` | 0 findings across 10 checks |
+
+### 6.27 The thirty-third revision: settings that were documented and never consulted
+
+The two passes before this one checked that every system exists and that every name in the
+answer exists. This one asked a different question of the settings file: does anything change
+when the value changes.
+
+- **The archive window was a constant.** `Housing.Evict.GraceDays` is documented as the restore
+  window, the eviction letter counts down in days, and `RestoreArchivedHouse` plus `HasArchive`
+  both used `kArchiveDays = 7`. An operator setting thirty days got seven, and nothing failed.
+  The constant is gone and both queries read the setting.
+- **The fee was in the text and not in the code.** The letter says "restore it for a fee", doc
+  02 repeats it, and the restore was free, which made the regret window better than selling.
+  `Housing.Restore.FeePercent` (default 10) charges a share of the archived `price_paid` before
+  the house is created, so an owner who cannot pay keeps the row.
+- **A new rule, `applied`.** `check_reference.py` now walks every member `LoadConfig` fills and
+  fails when no implementation file reads it after the loader and the constructor are stripped
+  out. Mutation-tested by renaming `_dyeCost` throughout `HousingMgrExtra.cpp`, which produced
+  exactly one finding. It immediately found `Housing.Map.Mode`, whose key fills a local string
+  rather than a member; the rule skips what it cannot follow rather than pretending.
+- **Doc 12 had the wrong binding names,** from the revision where the binding was still an idea.
+  It names the shipped header and the CLICK binding now.
+
+| checker | result |
+| --- | --- |
+| `check_reference.py` | 0 findings; 33 settings, 33 recorded, 33 documented, the new `applied` rule among them |
+| `check_cpp.py` | 0 findings; `kArchiveDays` gone, `_graceDays` and `_restoreFeePercent` read |
+| `check_mariadb.py` | 0 findings; no column changed, one setting added |
+| `check_claims.py` | 0 findings; the README numbers and names still resolve |
+| `audit.py` | 0 findings across 10 checks |
+
 ### 6.26 The thirty-second revision: checking the answer instead of writing it
 
 The previous pass ended with a sentence: every row of doc 01, with the code that carries it.

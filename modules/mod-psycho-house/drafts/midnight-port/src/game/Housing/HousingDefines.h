@@ -81,7 +81,6 @@ namespace Housing
     constexpr float kAnchorHuntRadius = 62.0f;
     constexpr uint32 kHuntCacheRespawnSeconds = 300;
 
-    constexpr uint32 kArchiveDays = 7;
     constexpr uint32 kReservationSeconds = 60;
 
     // Cost channels. `housing_decor.currency` is 0 for gold, a currency id for a real

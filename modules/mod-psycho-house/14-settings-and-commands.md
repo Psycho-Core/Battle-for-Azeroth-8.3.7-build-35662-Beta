@@ -13,7 +13,7 @@ buttons that change it. The three lists are generated from the same sources the 
 
 ## 1. The server settings
 
-Every key is optional, and there are 32 of them. The default below is the value that applies
+Every key is optional, and there are 33 of them. The default below is the value that applies
 when the key is absent, and the clamping in the fourth column is applied by
 `HousingMgr::LoadConfig` before the value is used, so a nonsense value degrades to a usable
 one instead of falling through.
@@ -47,6 +47,7 @@ one instead of falling through.
 | `Housing.Gryphon.Cost` | `5` | gold the Steward charges for a ride to the house door; 0 is free | reload |
 | `Housing.Gryphon.Cooldown` | `300` | seconds between rides, per account; 0 removes the wait | reload |
 | `Housing.Dye.Cost` | `0` | gold charged for a dye change on one piece; re-applying the colour it already has is free, and 0 makes every change free | reload |
+| `Housing.Restore.FeePercent` | `10` | share of the archived plot price charged to restore a sold or evicted house; 0 makes restoring free, clamped 0 to 100 | reload |
 | `Housing.Guild.Wings` | `1` | give a guild that outgrows one neighbourhood an extra wing instead of turning members away | reload |
 | `Housing.Arcanostorage.Level` | `10` | house level before the Arcanostorage Sphere will turn; never below 1 | reload |
 | `Housing.Arcanostorage.CooldownDays` | `7` | days between turns of the Sphere, per account; never below 1 | reload |

@@ -2082,7 +2082,7 @@ namespace Housing
 
         QueryResult result = CharacterDatabase.Query(
             "SELECT 1 FROM `character_housing_archive` WHERE `accountId` = {} "
-            "AND `archived` > (UNIX_TIMESTAMP() - {})", accountId, kArchiveDays * 86400);
+            "AND `archived` > (UNIX_TIMESTAMP() - {})", accountId, _graceDays * 86400);
 
         return bool(result);
     }
@@ -2094,11 +2094,14 @@ namespace Housing
 
         uint32 const accountId = player->GetSession()->GetAccountId();
 
+        // The window is `Housing.Evict.GraceDays`, the same number the warning letter counts
+        // down, so a player reading "restore it within seven days" is not reading stale text.
         QueryResult result = CharacterDatabase.Query(
             "SELECT `id`, `plotIndex`, `neighborhoodId`, `name`, `tier`, `xp`, `shell_id`, "
-            "`rooms_owned`, `armillary`, `decor` FROM `character_housing_archive` WHERE `accountId` = {} "
-            "AND `archived` > (UNIX_TIMESTAMP() - {}) ORDER BY `archived` DESC LIMIT 1",
-            accountId, kArchiveDays * 86400);
+            "`rooms_owned`, `armillary`, `decor`, `price_paid` FROM `character_housing_archive` "
+            "WHERE `accountId` = {} AND `archived` > (UNIX_TIMESTAMP() - {}) "
+            "ORDER BY `archived` DESC LIMIT 1",
+            accountId, _graceDays * 86400);
 
         if (!result)
             return NotFound;
@@ -2140,6 +2143,19 @@ namespace Housing
 
         if (HasArchive(accountId) == false)
             return ArchiveExpired;
+
+        // "Restorable for a fee" is what the conf file and the warning letter have said since
+        // the archive was written. The fee is a share of what the plot cost, taken before
+        // anything is created, so a player who cannot pay keeps the archive row.
+        uint32 const feeGold = uint32(uint64(fields[10].GetUInt32()) * _restoreFeePercent / 100);
+        if (feeGold)
+        {
+            uint64 const fee = GoldToCopper(feeGold);
+            if (!player->HasEnoughMoney(int64(fee)))
+                return NotEnoughMoney;
+
+            player->ModifyMoney(-int64(fee));
+        }
 
         // Take the plot back at the archived level. The decor comes back through the code in
         // the `decor` column, the same format a blueprint uses, so there is one importer; the
