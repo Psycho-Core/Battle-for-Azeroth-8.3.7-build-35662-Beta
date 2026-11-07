@@ -80,6 +80,14 @@ The variant row is the honest mechanism: a colour is offered for a piece only wh
 variant table has a game object entry for it. Where no row exists the colour is not listed
 for that piece at all, rather than silently doing nothing.
 
+The palette is therefore a word list, not a copy of retail's. Retail has 77 colours in nine
+groups, because its client has a dye system; here a colour exists when the realm's game
+objects carry that word in front of the piece's own name. The draft seeds six words - Red,
+Blue, Green, Yellow, White, Black - and `bind_decor_variants.sql` fills the variant table from
+whatever words are in `housing_dye`, so a realm that adds a seventh word gets its variants
+without editing the script. Six is not seventy-seven, and the sensible reading is that the
+palette is as wide as the build's own furniture names are.
+
 ### 2.3 Applying
 
 1. Player picks a colour in the addon -> `C:DYE|<placementId>|<colour> [group]`.
@@ -94,10 +102,21 @@ for that piece at all, rather than silently doing nothing.
 
 ### 2.4 Acquisition
 
-Dyes are crafted by **Alchemy** and **Inscription**, exactly as retail. On 8.3.7 that is a
-custom recipe per dye group: spell + `spell_recipe`/`skill_line_ability` + reagents. 9
-recipes is a small patch. Dyes are tradeable (no soulbound flag), which gives the AH a new
-commodity - probably the single best economy side-effect in this whole project.
+A dye change costs gold - `Housing.Dye.Cost`, default 0. Re-applying the colour the piece
+already has is free, because charging for a click that changes nothing is a tax on the player
+who read the menu twice.
+
+Retail's dyes are crafted by **Alchemy** and **Inscription**, tradeable, and sold on the
+auction house. That economy is the one part of the dye system this port does not have, and
+the reason is an id rather than an opinion: an 8.3.7 dye item needs an `item_template` row and
+a `spell_template` row per colour, and the build has no housing dyes to reuse. Inventing
+seventy-seven item ids and seventy-seven spell ids so a player can hand over a reagent is a
+worse trade than a price the realm sets, so the sink is gold and the bookkeeping is one
+column.
+
+The alternative - no sink at all - is what most servers would ship, and it makes dyeing a
+free action a player does once per piece and never thinks about again. A price, even a small
+one, is what turns it into a decision.
 
 ### 2.5 What I will say in the UI
 

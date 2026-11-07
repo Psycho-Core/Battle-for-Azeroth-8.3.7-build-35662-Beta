@@ -403,6 +403,7 @@ namespace Housing
         uint32 _lifecycleTimer;
         uint32 _gryphonCost;        // gold, paid to the Steward
         uint32 _gryphonCooldown;    // seconds
+        uint32 _dyeCost;            // gold per dye change, 0 = free
         uint32 _minResidents;       // for dissolving a private/guild neighbourhood
         uint32 _dissolveGraceDays;
         uint32 _arcaneLevel;        // house level needed for the Sphere

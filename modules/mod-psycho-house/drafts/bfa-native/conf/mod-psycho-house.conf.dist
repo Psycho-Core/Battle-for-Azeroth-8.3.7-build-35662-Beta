@@ -135,6 +135,15 @@ Housing.Gryphon.Cost = 5
 
 Housing.Gryphon.Cooldown = 300
 
+#   Housing.Dye.Cost
+#       Description: Gold charged for a dye change on one piece. Re-applying the colour the
+#                    piece already has is free. 0 is free, which is the default: retail's
+#                    dyes are crafted items, and an item id per colour has to be invented,
+#                    so the sink here is a price the realm sets rather than an item.
+#       Default:     0
+
+Housing.Dye.Cost = 0
+
 #   Housing.Plot.CornerstoneEntry
 #       Description: gameobject entry spawned on every free plot, so the plot can be bought by
 #                    clicking it. The entry must exist in gameobject_template and carry the

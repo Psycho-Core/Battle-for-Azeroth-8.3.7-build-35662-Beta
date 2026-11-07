@@ -6,7 +6,7 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Seven checks, in the order a reviewer would want them:
+Ten checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
@@ -28,6 +28,7 @@ import csv
 import glob
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -318,6 +319,15 @@ def check_mapping(findings):
         findings.append(("mapping", rel(decor_sql), "%d rows with a zero game object" % zeros))
 
 
+def check_claims(findings):
+    script = os.path.join(ROOT, "tools", "housing", "check_claims.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith("  "):
+                findings.append(("claims", rel(script), line.strip()))
+
+
 def check_reference(findings):
     """Run the settings-and-commands checker as one of the audit's own steps.
 
@@ -345,6 +355,7 @@ CHECKS = {
     "sql": check_sql,
     "mapping": check_mapping,
     "reference": check_reference,
+    "claims": check_claims,
 }
 
 

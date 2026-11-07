@@ -2271,18 +2271,40 @@ end
 -- Launcher button
 -- ---------------------------------------------------------------------------
 
-local launcher = CreateFrame("Button", "PsychoHouseLauncher", UIParent, "UIPanelButtonTemplate")
-launcher:SetSize(64, 22)
-launcher:SetPoint("TOPRIGHT", Minimap, "BOTTOMRIGHT", -6, -6)
-launcher:SetText("House")
-launcher:SetScript("OnClick", function()
+local function ToggleWindow()
     if frame:IsShown() then
         frame:Hide()
     else
         frame:Show()
         ShowTab(Menu.current)
     end
-end)
+end
+
+Menu.ToggleWindow = ToggleWindow
+
+local launcher = CreateFrame("Button", "PsychoHouseLauncher", UIParent, "UIPanelButtonTemplate")
+launcher:SetSize(64, 22)
+launcher:SetPoint("TOPRIGHT", Minimap, "BOTTOMRIGHT", -6, -6)
+launcher:SetText("House")
+launcher:SetScript("OnClick", ToggleWindow)
+
+-- ---------------------------------------------------------------------------
+-- The key binding
+--
+-- Retail's dashboard opens on H. An addon cannot claim a key on its own, so this is the
+-- nearest thing: a binding in the Key Bindings window under Addons, bound to a hidden
+-- button. `Bindings.xml` declares it, this frame is what it clicks, and the two names have
+-- to match exactly or the binding clicks nothing.
+-- ---------------------------------------------------------------------------
+
+local toggleButton = CreateFrame("Button", "PsychoHouseToggleButton", UIParent)
+toggleButton:SetSize(1, 1)
+toggleButton:SetPoint("CENTER")
+toggleButton:Hide()
+toggleButton:SetScript("OnClick", ToggleWindow)
+
+_G["BINDING_HEADER_PSYCHOHOUSE"] = "PsychoHouse"
+_G["BINDING_NAME_CLICK PsychoHouseToggleButton:LeftButton"] = "Toggle the housing window"
 
 -- ---------------------------------------------------------------------------
 -- Wiring
