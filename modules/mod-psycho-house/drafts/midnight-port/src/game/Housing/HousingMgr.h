@@ -422,6 +422,7 @@ namespace Housing
         float _endeavorScaleCap;
         uint32 _xpPerDecor;         // house XP for learning a piece the house has never held
         uint32 _xpPerEndeavorTask;  // house XP for finishing one Endeavor task
+        uint32 _maxFounded;         // founded neighbourhoods per account, 0 = unlimited
         uint32 _minResidents;       // for dissolving a private/guild neighbourhood
         uint32 _dissolveGraceDays;
         uint32 _arcaneLevel;        // house level needed for the Sphere

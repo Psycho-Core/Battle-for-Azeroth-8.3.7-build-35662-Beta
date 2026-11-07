@@ -205,6 +205,11 @@ void HousingMgr::LoadConfig()
     note("Housing.Xp.PerDecor", _xpPerDecor);
     note("Housing.Xp.PerEndeavorTask", _xpPerEndeavorTask);
 
+    // How many streets one account may found. Retail's charter neighbourhoods are one per
+    // player; a realm that wants to run more sets a number, and 0 lifts the limit entirely.
+    _maxFounded = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MaxFounded", 1)));
+    note("Housing.Neighborhood.MaxFounded", _maxFounded);
+
     std::string const mode = sConfigMgr->GetStringDefault("Housing.Map.Mode", "native");
     _nativeMap = mode != "anchor";
     noteText("Housing.Map.Mode", mode);

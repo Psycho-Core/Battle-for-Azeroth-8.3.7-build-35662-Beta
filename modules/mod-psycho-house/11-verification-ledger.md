@@ -1266,6 +1266,10 @@ type 8 to the coffer script. The area keeps its banner, the coffer gets a chest.
   `C:HOMES`, and `HousingMgr::GetOwnedPlot` prefers the player's own faction before falling
   back to the other house.
 - **Two result codes were anonymous.** `RateLimited` and `NoBattlePet` printed "unknown".
+- **The neighbourhood limit was a rule with no name.** One founded street per account was a
+  loop inside `FoundNeighborhood` with the reasoning in a comment above it.
+  `Housing.Neighborhood.MaxFounded` makes it a number a realm can move, and 0 removes it.
+  Forty settings, forty recorded, forty documented.
 - **A dead constant had outlived three rewrites.** `kChunkReassemblyTimeoutMs` described a
   server-side reassembly timer that does not exist; the addon owns that timeout. `check_cpp.py`
   now fails any `constexpr` in the header that nothing reads, with the declaration line stripped
@@ -1277,7 +1281,7 @@ type 8 to the coffer script. The area keeps its banner, the coffer gets a chest.
 
 | checker | result |
 | --- | --- |
-| `check_reference.py` | 0 findings; 39 settings (2 drafts), 39 recorded, 39 documented, 48 commands, 6 client settings |
+| `check_reference.py` | 0 findings; 40 settings (2 drafts), 40 recorded, 40 documented, 48 commands, 6 client settings |
 | `check_protocol.py` | 0 findings; `C:HOMES` and `C:SELECTHOME` reachable from the Travel tab, both replies handled |
 | `check_sql_columns.py` | 0 findings; `character_housing.selected` is created and read |
 | `audit.py` | 0 findings across 10 checks |

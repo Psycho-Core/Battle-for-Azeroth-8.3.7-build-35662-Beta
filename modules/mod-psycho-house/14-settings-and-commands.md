@@ -13,7 +13,7 @@ buttons that change it. The three lists are generated from the same sources the 
 
 ## 1. The server settings
 
-Every key is optional, and there are 39 of them. The default below is the value that applies
+Every key is optional, and there are 40 of them. The default below is the value that applies
 when the key is absent, and the clamping in the fourth column is applied by
 `HousingMgr::LoadConfig` before the value is used, so a nonsense value degrades to a usable
 one instead of falling through.
@@ -55,6 +55,7 @@ one instead of falling through.
 | `Housing.Plot.CornerstoneEntry` | `0` | gameobject entry spawned on every free plot so it can be clicked; must carry go_housing_cornerstone; 0 spawns nothing | reload, and new spawns take effect on the next plot view |
 | `Housing.Plot.ReservationSeconds` | `60` | seconds an inspection holds a plot for one account; never below 5 | reload |
 | `Housing.Smuggler.MarkupPercent` | `25` | percent a smuggler adds to the other faction's furniture; clamped 0 to 500 | reload |
+| `Housing.Neighborhood.MaxFounded` | `1` | private or guild neighbourhoods one account may found; 0 lifts the limit | reload |
 | `Housing.Endeavor.ScaleFloor` | `0.5` | lowest factor Endeavor requirements scale by; never below 0.1 | reload |
 | `Housing.Endeavor.ScaleCap` | `3.0` | highest factor, never below the floor | reload |
 | `Housing.Xp.PerDecor` | `10` | house XP for learning a piece the house has never held; retail's number, 0 turns it off | reload |

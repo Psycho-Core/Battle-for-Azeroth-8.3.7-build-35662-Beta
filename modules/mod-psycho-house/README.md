@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 39 server settings, all 48 commands, the six client
+  14-settings-and-commands.md  all 40 server settings, all 48 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -221,6 +221,7 @@ choice retail offers that the window did not.
 | 181 | **Six tuning numbers were compile-time constants.** How long an inspection reserves a plot, the smuggler's mark-up, the two Endeavor scaling clamps, the XP for learning a piece and the XP for a task were `constexpr` in the header: readable, documented in prose, and impossible to change without a compiler | `Housing.Plot.ReservationSeconds` (60), `Housing.Smuggler.MarkupPercent` (25), `Housing.Endeavor.ScaleFloor` (0.5) and `Housing.Endeavor.ScaleCap` (3.0), `Housing.Xp.PerDecor` (10) and `Housing.Xp.PerEndeavorTask` (50). Thirty-three keys became thirty-nine, and each one replaced a constant the call sites now read instead |
 | 182 | **Four constants were left behind with nothing reading them.** `kReservationSeconds` and `kXpPerNewDecor`/`kXpPerEndeavorTask` were dead the moment the keys existed, and `kHuntCacheRespawnSeconds` had never been read at all - a cache is never consumed, because the quest is per character | The four are gone. The header says why a hunt cache has no respawn timer rather than leaving a number there for somebody to trust |
 | 183 | **The Homestone went to whichever house the map yielded first.** An account can own one house per faction, and every "your house" path took the first match, so a second house was unreachable by the stone and a character of the other faction could be sent to their opposite-faction house without asking | `character_housing.selected`, `C:HOMES` and `C:SELECTHOME <id>`, `HousingMgr::GetHomePlot`/`SelectHouse` and a "Your houses" list on the Travel tab. With nothing selected the stone takes the player's own faction first and falls back to the other house, which is what retail allows an alt to do |
+| 186 | **How many streets an account may found was a comment.** `FoundNeighborhood` refused a second private or guild neighbourhood with a loop and a hardcoded rule, and the reason was written as prose above it - so a realm that wanted two had no setting and no way to find out why | `Housing.Neighborhood.MaxFounded` (1), with the loop counting the account's founded streets up to that number and 0 lifting the limit. Forty keys |
 | 185 | **A constant nothing read survived every revision.** `kChunkReassemblyTimeoutMs` sat in the header describing a reassembly timer the server does not have - the addon reassembles, with its own `CHUNK_TIMEOUT` - and no checker looked at constants at all | The constant is gone and `check_cpp.py` gained a `constants` rule: every `constexpr` in `HousingDefines.h` must be read by the header's inline helpers or by some implementation file, with the declaration itself stripped so a definition cannot vouch for itself. 33 constants, all read; mutation-tested with a planted one |
 | 184 | **Two result codes had no name.** `RateLimited` and `NoBattlePet` are returned in three places between them and `ResultName` had no case for either, so the player was told "unknown" while the log knew exactly what happened | Both named. `check_reference.py` also learned to follow an inline accessor, because `Housing.Xp.PerEndeavorTask` is read through `GetXpPerEndeavorTask()` and the rule was about to call a live setting dead |
 
@@ -339,7 +340,7 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 (3363) for neighbourhood stock, War Resources (1560) reused for themed vendors,
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
-**Settings.** 39 keys in the conf file, all read by `LoadConfig` and all clamped, printable
+**Settings.** 40 keys in the conf file, all read by `LoadConfig` and all clamped, printable
 with `.housing config`. Six client preferences on the Settings tab. 48 commands, 41 player and
 7 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.

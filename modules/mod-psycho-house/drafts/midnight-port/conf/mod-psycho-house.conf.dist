@@ -215,6 +215,13 @@ Housing.Xp.PerEndeavorTask = 50
 
 Housing.Neighborhood.MinResidents = 0
 
+#   Housing.Neighborhood.MaxFounded
+#       Description: how many private or guild neighbourhoods one account may found. 0 lifts
+#                    the limit, which lets a single account allocate every slot on the map.
+#       Default:     1
+
+Housing.Neighborhood.MaxFounded = 1
+
 #   Housing.Neighborhood.DissolveGraceDays
 #       Description: Days an empty neighbourhood is left standing before it is dissolved.
 #       Default:     30

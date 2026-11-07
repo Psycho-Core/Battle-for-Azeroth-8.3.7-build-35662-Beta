@@ -654,13 +654,22 @@ namespace Housing
 
         uint32 const accountId = player->GetSession()->GetAccountId();
 
-        // One founded neighbourhood per account. A player who wants a second one has to leave
-        // the first: otherwise a single account can allocate 255 slots and lock everyone else
-        // out of the phase space.
-        for (auto const& entry : _neighborhoods)
-            if (entry.second->GetOwnerAccount() == accountId
-                && entry.second->GetType() != NeighborhoodPublic)
+        // One founded neighbourhood per account by default. A player who wants a second one
+        // has to leave the first: otherwise a single account can allocate all 255 slots and
+        // lock everybody else out of the phase space. The limit is `Housing.Neighborhood.MaxFounded`,
+        // and 0 lifts it.
+        if (_maxFounded)
+        {
+            uint32 founded = 0;
+
+            for (auto const& entry : _neighborhoods)
+                if (entry.second->GetOwnerAccount() == accountId
+                    && entry.second->GetType() != NeighborhoodPublic)
+                    ++founded;
+
+            if (founded >= _maxFounded)
                 return AlreadyKnown;
+        }
 
         uint8 const faction = uint8(player->GetTeamId() == TEAM_HORDE ? FactionHorde : FactionAlliance);
 
