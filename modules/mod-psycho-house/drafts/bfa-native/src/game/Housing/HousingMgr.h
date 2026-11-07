@@ -182,6 +182,14 @@ namespace Housing
         /// Owner-facing: set one space's audience mask.
         HousingResult SetAccess(Player* player, uint8 space, uint8 mask);
         HousingPlot* GetOwnedPlot(Player* player);
+        /// Every house the account owns. Retail grants two, one per faction, and both belong
+        /// to the account rather than to the character that bought them.
+        std::vector<HousingPlot*> GetOwnedPlots(uint32 accountId);
+        /// The house the Homestone goes to: the selected one when the account owns two, and
+        /// the only one otherwise.
+        HousingPlot* GetHomePlot(uint32 accountId);
+        /// Choose that house.
+        HousingResult SelectHouse(Player* player, uint32 housingId);
         HousingPlot* GetPlotForEdit(Player* player);
         PlayerState* GetPlayerState(Player* player);
 
@@ -189,6 +197,9 @@ namespace Housing
 
         /// Level ladder, shells, rooms, dye variants, decor creatures, portals.
         void LoadProgression();
+
+        uint32 GetXpPerNewDecor() const { return _xpPerDecor; }
+        uint32 GetXpPerEndeavorTask() const { return _xpPerEndeavorTask; }
 
         uint8 GetLevelForHousing(uint32 housingId) const;
         uint32 GetXpForHousing(uint32 housingId) const;
@@ -405,6 +416,12 @@ namespace Housing
         uint32 _gryphonCooldown;    // seconds
         uint32 _dyeCost;            // gold per dye change, 0 = free
         uint32 _restoreFeePercent;  // share of the archived price paid to restore it
+        uint32 _reservationSeconds; // how long an inspection holds a plot
+        uint32 _smugglerMarkupPercent;  // mark-up on the other faction's furniture
+        float _endeavorScaleFloor;  // Endeavor requirements scale with residents, between these
+        float _endeavorScaleCap;
+        uint32 _xpPerDecor;         // house XP for learning a piece the house has never held
+        uint32 _xpPerEndeavorTask;  // house XP for finishing one Endeavor task
         uint32 _minResidents;       // for dissolving a private/guild neighbourhood
         uint32 _dissolveGraceDays;
         uint32 _arcaneLevel;        // house level needed for the Sphere
@@ -440,6 +457,8 @@ namespace Housing
         std::map<uint32, std::map<uint32, uint32>> _storage;            // accountId -> decorId -> count
         std::set<uint32> _storageLoaded;
         std::map<uint8, std::pair<uint32, uint32>> _reservations;       // plotIndex -> account, expiry
+        std::map<uint32, uint32> _selectedHouse;                        // accountId -> housingId
+        void LoadHouseSelection(uint32 accountId);
         std::map<uint32, uint32> _gryphonUsed;                          // accountId -> ms stamp
         std::map<uint32, uint32> _arcaneUsed;                           // accountId -> unix stamp
         std::map<uint32, uint32> _emptySince;                           // neighborhoodId -> unix stamp

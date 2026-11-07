@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
  `purchase_time`  INT UNSIGNED NOT NULL DEFAULT 0,
  `last_edited`   INT UNSIGNED NOT NULL DEFAULT 0,
  `evict_warned`  TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 once the inactivity letter has been sent',
+ `selected`     TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 for the house the Homestone uses when the account owns two',
  PRIMARY KEY (`id`),
  UNIQUE KEY `idx_housing_plot_unique` (`neighborhoodId`, `plotIndex`),
  KEY `idx_housing_owner_account` (`ownerAccount`),

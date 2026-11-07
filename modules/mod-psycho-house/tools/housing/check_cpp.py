@@ -335,6 +335,38 @@ def find_repo():
     return os.path.dirname(HERE)
 
 
+def check_constants(cpp_files, headers):
+    """Every constant in the header is read by something outside the header.
+
+    A `constexpr` nobody reads is the residue of a feature that was rewritten: the number
+    still looks authoritative, it appears in reviews, and it changes nothing. One of these had
+    survived every revision - a hunt cache respawn timer that nothing had ever consulted,
+    because the cache is never consumed. A constant that is only a default for a setting is
+    fine as long as the loader reads it.
+    """
+    defines = os.path.join(HERE, "src", "game", "Housing", "HousingDefines.h")
+    with open(defines, encoding="utf-8") as handle:
+        text = handle.read()
+    names = re.findall(r"^\s*constexpr\s+[\w:<>\s]+?\s+(k[A-Za-z0-9]+)\s*=", text, re.M)
+
+    # The header counts as a reader - several of these constants exist for the inline phase
+    # helpers beside them - but the declaration itself must not, or every constant passes.
+    stripped = re.sub(r"^\s*constexpr[^;]*;", "", text, flags=re.M)
+
+    corpus = stripped
+    for path, body in list(cpp_files.items()) + list(headers.items()):
+        if os.path.abspath(path) == os.path.abspath(defines):
+            continue
+        corpus += body
+
+    dead = [name for name in names if not re.search(r"\b" + name + r"\b", corpus)]
+    for name in dead:
+        fail("HousingDefines.h", "`{}` is a constant and nothing reads it".format(name))
+
+    print("  {:>3} constants, every one read outside the header".format(len(names)))
+    return names
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=find_repo(),
@@ -373,6 +405,7 @@ def main():
     check_definitions(cpp_files, declared, args.repo)
     check_reachable(cpp_files, args.repo)
     check_gossip_actions(cpp_files)
+    check_constants(cpp_files, headers)
 
     tables = module_schema()
     for path, text in list(cpp_files.items()) + list(headers.items()):

@@ -133,6 +133,13 @@ def applied_keys():
             continue
         if member.startswith("_") and re.search(r"\b" + member + r"\b", others):
             continue
+        # A key whose member is only reachable through an inline accessor in the header -
+        # `GetXpPerPerk() const { return _xpPerPerk; }` - is read wherever that accessor is
+        # called, which is the whole point of writing it that way.
+        header = read(MGREXTRA_H)
+        accessor = re.search(r"(\w+)\(\)\s*const\s*\{\s*return\s+" + member + r"\s*;", header)
+        if member.startswith("_") and accessor and re.search(r"\b" + accessor.group(1) + r"\b", others):
+            continue
         dead.append((key, member))
     return dead
 

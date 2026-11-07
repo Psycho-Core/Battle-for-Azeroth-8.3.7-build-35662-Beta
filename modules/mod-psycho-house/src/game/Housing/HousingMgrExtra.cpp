@@ -634,6 +634,8 @@ namespace Housing
             case ArchiveExpired:    return "the archive has expired";
             case NotGuild:          return "that is not a guild neighbourhood";
             case AlreadyKnown:      return "already done";
+            case RateLimited:       return "too many messages, wait a moment";
+            case NoBattlePet:       return "that creature is not a battle pet you own";
             default:                return "unknown";
         }
     }
@@ -1593,7 +1595,7 @@ namespace Housing
             player->RewardQuest(quest, 0, player, false);
 
         if (granted)
-            GrantHouseXp(player, kXpPerNewDecor * granted);
+            GrantHouseXp(player, _xpPerDecor * granted);
 
         return Ok;
     }
@@ -1695,7 +1697,7 @@ namespace Housing
         TC_LOG_INFO("housing", "account {} earned {} piece(s) of decor from source type {} id {}",
             accountId, granted, uint32(sourceType), sourceId);
 
-        GrantHouseXp(player, kXpPerNewDecor * granted);
+        GrantHouseXp(player, _xpPerDecor * granted);
         SendChunk(player, Trinity::StringFormat("S:RESULT|DECOR|0|{}", granted));
     }
 
@@ -1711,7 +1713,8 @@ namespace Housing
         // The factor is clamped so a nearly empty neighbourhood is still playable and a huge
         // one is not punished with an impossible number.
         uint32 const residents = std::max<uint32>(1, GetNeighborhoodPopulation(neighborhood));
-        float const factor = std::min(3.0f, std::max(0.5f, float(residents) / 10.0f));
+        float const factor = std::min(_endeavorScaleCap,
+            std::max(_endeavorScaleFloor, float(residents) / 10.0f));
 
         return std::max<uint32>(1, uint32(float(baseRequired) * factor));
     }
@@ -2062,12 +2065,12 @@ namespace Housing
 
             if (itr->second.first == accountId)
             {
-                itr->second.second = now + kReservationSeconds * 1000;
+                itr->second.second = now + _reservationSeconds * 1000;
                 return Ok;
             }
         }
 
-        _reservations[plotIndex] = std::make_pair(accountId, now + kReservationSeconds * 1000);
+        _reservations[plotIndex] = std::make_pair(accountId, now + _reservationSeconds * 1000);
         return Ok;
     }
 
@@ -2991,6 +2994,48 @@ namespace Housing
             }
 
             SendResult(player, "RESERVE", ReservePlot(player, uint8(plotIndex)));
+            return true;
+        }
+
+        // The two houses an account can own, and which one the Homestone uses. Retail's
+        // dashboard lists both and the Homestone goes to the chosen one; without this the
+        // Homestone went to whichever plot the neighbourhood map happened to yield first.
+        if (op == "HOMES")
+        {
+            std::string payload;
+            uint32 const selected = GetHomePlot(accountId)
+                ? GetHomePlot(accountId)->GetHousingId() : 0;
+            uint32 count = 0;
+
+            for (HousingPlot* plot : GetOwnedPlots(accountId))
+            {
+                if (!plot->GetNeighborhood())
+                    continue;
+
+                payload += Trinity::StringFormat("S:HOMES|{}|{}|{}|{}|{}|{};",
+                    plot->GetHousingId(), uint32(plot->GetIndex()),
+                    plot->GetNeighborhood()->GetId(), plot->GetNeighborhood()->GetName(),
+                    uint32(plot->GetHousingId() == selected ? 1 : 0),
+                    uint32(plot->GetSizeClass()));
+                ++count;
+            }
+
+            payload += Trinity::StringFormat("S:HOMESEND|{};", count);
+            SendChunk(player, payload);
+            return true;
+        }
+
+        if (op == "SELECTHOME")
+        {
+            uint32 housingId = 0;
+            if (fields.size() < 2 || !HousingAddon::ParseUInt(fields[1], housingId))
+            {
+                SendResult(player, "SELECTHOME", InvalidPlot);
+                return true;
+            }
+
+            HousingResult const result = SelectHouse(player, housingId);
+            SendResult(player, "SELECTHOME", result, result == Ok ? housingId : 0);
             return true;
         }
 
