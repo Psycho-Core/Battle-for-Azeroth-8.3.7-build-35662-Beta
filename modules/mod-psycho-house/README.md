@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 40 server settings, all 64 commands, the six client
+  14-settings-and-commands.md  all 41 server settings, all 64 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -35,7 +35,7 @@ modules/mod-psycho-house/
   src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
                          neighbourhoods, the houses, the Endeavor engine, the four NPC
                          scripts and the five gameobject scripts
-  src/scripts/Housing/   commands (48 of them), player/world/guild hooks, loader
+  src/scripts/Housing/   commands (64 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
@@ -212,6 +212,26 @@ than names - which is exactly where an unchecked answer goes wrong.
 | 171 | **Dyeing was free, so it was not a decision.** Retail's dyes are crafted by Alchemy and Inscription, tradeable and sold on the auction house; here a dye change cost nothing and doc 06 sec.2.4 described recipes that do not exist while sec.2.3 said no dye is consumed - the two halves of one document contradicted each other | `Housing.Dye.Cost` prices a change, defaults to 0, and re-applying the colour a piece already has stays free. Doc 06 sec.2.4 now says why there is no dye item: an item and a spell row per colour would have to be invented, and seventy-seven invented ids is a worse trade than a price the realm sets |
 | 172 | **The palette claim was quietly wrong.** Retail has 77 colours in nine groups; `housing_dye` seeds six words, and nothing said so - a reader comparing the two counts had to work out that a dye here is a recoloured game object rather than a client dye | Doc 06 sec.2.2 states the rule: a colour exists when the realm's own furniture names carry that word, the draft seeds six, and `bind_decor_variants.sql` fills the variants from whatever is in `housing_dye`, so a realm that adds a seventh word gets its variants |
 | 173 | **A documented gap that was never written down, and a stale line beside it.** Doc 09 sec.5.13 describes three vendor gates and doc 01 sec.7.5 lists them; only two are implemented. Doc 10 said "nothing is enforced yet - that is phase 3", which had been false since the milestone gate shipped | Doc 02 sec.3 has the ninth substitution: currency and milestone gates are enforced, the entitlement gate is not, because both named entitlements lack an id. Doc 10 now says which half is enforced and which half waits |
+## Audit pass, forty-second revision
+
+The Coffer was bound by a name nobody could check, and the founding minimum in doc 01 had no
+owner at all. Fixing the first turned up a second defect underneath it: the loader was not
+reading the columns the binder writes.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 205 | **The Coffer's object name was an exact match with no fallback and no report.** Amenity 23 asks the binder for a game object named `Coffer`, and the only coffer-shaped constant in the build's own tree is `GO_TALON_KING_COFFER` (187372), whose template name is *Dark Talon Pennant*. A realm whose `gameobject_template` has no `Coffer` gets entry 0, no object spawns, and the milestone payout is gossip-only again - while the SQL reports success, because `COALESCE` turns a missed join into a zero | Section 1 of `bind_housing_content.sql` gained a second amenity pass: an exact `name =` bind first, then a `LIKE` substring bind that fires **only** when exactly one row matches, with `HAVING COUNT(*) = 1` so two candidates are reported as ambiguous rather than sorted-first. No type filter is applied, because the record does not say what type a coffer is and a wrong filter is worse than a wide one. Section 7 gained two lists - every amenity whose entry is still 0, with its candidate count, and every amenity that did bind, with the entry, name, type and `ScriptName` it got - so a realm reads what happened instead of trusting a count |
+| 206 | **`HousingMgr::LoadAmenities` selected ten columns and read the two that matter nowhere.** `housing_amenity` has carried `gameobject_entry` and `creature_entry` since the table was written; the loader never selected either, so every amenity in the world was a bare map pin - board, portal, contractor, vendors and the Coffer alike - and binding the Coffer in SQL alone would have changed nothing. Two revisions of amenity work sat on top of a loader that was one column short | The SELECT is twelve columns, `LoadAmenities` fills `info.GameObjectEntry` and `info.CreatureEntry`, and the load line counts the pins: `Loaded %u amenities, %u with no object and no NPC (map pins only)`. `.housing amenities` now ends each line with what the row spawns - `object <entry>`, `npc <entry>` or `pin only - nothing spawns` - so the same answer is available standing in the town centre |
+| 207 | **Doc 01 sec.6 asks for a minimum head-count to found a neighbourhood and nothing owned it.** The record separates founding from occupancy - "minimum players (not characters) to found, and a minimum occupancy to keep running" - and the module had `Housing.Neighborhood.MinResidents` for the second half and `Housing.Neighborhood.MaxFounded` for how many streets an account may open, which is a different question. A charter could be founded by one character standing alone with nothing to say otherwise | `Housing.Neighborhood.MinFounders` (default 3, clamped 1-40, 1 lifts it): `FoundNeighborhood` counts the players of the founder's group standing on the housing map, founder included, and refuses a private charter below the number with the new result code 39 `NotEnoughFounders` and a log line that says how many were counted. Guild and public streets are exempt, because neither is founded by a head-count. Forty-one settings |
+
+| checker | result |
+| --- | --- |
+| `check_cpp.py` | 0 findings; the twelve-column SELECT and its `fields[N]` reads agree, and `CountPresentFounders` is reached from `FoundNeighborhood` |
+| `check_reference.py` | 0 findings; 41 settings in two drafts, 41 recorded, 41 documented |
+| `check_mariadb.py` | 0 findings on the two new statements and the two new report lists |
+| `check_protocol.py` | 0 findings; result code 39 is in the protocol document's enum table |
+| `audit.py` | 0 findings across 11 checks |
+
 ## Audit pass, forty-first revision
 
 The addon protocol had no document, and the four places that said it did pointed at a
@@ -357,11 +377,16 @@ plots: the ring layout above. Persistence: one phase slot per neighbourhood, `Ne
 = 60000 + slot`. Public, guild and charter types: `FindNeighborhoodFor` opens public ones as
 needed, `GetOrCreateGuildWing` gives a guild its wing under `Housing.Guild.Wings`, and
 `FoundNeighborhood` writes a charter. Minimums and dissolution: `Housing.Neighborhood.PopulationCap`,
-`Housing.Neighborhood.MinResidents` and `RunDissolutionSweep`. Sanctuary: `EnforceBiomeRules`
+`Housing.Neighborhood.MinFounders` - the head-count a charter needs standing there, players and
+not characters, founder included, guild and public streets exempt - `Housing.Neighborhood.MinResidents`
+and `RunDissolutionSweep`. Sanctuary: `EnforceBiomeRules`
 re-asserts no-PvP every two seconds on a housing map. No bank and no auction house: nothing on
 the housing maps opens either. Neighbourhood NPCs: steward, contractor, dye crafter,
 decor vendors and the smuggler in `HousingNpc.cpp`; the lumberjack has no npc id in the
-record and is served by the builder vendors, which is the eighth row of doc 02 sec.3. Endeavor Coffer: `go_housing_coffer`.
+record and is served by the builder vendors, which is the eighth row of doc 02 sec.3. Endeavor Coffer: `go_housing_coffer`, attached by `tools/sql/bind_housing_content.sql` to whatever
+object the realm's `gameobject_template` calls a coffer, matched exactly first and then by a
+substring that only wins when it is the sole candidate - and `.housing amenities` names every pin
+that bound to nothing, so a realm with no coffer object can see that instead of wondering.
 Plots spaced so yards do not intrude: the ring spacing and `yard_radius`.
 
 **Section 7, permissions.** Plot and house masks, five audiences each, per house:
@@ -394,7 +419,7 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 (3363) for neighbourhood stock, War Resources (1560) reused for themed vendors,
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
-**Settings.** 40 keys in the conf file, all read by `LoadConfig` and all clamped, printable
+**Settings.** 41 keys in the conf file, all read by `LoadConfig` and all clamped, printable
 with `.housing config`. Six client preferences on the Settings tab. 64 commands, 56 player and
 8 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.

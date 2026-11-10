@@ -235,7 +235,8 @@ namespace Housing
         OnCooldown           = 35,
         NotInGuild           = 36,
         GuildRankTooLow      = 37,
-        WrongNeighborhood    = 38
+        WrongNeighborhood    = 38,
+        NotEnoughFounders    = 39   // a charter needs a minimum head-count present (doc 01 sec.6)
     };
 
     // Flag bits

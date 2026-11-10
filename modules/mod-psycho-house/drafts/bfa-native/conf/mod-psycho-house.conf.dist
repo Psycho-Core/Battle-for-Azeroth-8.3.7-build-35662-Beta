@@ -222,6 +222,18 @@ Housing.Neighborhood.MinResidents = 0
 
 Housing.Neighborhood.MaxFounded = 1
 
+#   Housing.Neighborhood.MinFounders
+#       Description: how many players have to be standing together to found a charter
+#                    neighbourhood - doc 01 sec.6's "minimum players, not characters". The
+#                    count is the founder plus party members on the same map, because the map
+#                    is the neighbourhood. Guild neighbourhoods are not covered: the guild
+#                    already exists and its roster is its membership. 1 turns the minimum off.
+#       Default:     3
+#
+#       Retail publishes the rule and not the number, so 3 is this module's own.
+
+Housing.Neighborhood.MinFounders = 3
+
 #   Housing.Neighborhood.DissolveGraceDays
 #       Description: Days an empty neighbourhood is left standing before it is dissolved.
 #       Default:     30

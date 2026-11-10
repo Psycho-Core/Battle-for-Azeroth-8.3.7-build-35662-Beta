@@ -30,6 +30,7 @@
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
 #include "GameObject.h"
+#include "Group.h"
 #include "HousingBlueprint.h"
 #include "HousingDecor.h"
 #include "HousingEndeavor.h"
@@ -648,6 +649,7 @@ namespace Housing
             case NotInGuild:        return "not in a guild";
             case GuildRankTooLow:   return "guild rank too low";
             case WrongNeighborhood: return "wrong neighbourhood";
+            case NotEnoughFounders: return "not enough people standing here to found a neighbourhood";
             case NotReady:          return "not ready";
             case OnCooldown:        return "on cooldown";
             case LevelTooLow:       return "house level too low";
@@ -666,6 +668,37 @@ namespace Housing
     // -------------------------------------------------------------------------
     // Membership
     // -------------------------------------------------------------------------
+
+    uint32 HousingMgr::CountPresentFounders(Player* player) const
+    {
+        if (!player)
+            return 0;
+
+        uint32 count = 1;   // the founder is standing here; that is the premise of the request
+
+        Group* group = player->GetGroup();
+        if (!group)
+            return count;
+
+        for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
+        {
+            Player* member = itr->GetSource();
+
+            if (!member || member == player || !member->IsInWorld())
+                continue;
+
+            // On the same map. The neighbourhoods are phase slots of one housing map, so this
+            // is the widest honest reading of "standing here": a party scattered across capitals
+            // does not count, and a party that has gathered on the housing map has gone there
+            // to found the street together. A name in a roster is not a person present.
+            if (member->GetMapId() != player->GetMapId())
+                continue;
+
+            ++count;
+        }
+
+        return count;
+    }
 
     HousingResult HousingMgr::FoundNeighborhood(Player* player)
     {
@@ -704,6 +737,21 @@ namespace Housing
             Guild* guild = sGuildMgr->GetGuildById(guildId);
             if (!guild || guild->GetLeaderGUID() != player->GetGUID())
                 return GuildRankTooLow;
+        }
+
+        // doc 01 sec.6: a charter is founded by a minimum number of players, not characters.
+        // A guild wing is not covered by this: the guild exists already and its roster is the
+        // membership, so a guild leader founding one is not one person claiming a street.
+        if (type == NeighborhoodPrivate && _minFounders > 1)
+        {
+            uint32 const present = CountPresentFounders(player);
+
+            if (present < _minFounders)
+            {
+                TC_LOG_INFO("housing", "Account %u tried to found a charter with %u of %u people present",
+                    accountId, present, _minFounders);
+                return NotEnoughFounders;
+            }
         }
 
         std::string const name = GenerateNeighborhoodName(faction);

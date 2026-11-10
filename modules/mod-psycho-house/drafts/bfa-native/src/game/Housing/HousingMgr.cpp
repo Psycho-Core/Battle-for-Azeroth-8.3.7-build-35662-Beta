@@ -211,6 +211,13 @@ void HousingMgr::LoadConfig()
     _maxFounded = uint32(std::max(0, sConfigMgr->GetIntDefault("Housing.Neighborhood.MaxFounded", 1)));
     note("Housing.Neighborhood.MaxFounded", _maxFounded);
 
+    // doc 01 sec.6: a neighbourhood is founded by a minimum number of players, not characters.
+    // Retail publishes the rule and not the number, so 3 is this module's own - the smallest
+    // group that reads as more than one person deciding. 1 turns the minimum off.
+    _minFounders = uint32(std::min(40, std::max(1,
+        sConfigMgr->GetIntDefault("Housing.Neighborhood.MinFounders", 3))));
+    note("Housing.Neighborhood.MinFounders", _minFounders);
+
     std::string const mode = sConfigMgr->GetStringDefault("Housing.Map.Mode", "native");
     _nativeMap = mode != "anchor";
     noteText("Housing.Map.Mode", mode);
@@ -492,8 +499,16 @@ void HousingMgr::LoadAmenities()
     _amenities.clear();
     _amenityList.clear();
 
+    // The two entry columns are what the spawner uses, so they have to be here. They were not:
+    // the select named ten fields and those are eleven and twelve, which is why every amenity
+    // stayed a pin on the map no matter what `bind_housing_content.sql` resolved. A row with
+    // no object and no NPC is legal - it is a marker - but it is worth one log line so an
+    // operator can see how many of them the realm has.
+    uint32 pinsOnly = 0;
+
     if (QueryResult result = WorldDatabase.Query(
-        "SELECT `id`, `biome_id`, `name`, `type`, `x`, `y`, `z`, `o`, `radius`, `flags` FROM `housing_amenity`"))
+        "SELECT `id`, `biome_id`, `name`, `type`, `x`, `y`, `z`, `o`, `radius`, `flags`, "
+        "`gameobject_entry`, `creature_entry` FROM `housing_amenity`"))
     {
         do
         {
@@ -507,12 +522,20 @@ void HousingMgr::LoadAmenities()
             info.Pos = Position(fields[4].GetFloat(), fields[5].GetFloat(), fields[6].GetFloat(), fields[7].GetFloat());
             info.Radius = fields[8].GetFloat();
             info.Flags = fields[9].GetUInt32();
+            info.GameObjectEntry = fields[10].GetUInt32();
+            info.CreatureEntry = fields[11].GetUInt32();
+
+            if (!info.GameObjectEntry && !info.CreatureEntry)
+                ++pinsOnly;
 
             _amenities[info.Id] = info;
             _amenityList.push_back(info);
         }
         while (result->NextRow());
     }
+
+    TC_LOG_INFO("housing", "Loaded %u amenities, %u with no object and no NPC (map pins only)",
+        uint32(_amenityList.size()), pinsOnly);
 }
 
 void HousingMgr::LoadHunts()
