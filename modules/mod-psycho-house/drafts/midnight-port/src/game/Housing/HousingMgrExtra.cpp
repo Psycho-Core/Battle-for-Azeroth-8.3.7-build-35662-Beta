@@ -1924,6 +1924,90 @@ namespace Housing
         return fallback;
     }
 
+    HousingResult HousingMgr::BuyDecorCopy(Player* player, uint32 decorId, uint32 count)
+    {
+        if (!_enabled || !player || !player->GetSession())
+            return Disabled;
+
+        count = std::min<uint32>(std::max<uint32>(1, count), 50);
+
+        DecorInfo const* info = GetDecor(decorId);
+        if (!info)
+            return InvalidDecor;
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+
+        uint64 const cost = GoldToCopper(info->Price) * uint64(count);
+
+        if (info->Currency == kCurrencyGold && !player->HasEnoughMoney(int64(cost)))
+            return NotEnoughMoney;
+
+        if (info->Currency == kCurrencyGold)
+            player->ModifyMoney(-int64(cost));
+
+        // A duplicate is only sold for something already unlocked, and buying one counts as
+        // unlocking it - the first copy comes home from the vendor, the second from here.
+        if (!HasUnlocked(accountId, decorId))
+        {
+            CharacterDatabase.DirectPExecute(
+                "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, "
+                "`source_id`, `acquired`) VALUES ({}, {}, {}, {}, UNIX_TIMESTAMP())",
+                accountId, decorId, uint32(info->SourceType), info->SourceId);
+            _collection[accountId].insert(decorId);
+        }
+
+        AddStorage(accountId, decorId, count);
+        return Ok;
+    }
+
+    HousingResult HousingMgr::PlaceDecorInFront(Player* player, uint32 decorId, float distance,
+        bool indoor, uint64& placementId)
+    {
+        placementId = 0;
+
+        if (!_enabled || !player)
+            return Disabled;
+
+        distance = std::min(30.0f, std::max(0.0f, distance));
+
+        bool const isIndoor = indoor || player->GetMapId() == _interiorMapId;
+
+        float x = player->GetPositionX() + std::cos(player->GetOrientation()) * distance;
+        float y = player->GetPositionY() + std::sin(player->GetOrientation()) * distance;
+        float z = player->GetPositionZ();
+
+        if (Map* map = player->GetMap())
+        {
+            float const ground = map->GetHeight(player->GetPhaseShift(), x, y, z, true, 50.0f);
+            if (ground > INVALID_HEIGHT)
+                z = ground;
+        }
+
+        // Facing is kept, so a chair placed this way faces the way the player is looking at
+        // it rather than the way the player is facing. Half a turn is the difference.
+        float const o = Position::NormalizeOrientation(player->GetOrientation() + 3.1415927f);
+
+        return PlaceDecor(player, decorId, x, y, z, o, 1.0f, isIndoor, placementId);
+    }
+
+    HousingResult HousingMgr::SetBuildMode(Player* player, bool on, uint32 decorId)
+    {
+        if (!_enabled || !player)
+            return Disabled;
+
+        PlayerState* state = GetPlayerState(player);
+        if (!state)
+            return InternalError;
+
+        if (on && !state->HasOwnedPlot)
+            return NoHouse;
+
+        state->InBuildMode = on;
+        state->PendingDecorId = on ? decorId : 0;
+
+        return Ok;
+    }
+
     // -------------------------------------------------------------------------
     // Storage
     // -------------------------------------------------------------------------
@@ -3269,38 +3353,13 @@ namespace Housing
             if (fields.size() >= 3)
                 HousingAddon::ParseUInt(fields[2], count);
 
-            count = std::min<uint32>(std::max<uint32>(1, count), 50);
+            HousingResult const result = BuyDecorCopy(player, decorId, count);
 
-            DecorInfo const* info = GetDecor(decorId);
-            if (!info)
-            {
-                SendResult(player, "BUYCOPY", InvalidDecor);
-                return true;
-            }
+            if (result == Ok)
+                SendChunk(player, Trinity::StringFormat("S:STORAGE|{}|{};", decorId,
+                    GetStorageCount(player->GetSession()->GetAccountId(), decorId)));
 
-            uint64 const cost = GoldToCopper(info->Price) * uint64(count);
-            if (info->Currency == kCurrencyGold && !player->HasEnoughMoney(int64(cost)))
-            {
-                SendResult(player, "BUYCOPY", NotEnoughMoney);
-                return true;
-            }
-
-            if (info->Currency == kCurrencyGold)
-                player->ModifyMoney(-int64(cost));
-
-            if (!HasUnlocked(accountId, decorId))
-            {
-                CharacterDatabase.DirectPExecute(
-                    "REPLACE INTO `character_housing_collection` (`accountId`, `decorId`, `source_type`, "
-                    "`source_id`, `acquired`) VALUES ({}, {}, {}, {}, UNIX_TIMESTAMP())",
-                    accountId, decorId, uint32(info->SourceType), info->SourceId);
-                _collection[accountId].insert(decorId);
-            }
-
-            AddStorage(accountId, decorId, count);
-            SendChunk(player, Trinity::StringFormat("S:STORAGE|{}|{};", decorId,
-                GetStorageCount(accountId, decorId)));
-            SendResult(player, "BUYCOPY", Ok);
+            SendResult(player, "BUYCOPY", result);
             return true;
         }
 
@@ -3536,25 +3595,9 @@ namespace Housing
             if (fields.size() >= 4)
                 HousingAddon::ParseUInt(fields[3], indoor);
 
-            bool const isIndoor = indoor != 0 || player->GetMapId() == _interiorMapId;
-
-            float x = player->GetPositionX() + std::cos(player->GetOrientation()) * distance;
-            float y = player->GetPositionY() + std::sin(player->GetOrientation()) * distance;
-            float z = player->GetPositionZ();
-
-            if (Map* map = player->GetMap())
-            {
-                float const ground = map->GetHeight(player->GetPhaseShift(), x, y, z, true, 50.0f);
-                if (ground > INVALID_HEIGHT)
-                    z = ground;
-            }
-
-            // Facing is kept, so a chair placed this way faces the way the player is looking
-            // at it rather than the way the player is facing. Half a turn is the difference.
-            float const o = Position::NormalizeOrientation(player->GetOrientation() + 3.1415927f);
-
             uint64 placementId = 0;
-            HousingResult const result = PlaceDecor(player, decorId, x, y, z, o, 1.0f, isIndoor, placementId);
+            HousingResult const result = PlaceDecorInFront(player, decorId, distance, indoor != 0,
+                placementId);
 
             SendResult(player, "PLACEAT", result, result == Ok ? placementId : 0);
             return true;
@@ -3569,16 +3612,11 @@ namespace Housing
                 return true;
             }
 
-            state.InBuildMode = on != 0;
-
+            uint32 decorId = 0;
             if (fields.size() >= 3)
-            {
-                uint32 decorId = 0;
                 HousingAddon::ParseUInt(fields[2], decorId);
-                state.PendingDecorId = decorId;
-            }
 
-            SendResult(player, "BUILDMODE", Ok);
+            SendResult(player, "BUILDMODE", SetBuildMode(player, on != 0, decorId));
             return true;
         }
 

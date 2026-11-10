@@ -1789,45 +1789,92 @@ end
 local guidePane = NewPane("guide")
 
 local guideHeader = NewLabel(guidePane, "GameFontNormalLarge", "TOPLEFT", 0, 0)
-guideHeader:SetText("What this menu sends")
+guideHeader:SetText("Every request this menu can send")
 
-local GUIDE_LINES = {
-    "|cffffd100House|r      C:NEIGHBORHOOD, C:PLOT <n>, C:HOME, C:LEAVE, C:NAME <text>,",
-    "            C:LOCK <0|1>, C:TIER <2-5>",
-    "|cffffd100Catalogue|r  C:DECOR [category] [page] [subcategory] -> S:DECORENTRY per decor, S:DECOREND at the end",
-    "|cffffd100Buy|r        C:BUYDECOR <id> -> S:BUYRESULT",
-    "|cffffd100Placed|r     C:PLACED -> S:PLACEDENTRY per placement, S:PLACEDEND",
-    "|cffffd100Neighbours|r C:PLOTS -> S:PLOT per plot; C:DIR <page> -> S:DIRENTRY",
-    "|cffffd100Place|r      C:PLACE <decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]",
-    "|cffffd100Move|r       C:MOVE <placementId> <x> <y> <z> <o> <scale> [pitch] [roll]",
-    "|cffffd100Remove|r     C:REMOVE <placementId>",
-    "|cffffd100Guests|r     C:GUESTLIST, C:GUESTADD <name> <flags>, C:GUESTDEL <name>",
-    "|cffffd100Access|r     C:ACCESS <0 yard|1 inside> <mask> -> S:RESULT; the masks come back on S:PLOTINFO",
-    "|cffffd100Amenities|r  C:VAREA -> S:VAREA per amenity, S:VAREAEND at the end",
-    "|cffffd100Finder|r     C:FINDER -> S:FINDER per open neighbourhood, S:FINDEREND",
-    "|cffffd100Visit|r      C:VISIT <neighborhood> <plot>, C:JOIN <neighborhood>, C:RESERVE <plot>",
-    "|cffffd100Neighbourhood|r C:FOUND, C:LEAVENB, C:MOVEHOUSE <plot>, C:FAVOR, C:BUY <plot>, C:SELL",
-    "|cffffd100Storage|r    C:STORAGE -> S:STORAGE per copy, C:BUYCOPY <decorId> <count>",
-    "|cffffd100Shells|r     C:SHELLS / C:SHELL <id> -> S:SHELL per exterior",
-    "|cffffd100Rooms|r      C:ROOMS / C:ROOM <id> -> S:ROOM per room",
-    "|cffffd100Progression|r C:LEVELUP, C:ENDEAVOR, C:DELIVER, C:CLAIM <milestone>",
-    "|cffffd100Devices|r    C:ARCANE (weekly Sphere), C:ARMILLARY [0-4] (level 6, five presets)",
-    "|cffffd100Travel|r     C:GRYPHON (gold + cooldown), C:PORTALS, C:GOPORTAL <id>",
-    "|cffffd100Dyes|r      C:DYES -> S:DYE per colour the server has; C:DYE <placement> <colour> [group], 0 strips it",
-    "|cffffd100Blueprints|r C:BPIMP <code>, C:BPEXP -> S:BPCODE, C:RESTORE",
-    "|cffffd100Place at|r   C:PLACEAT <decorId> <metres> [indoor], C:BUILDMODE <0|1> [decorId]",
+local guideNote = NewLabel(guidePane, "GameFontDisableSmall", "TOPLEFT", 0, -24)
+guideNote:SetWidth(500)
+guideNote:SetText("A tab, the C: ops it sends, and the /housing verb that does the same thing "
+    .. "without the menu. HELLO and PING are the handshake the addon announces itself with, so "
+    .. "they are the only two without a verb.")
+
+local guideScroll = CreateFrame("ScrollFrame", "PsychoHouseGuideScroll", guidePane, "UIPanelScrollFrameTemplate")
+guideScroll:SetPoint("TOPLEFT", guidePane, "TOPLEFT", 0, -66)
+guideScroll:SetPoint("BOTTOMRIGHT", guidePane, "BOTTOMRIGHT", -28, 0)
+
+local guideContent = CreateFrame("Frame", nil, guideScroll)
+guideContent:SetSize(500, 1)
+guideScroll:SetScrollChild(guideContent)
+
+-- Each op is paired with the verb that does the same thing, one pair per line, so the
+-- equivalence is data rather than a sentence. The previous version of this tab drifted twice:
+-- it was missing seven ops the addon sends, and it claimed every line had a command when
+-- three of them did not. check_claims.py reads this table and fails on either.
+local GUIDE_ROWS = {
+    { "House", {
+        { "C:NEIGHBORHOOD", "list" }, { "C:PLOT", "info" }, { "C:HOME", "home" },
+        { "C:HOMES", "homes" }, { "C:SELECTHOME", "selecthome" }, { "C:INTERIOR", "interior" },
+        { "C:ENTER", "enter" }, { "C:LEAVE", "leave" }, { "C:NAME", "name" },
+        { "C:LOCK", "lock" }, { "C:TIER", "tier" }, { "C:LEVELUP", "levelup" } } },
+    { "Catalogue", {
+        { "C:DECOR", "decor" }, { "C:BUYDECOR", "buydecor" }, { "C:BUYCOPY", "buycopy" } } },
+    { "Placed", {
+        { "C:PLACED", "placed" }, { "C:PLACE", "place" }, { "C:MOVE", "move" },
+        { "C:REMOVE", "remove" }, { "C:PLACEAT", "placeat" }, { "C:BUILDMODE", "buildmode" },
+        { "C:PET", "pet" }, { "C:ARMILLARY", "armillary" } } },
+    { "Rooms", {
+        { "C:SHELLS", "shell" }, { "C:SHELL", "shell" }, { "C:ROOMS", "rooms" },
+        { "C:ROOM", "rooms" } } },
+    { "Storage", {
+        { "C:STORAGE", "storage" } } },
+    { "Dyes", {
+        { "C:DYES", "dyes" }, { "C:DYE", "dye" } } },
+    { "Map", {
+        { "C:VAREA", "amenities" }, { "C:ARCANE", "arcanostorage" } } },
+    { "Neighbours", {
+        { "C:PLOTS", "list" }, { "C:DIR", "dir" }, { "C:FINDER", "finder" },
+        { "C:VISIT", "visit" }, { "C:RESERVE", "reserve" }, { "C:BUY", "buy" },
+        { "C:SELL", "sell" }, { "C:JOIN", "join" }, { "C:LEAVENB", "leavenb" },
+        { "C:FOUND", "found" }, { "C:MOVEHOUSE", "movehouse" }, { "C:FAVOR", "favor" },
+        { "C:GUESTLIST", "guest" }, { "C:GUESTADD", "guest" }, { "C:GUESTDEL", "guest" } } },
+    { "Travel", {
+        { "C:PORTALS", "portal" }, { "C:GOPORTAL", "portal" }, { "C:GRYPHON", "gryphon" } } },
+    { "Endeavors", {
+        { "C:ENDEAVOR", "endeavor" }, { "C:DELIVER", "deliver" },
+        { "C:CLAIM", "claim" } } },
+    { "Hunts", {
+        { "C:HUNTS", "hunt" }, { "C:HUNT", "hunt" } } },
+    { "Blueprints", {
+        { "C:BPEXP", "bp" }, { "C:BPIMP", "bpimport" }, { "C:RESTORE", "restore" } } },
+    { "Access", {
+        { "C:ACCESS", "access" } } },
 }
 
-for index, line in ipairs(GUIDE_LINES) do
-    local label = NewLabel(guidePane, "GameFontHighlightSmall", "TOPLEFT", 0, -30 - ((index - 1) * 20))
-    label:SetWidth(540)
-    label:SetText(line)
+for index, row in ipairs(GUIDE_ROWS) do
+    local y = -((index - 1) * 46)
+
+    local ops = {}
+    local verbs = {}
+    local seen = {}
+
+    for _, pair in ipairs(row[2]) do
+        table.insert(ops, pair[1])
+
+        if not seen[pair[2]] then
+            seen[pair[2]] = true
+            table.insert(verbs, pair[2])
+        end
+    end
+
+    local heading = NewLabel(guideContent, "GameFontNormal", "TOPLEFT", 0, y)
+    heading:SetWidth(480)
+    heading:SetText(string.format("%s%s|r  %s", GOLD, row[1], table.concat(ops, ", ")))
+
+    local commands = NewLabel(guideContent, "GameFontHighlightSmall", "TOPLEFT", 12, y - 18)
+    commands:SetWidth(470)
+    commands:SetText(DIM .. ".housing " .. table.concat(verbs, ", ") .. RESET)
 end
 
-local guideNote = NewLabel(guidePane, "GameFontDisableSmall", "TOPLEFT", 0, -256)
-guideNote:SetWidth(540)
-guideNote:SetText("Every one of these has a /housing equivalent. The menu exists so nobody has to " ..
-    "type them, not so the transport is hidden.")
+guideContent:SetHeight(math.max(1, #GUIDE_ROWS * 46))
 
 -- ---------------------------------------------------------------------------
 -- Settings

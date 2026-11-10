@@ -86,6 +86,10 @@ namespace Housing
         VendorInfo const* GetVendor(uint32 id) const;
         AmenityInfo const* GetAmenity(uint32 id) const;
 
+        /// Every amenity row, in load order. Doc 14 lists what `.housing amenities` prints and
+        /// the addon's Amenities tab prints the same five fields from the same list.
+        std::vector<AmenityInfo> const& GetAmenities() const { return _amenityList; }
+
         // ---- riddle hunts ----------------------------------------------------
 
         std::vector<HuntInfo> const& GetHunts() const { return _huntList; }
@@ -161,6 +165,18 @@ namespace Housing
             float scale, float pitch = 0.0f, float roll = 0.0f);
         HousingResult RemoveDecor(Player* player, uint64 placementId);
         HousingResult BuyDecor(Player* player, uint32 decorId);
+
+        /// A duplicate of a piece already unlocked, charged at its own price. `C:BUYCOPY` and
+        /// `.housing buycopy` are the same call, not two implementations of it.
+        HousingResult BuyDecorCopy(Player* player, uint32 decorId, uint32 count);
+
+        /// Drop a piece in front of the player and snap it to the ground. The coordinates never
+        /// leave the server: `C:PLACEAT` and `.housing placeat` both call this.
+        HousingResult PlaceDecorInFront(Player* player, uint32 decorId, float distance,
+            bool indoor, uint64& placementId);
+
+        /// The placement gizmo's state. `C:BUILDMODE` and `.housing buildmode`.
+        HousingResult SetBuildMode(Player* player, bool on, uint32 decorId);
 
         /// What a piece actually costs this player: the stock override, plus the smuggler's
         /// mark-up for a piece their faction cannot buy at home.

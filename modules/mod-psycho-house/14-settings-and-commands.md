@@ -82,7 +82,7 @@ being applied from a setting that is being ignored.
 
 ## 3. Every command
 
-49 commands, of which 41 are player commands and 8 are GM commands. `.housing` with no argument
+64 commands, of which 56 are player commands and 8 are GM commands. `.housing` with no argument
 prints this list from the command table itself, so the in-game help cannot drift from what the
 server dispatches.
 
@@ -94,6 +94,8 @@ server dispatches.
 | `.housing sell` | `-` | player | sell the house back; the refund is Housing.Sell.RefundPercent of the price |
 | `.housing enter` | `<plot>` | player | teleport into a plot, subject to the guest rules |
 | `.housing home` | `-` | player | homestone: teleport to the house door, on the Housing.Homestone.Cooldown |
+| `.housing homes` | `[housingId]` | player | the houses on this account, marked with the one the homestone uses; with an id, the same as `.housing selecthome` |
+| `.housing selecthome` | `<housingId>` | player | choose which of the account's two houses the homestone and `.housing home` go to |
 | `.housing leave` | `-` | player | teleport back to the Town Center landing point |
 | `.housing interior` | `<enter|exit>` | player | step through the door into the interior or back out |
 | `.housing tier` | `<1-12>` | player | set the house level directly (a GM shortcut; the normal route is GrantHouseXp) |
@@ -103,9 +105,12 @@ server dispatches.
 | `.housing armillary` | `[0-4]` | player | the Hearthlight Armillary: prints the five presets and cycles to the next one, or sets the preset named |
 | `.housing decor` | `[category] [page] [subcategory]` | player | the catalogue, filtered by faction, category and subcategory, paged |
 | `.housing buydecor` | `<id>` | player | buy a decor item with gold or the row's currency |
+| `.housing buycopy` | `<decorId> [count]` | player | buy more copies of a piece already in the collection, up to 50 at a time |
 | `.housing placed` | `-` | player | every placement in the house with id, decor, position and scale |
 | `.housing place` | `<decorId> <x> <y> <z> <o> <scale> <indoor> [pitch] [roll]` | player | place a piece at a typed coordinate; the two tilt angles are optional and in radians |
 | `.housing move` | `<placementId> <x> <y> <z> <o> <scale> [pitch] [roll]` | player | move, rescale or tilt a placement |
+| `.housing placeat` | `<decorId> [metres] [indoor]` | player | place a piece on the ground in front of the player - no coordinates to type |
+| `.housing buildmode` | `<0|1> [decorId]` | player | turn the placement gizmo on or off, optionally with the piece it is holding |
 | `.housing remove` | `<placementId>` | player | take a piece down; the copy goes back to storage |
 | `.housing tilt` | `<placementId> <pitch deg> [roll deg]` | player | tilt one piece without retyping its position; the easier half of `.housing move` |
 | `.housing pet` | `<placementId> <stationary|roaming|clear>` | player | put the companion that is currently summoned on a pet bed, asleep or wandering, or take it off |
@@ -113,15 +118,25 @@ server dispatches.
 | `.housing finder` | `-` | player | public neighbourhoods on the player's faction, with the owned/total count |
 | `.housing visit` | `<neighbourhood> <plot>` | player | visit another neighbourhood's plot, subject to its guest rules |
 | `.housing reserve` | `<plot>` | player | hold a free plot for 60 seconds while it is bought |
+| `.housing join` | `<neighbourhood>` | player | join a public or charter neighbourhood; `.housing finder` lists them |
+| `.housing leavenb` | `-` | player | leave the neighbourhood the player lives in |
+| `.housing found` | `-` | player | found a new neighbourhood and become its owner |
+| `.housing movehouse` | `<plot>` | player | move the house to another free plot on the same street |
+| `.housing amenities` | `-` | player | every amenity in the town centre: type, name, position, biome |
+| `.housing favor` | `-` | player | the Neighbourhood Favor standing in the player's own street |
 | `.housing storage` | `-` | player | every decor copy in storage, with counts |
 | `.housing levelup` | `-` | player | pay the Contractor to reach the next level without the experience |
+| `.housing hunt` | `[id]` | player | the ten riddle hunts with the state of each (0 not taken, 1 looking, 2 found); with an id, take that hunt |
 | `.housing shell` | `[id]` | player | list the exterior shells with their size, gate, faction and building, or choose one by id |
+| `.housing rooms` | `[id]` | player | the room shapes the house can build, with their slot cost and level gate; with an id, buy that room |
 | `.housing bindshell` | `<shellId> <entry>` | GM | point a shell at a game object: the shells ship unbound because no 8.3.7 object is named "the Human cottage" (doc 06 sec.1.5) |
 | `.housing dye` | `<placement> <colour> [group]` | player | dye one placed piece; colour 0 strips it, and the group defaults to whichever one this piece keeps that colour in |
 | `.housing bp` | `[kind] [name]` | player | export a build code, PHP1 format |
 | `.housing bpimport` | `<code>` | player | import a build code |
 | `.housing restore` | `-` | player | recover a sold or evicted house from the archive |
 | `.housing portal` | `<id>` | player | use one of the house portals |
+| `.housing gryphon` | `-` | player | call the travel gryphon, with its gold cost and cooldown |
+| `.housing arcanostorage` | `-` | player | open the weekly Arcanostorage Sphere once the house is level 10 |
 | `.housing endeavor` | `-` | player | the active Endeavor, its tasks and its milestone |
 | `.housing deliver` | `-` | player | hand in the Endeavor delivery task |
 | `.housing claim` | `<milestone>` | player | claim a milestone reward once the milestone is reached |
@@ -139,7 +154,9 @@ server dispatches.
 | `.housing forcesell` | `<plot>` | GM | sell a plot on behalf of its owner |
 
 Two of those rows are parents: `.housing guest` and `.housing neighbor` have their own
-subcommands, listed in the Arguments column.
+subcommands, listed in the Arguments column. Between them the 64 verbs cover every `C:` op the
+addon sends except `C:HELLO` and `C:PING`, which are the transport handshake - the Guide tab
+lists the mapping, and `check_claims.py` fails if an op has no verb or the tab has lost one.
 
 ## 4. The client settings
 

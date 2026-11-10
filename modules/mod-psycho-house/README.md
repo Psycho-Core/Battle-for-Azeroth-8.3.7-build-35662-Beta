@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 40 server settings, all 49 commands, the six client
+  14-settings-and-commands.md  all 40 server settings, all 64 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -211,6 +211,18 @@ than names - which is exactly where an unchecked answer goes wrong.
 | 171 | **Dyeing was free, so it was not a decision.** Retail's dyes are crafted by Alchemy and Inscription, tradeable and sold on the auction house; here a dye change cost nothing and doc 06 sec.2.4 described recipes that do not exist while sec.2.3 said no dye is consumed - the two halves of one document contradicted each other | `Housing.Dye.Cost` prices a change, defaults to 0, and re-applying the colour a piece already has stays free. Doc 06 sec.2.4 now says why there is no dye item: an item and a spell row per colour would have to be invented, and seventy-seven invented ids is a worse trade than a price the realm sets |
 | 172 | **The palette claim was quietly wrong.** Retail has 77 colours in nine groups; `housing_dye` seeds six words, and nothing said so - a reader comparing the two counts had to work out that a dye here is a recoloured game object rather than a client dye | Doc 06 sec.2.2 states the rule: a colour exists when the realm's own furniture names carry that word, the draft seeds six, and `bind_decor_variants.sql` fills the variants from whatever is in `housing_dye`, so a realm that adds a seventh word gets its variants |
 | 173 | **A documented gap that was never written down, and a stale line beside it.** Doc 09 sec.5.13 describes three vendor gates and doc 01 sec.7.5 lists them; only two are implemented. Doc 10 said "nothing is enforced yet - that is phase 3", which had been false since the milestone gate shipped | Doc 02 sec.3 has the ninth substitution: currency and milestone gates are enforced, the entitlement gate is not, because both named entitlements lack an id. Doc 10 now says which half is enforced and which half waits |
+## Audit pass, fortieth revision
+
+The Guide tab said every line had a `/housing` equivalent, and for three of them that was not
+true. It is true now, and a checker reads the table rather than the sentence.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 197 | **The Guide tab listed 24 lines while the addon sent 61 ops.** `C:HOMES`, `C:SELECTHOME`, `C:HUNTS`, `C:HUNT`, `C:PET`, `C:INTERIOR` and `C:ENTER` were sent by the window and named nowhere in it, and the tab was a flat list of hand-written strings that nothing compared to the client | The tab is a scroll frame built from `GUIDE_ROWS`: one row per tab, each op paired with the verb that does the same thing, rendered from the data. 59 ops, 52 verbs, and `HELLO`/`PING` named as the handshake they are |
+| 198 | **"Every one of these has a /housing equivalent" was false in three places.** `MoveHouse`, `JoinNeighborhood` and the amenity list behind `C:VAREA` had no command at all - the addon was the only way to move a house, join a public street or read the town centre's amenities. The ten riddle hunts and the two-house selector were in the same state | Fifteen verbs: `homes`, `selecthome`, `join`, `leavenb`, `found`, `movehouse`, `amenities`, `hunt`, `rooms`, `buycopy`, `placeat`, `buildmode`, `gryphon`, `arcanostorage`, `favor`. The command table goes from 49 to 64 |
+| 199 | **Three of those ops had their logic in the protocol handler, so a command could only have been a second copy of it.** `C:BUYCOPY`, `C:PLACEAT` and `C:BUILDMODE` were dispatched inline in `HandleExtendedOp` | Lifted into `BuyDecorCopy`, `PlaceDecorInFront` and `SetBuildMode`, and the protocol handler now calls them. One implementation, two doors into it |
+| 200 | **The sentence itself was the defect.** A claim about completeness that lives in a font string is true on the day it is written. The tab's closing note now says what it means and `check_claims.py` parses `GUIDE_ROWS`: every op the addon sends must be listed, every listed op must be one the addon sends, every paired verb must be in the command table, and every verb must be in doc 14. The Guide's own table is cut out of the "sent" corpus first, so the list cannot satisfy itself |
+
 ## Audit pass, thirty-ninth revision
 
 Two findings from the thirty-eighth audit, both about documents promising something the data
@@ -370,7 +382,7 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
 **Settings.** 40 keys in the conf file, all read by `LoadConfig` and all clamped, printable
-with `.housing config`. Six client preferences on the Settings tab. 49 commands, 41 player and
+with `.housing config`. Six client preferences on the Settings tab. 64 commands, 56 player and
 8 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.
 
