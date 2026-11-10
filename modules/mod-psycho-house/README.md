@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 40 server settings, all 48 commands, the six client
+  14-settings-and-commands.md  all 40 server settings, all 49 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -92,7 +92,7 @@ publish entry ids for the interior quests.
 | `data/vendor_npc_ids.csv` | 39 vendors: npc id, catalogue item count and slug. All 39 npc ids are confirmed against a live NPC page, Hordranin included (250820). The item column sums to 1 155, the catalogue total the register works from. |
 | `tools/housing/merge_capture.py` | Merges one vendor capture file from `data/captures/` into both CSVs: replaces that vendor's stock rows, or adds to them with `--append` when a vendor stands as two npcs, adds the ids, keeps an empty price empty and preserves an existing gate note. Re-running it is safe. |
 | `tools/housing/build_drafts.py` | Builds both drafts from the CSVs: vendor rows, decor catalogue, stock rows, the progression file both drafts import, and the native catalogue's name refresh. Re-running rewrites every generated file. |
-| `tools/housing/build_progression.py` | The progression content both drafts share: the 12-level house ladder with its three decor budgets, 6 exterior shells, the 17 rooms of retail's catalogue, 10 portal destinations, 4 Endeavors with 24 tasks and 16 reward rows. Imported by `build_drafts.py`, so the two drafts cannot disagree about what a level 8 house costs. |
+| `tools/housing/build_progression.py` | The progression content both drafts share: the 12-level house ladder with its three decor budgets, 12 exterior shells, the 17 rooms of retail's catalogue, 10 portal destinations, 4 Endeavors with 24 tasks and 16 reward rows. Imported by `build_drafts.py`, so the two drafts cannot disagree about what a level 8 house costs. |
 | `tools/sql/bind_night_variants.sql` | Pairs each catalogue piece with the realm's own lit twin - same name and type with `Lit ` in front - so the Armillary's dark presets respawn pieces as their lit form. Reports how many pieces got one. |
 | `tools/sql/bind_housing_content.sql` | Turns the search names the draft rows ship with into ids out of the realm's own `gameobject_template`, `creature_template`, `item_template`, `quest_template` and `game_tele`, then prints what stayed unbound. Every subquery is `COALESCE`d to 0 so one missing name cannot stop the file. |
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
@@ -211,6 +211,18 @@ than names - which is exactly where an unchecked answer goes wrong.
 | 171 | **Dyeing was free, so it was not a decision.** Retail's dyes are crafted by Alchemy and Inscription, tradeable and sold on the auction house; here a dye change cost nothing and doc 06 sec.2.4 described recipes that do not exist while sec.2.3 said no dye is consumed - the two halves of one document contradicted each other | `Housing.Dye.Cost` prices a change, defaults to 0, and re-applying the colour a piece already has stays free. Doc 06 sec.2.4 now says why there is no dye item: an item and a spell row per colour would have to be invented, and seventy-seven invented ids is a worse trade than a price the realm sets |
 | 172 | **The palette claim was quietly wrong.** Retail has 77 colours in nine groups; `housing_dye` seeds six words, and nothing said so - a reader comparing the two counts had to work out that a dye here is a recoloured game object rather than a client dye | Doc 06 sec.2.2 states the rule: a colour exists when the realm's own furniture names carry that word, the draft seeds six, and `bind_decor_variants.sql` fills the variants from whatever is in `housing_dye`, so a realm that adds a seventh word gets its variants |
 | 173 | **A documented gap that was never written down, and a stale line beside it.** Doc 09 sec.5.13 describes three vendor gates and doc 01 sec.7.5 lists them; only two are implemented. Doc 10 said "nothing is enforced yet - that is phase 3", which had been false since the milestone gate shipped | Doc 02 sec.3 has the ninth substitution: currency and milestone gates are enforced, the entitlement gate is not, because both named entitlements lack an id. Doc 10 now says which half is enforced and which half waits |
+## Audit pass, thirty-ninth revision
+
+Two findings from the thirty-eighth audit, both about documents promising something the data
+did not do: the exterior shells, and the level ladder.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 193 | **Six shells, two sizes, two factions, and the wrong gate.** `housing_shell` had Cottage / Townhouse / Manor for two factions: no Night Elf or Blood Elf kit, Townhouse at `size_class` 1 gated at level 1, and Manor - the large frame - at level 8, where doc 01 sec.3.3 and doc 02 put medium. A level-1 character could buy a manor frame and a medium at the same time | Twelve rows: Human, Night Elf, Orc and Blood Elf kits in retail's three sizes, gated 1 / 8 / 12. `GetStarterShell` dresses a new plot in the small shell of the buyer's kit at purchase, borrowing a kit for an allied race, so a fresh house is a house and not a lawn |
+| 194 | **All six shells pointed at the same guess.** Every row carried the search stem `'House'`, and the bind statement ran `name LIKE '%House%'` with `MIN(entry)` as the tiebreak - so all six got whichever building with "House" in its name happened to be oldest, and no error if it was a ruined farmhouse | The stems are gone and the rows ship unbound (`gameobject_entry` 0, which `SpawnPlotShell` reads as "no building yet"). The object is chosen on the realm: `.housing bindshell <shellId> <entry>` validates against `gameobject_template` and writes the row, and `go_name` still works as an exact match rather than a substring. The bind file lists candidates instead of picking one (doc 06 sec.1.5) |
+| 195 | **The level ladder was a straight line between retail's endpoints, and two documents called it verbatim.** Level 2 shipped 1370 interior and 29 rooms where doc 01 sec.3.1 has 1155 and 24; level 7 shipped 3180 and 82 rooms against 3180 and 68; level 9 4593 and 103 against 4340 and 95. Only 1 and 12 agreed | All twelve rows are the record's own numbers, in `build_progression.py`, in both drafts and in the compiled fallback in `HousingDefines.h`. The exterior column is flat between 3, 5 and 7 because retail raises it there and not every level. The sentence that called an interpolation verbatim now says what it is: column for column |
+| 196 | **Nothing held the ladder to the record.** The table existed in three places - the record's prose, the SQL, the compiled fallback - and no rule compared them, which is why an interpolated table could be described as retail's for several revisions | `check_coverage.py` gained a `ladder` rule: it parses doc 01 sec.3.1, resolves the "-" cells in the exterior column as "unchanged", and compares all twelve rows against both drafts and against the three arrays in `HousingDefines.h`. Mutation-tested by restoring the old level-2 interior budget |
+
 ## Audit pass, thirty-eighth revision
 
 The room catalogue was three different catalogues wearing the same name. This pass made them
@@ -253,8 +265,10 @@ and completed by the four module events. House cost 1 000g, no upkeep, no lotter
 faction: `character_housing` keyed on account and faction, `TooManyHouses` for the second.
 First purchase by a character of the matching faction, every alt afterwards: `CheckAccess`
 reads the account. Fifty-five plots: `housing_plot`, ten in the centre ring and the rest in
-rings at `90 + 70 * ring` yards. Starter exteriors: `housing_shell` rows 1-6, small Human and
-Orc at level 1, and the Night Elf and Blood Elf small shells alongside them. Alt-wide
+rings at `90 + 70 * ring` yards. Starter exteriors: `housing_shell` rows 1-4, the small Human,
+Night Elf, Orc and Blood Elf kits at level 1, and `GetStarterShell` dresses a new plot in the
+one that matches the buyer's race, so a fresh house is a house. Medium shells at level 8 are
+rows 5-8, large at 12 are rows 9-12. Alt-wide
 collection: `character_housing_storage` is keyed on the account, and `GrantHouseXp` pays the
 same XP whoever earned it.
 
@@ -279,12 +293,11 @@ the eviction sweep, a street removal and a dissolved neighbourhood.
 tasks at `Housing.Xp.PerEndeavorTask` (50), and the Coffer's 250: `EndeavorMgr::CompleteTask`
 and `EndeavorMgr::Claim`. The twelve thresholds, the
 interior, room and outdoor budgets and the room unlocks are one table, `housing_house_level`,
-in `07_progression.sql`. XP and the exterior budget are retail's verbatim; the interior and room
-columns are retail's endpoints with the eleven steps between them interpolated, because the
-guide publishes the ends and not the middle. Level-up at the General
+in `07_progression.sql`, populated with doc 01 sec.3.1 column for column - all twelve rows, no
+interpolated middle. Level-up at the General
 Contractor, never automatically: `npc_housing_contractor`, `LevelUpWithGold` or the free claim
 once the XP is there. Medium exteriors at 8 and large at 12: `housing_shell.level_required`
-and `ApplyShell`. The level-10 weekly Arcanostorage Sphere: `OpenArcanostorage`, on
+and `ApplyShell`, over the four racial kits of doc 01 sec.4. The level-10 weekly Arcanostorage Sphere: `OpenArcanostorage`, on
 `Housing.Arcanostorage.Level` and `Housing.Arcanostorage.CooldownDays`.
 
 **Section 4, customization.** Basic mode snapping: `H.SnapValue`, `H.SnapAngle` and
@@ -357,8 +370,8 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
 **Settings.** 40 keys in the conf file, all read by `LoadConfig` and all clamped, printable
-with `.housing config`. Six client preferences on the Settings tab. 48 commands, 41 player and
-7 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
+with `.housing config`. Six client preferences on the Settings tab. 49 commands, 41 player and
+8 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.
 
 **What is not here, and why.** Nine rows in doc 02 sec.3 are substitutions rather than

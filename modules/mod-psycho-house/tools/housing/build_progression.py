@@ -17,12 +17,15 @@ Two rules run through it, both learned the hard way in this folder:
   * anything I could not verify is commented as such, in the row, not in a changelog.
 """
 
-# Retail's ladder. XP thresholds are retail's. The three budgets are retail's endpoints
-# (910 to 5975 indoor, 19 to 134 room, 200 to 350 exterior) with the eleven steps between
-# them filled in as a straight line - the guide publishes the ends, not the middle.
-# Retail's ladder. XP thresholds are retail's. The three budgets are retail's endpoints
-# (910 to 5975 indoor, 19 to 134 room, 200 to 350 exterior) with the eleven steps between
-# them filled in as a straight line - the guide publishes the ends, not the middle.
+# Retail's ladder, from doc 01 sec.3.1, column for column - every level, not the endpoints
+# with a straight line drawn between them. The first version of this table did interpolate:
+# 1370 indoor at level 2 where retail has 1155, 3180 at 7 where retail has 3180 only by
+# coincidence, and 29 rooms where retail has 24 - while two documents called the result
+# verbatim. If a column here and the record ever disagree, the record wins and the checker
+# below says so.
+#
+# The exterior column is the one that does not change every level: retail raises it at 3, 5
+# and 7 and leaves it alone in between, which is why 200 and 350 each appear several times.
 #
 # The room column is a room COUNT in retail (19 rooms at level 1, 134 at 12) and
 # `budget_room` is that same number here: a shape spends one slot, or three if it is large.
@@ -31,27 +34,50 @@ Two rules run through it, both learned the hard way in this folder:
 LEVELS = [
     # level, xp, indoor, room slots, outdoor
     (1, 0, 910, 19, 200),
-    (2, 10, 1370, 29, 214),
-    (3, 1200, 1831, 40, 227),
-    (4, 2400, 2291, 50, 241),
-    (5, 3700, 2752, 61, 255),
-    (6, 5700, 3212, 71, 268),
-    (7, 7900, 3672, 82, 282),
-    (8, 10300, 4133, 92, 295),
-    (9, 12900, 4593, 103, 309),
-    (10, 15750, 5054, 113, 323),
-    (11, 18850, 5514, 124, 336),
+    (2, 10, 1155, 24, 200),
+    (3, 1200, 1450, 30, 250),
+    (4, 2400, 1745, 36, 250),
+    (5, 3700, 2050, 43, 300),
+    (6, 5700, 2360, 50, 300),
+    (7, 7900, 3180, 68, 350),
+    (8, 10300, 3500, 76, 350),
+    (9, 12900, 4340, 95, 350),
+    (10, 15750, 4675, 104, 350),
+    (11, 18850, 5545, 124, 350),
     (12, 22200, 5975, 134, 350),
 ]
 
-# shell id, name, search stem, size class, faction mask, level, flags
+# Exterior shells: the four racial kits of doc 01 sec.4 - Human and Night Elf are
+# Alliance-only, Orc and Blood Elf Horde-only - in the three sizes retail gates: small at
+# level 1, medium at 8, large at 12 (doc 01 sec.3.3).
+#
+# No row carries a search stem, and that is the change. All six rows of the first list shared
+# the stem 'House', so the bind statement ran `name LIKE '%House%'` once per row and gave a
+# Human cottage and an Orc manor whatever object with "House" in its name sorted first. A
+# 8.3.7 `gameobject_template` holds hundreds of buildings called House, Stormwind House or
+# House (ruined); none of those names means "the Human cottage". So a shell ships unbound -
+# `gameobject_entry` 0, which the module treats as "no building yet" - and the object is
+# chosen on the realm that has to look at it: `.housing bindshell <id> <entry>` in game, or a
+# `go_name` the bind statement accepts only as an exact match. Guessing here would put the
+# wrong building on every plot, which is worse than an empty yard with a door.
+#
+# (id, name, search stem, size, faction mask, level, flags)
 SHELLS = [
-    (1, "Cottage", "House", 0, 1, 1, 0),
-    (2, "Townhouse", "House", 1, 1, 1, 0),
-    (3, "Manor", "House", 2, 1, 8, 0),
-    (4, "Cottage", "House", 0, 2, 1, 0),
-    (5, "Townhouse", "House", 1, 2, 1, 0),
-    (6, "Manor", "House", 2, 2, 8, 0),
+    # --- small: level 1, the starter exterior -------------------------------------------
+    (1, "Human Cottage", "", 0, 1, 1, 0),
+    (2, "Night Elf Cottage", "", 0, 1, 1, 0),
+    (3, "Orc Cottage", "", 0, 2, 1, 0),
+    (4, "Blood Elf Cottage", "", 0, 2, 1, 0),
+    # --- medium: level 8 ----------------------------------------------------------------
+    (5, "Human Townhouse", "", 1, 1, 8, 0),
+    (6, "Night Elf Townhouse", "", 1, 1, 8, 0),
+    (7, "Orc Townhouse", "", 1, 2, 8, 0),
+    (8, "Blood Elf Townhouse", "", 1, 2, 8, 0),
+    # --- large: level 12 ----------------------------------------------------------------
+    (9, "Human Manor", "", 2, 1, 12, 0),
+    (10, "Night Elf Manor", "", 2, 1, 12, 0),
+    (11, "Orc Manor", "", 2, 2, 12, 0),
+    (12, "Blood Elf Manor", "", 2, 2, 12, 0),
 ]
 
 # Rooms are areas of the interior, not separate geometry: a room is a circle around an

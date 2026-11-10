@@ -35,6 +35,7 @@ EndScriptData */
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+#include <string>
 
 namespace
 {
@@ -204,9 +205,21 @@ namespace
 
         if (!args)
         {
+            // The list says what a shell costs and whether it has a building behind it. A
+            // shell with no object is not broken - it is one somebody has not chosen a
+            // building for yet, which is every shell on a fresh install (doc 06 sec.1.5).
+            static char const* const sizes[] = { "small", "medium", "large" };
+
             for (auto const& pair : sHousingMgr->GetShells())
-                handler->PSendSysMessage("  shell {}: {} (level {})", pair.first, pair.second.Name,
-                    uint32(pair.second.LevelRequired));
+            {
+                Housing::ShellInfo const& shell = pair.second;
+                uint8 const size = shell.SizeClass < 3 ? shell.SizeClass : 0;
+
+                handler->PSendSysMessage("  shell {}: {} ({}, level {}, {}, {})", pair.first,
+                    shell.Name, sizes[size], uint32(shell.LevelRequired),
+                    shell.FactionMask == 1 ? "Alliance" : (shell.FactionMask == 2 ? "Horde" : "both"),
+                    shell.GameObjectEntry ? std::to_string(shell.GameObjectEntry).c_str() : "no object yet");
+            }
 
             handler->PSendSysMessage("Usage: .housing shell <id>");
             return true;
@@ -217,6 +230,55 @@ namespace
             return false;
 
         handler->PSendSysMessage("Shell: {}", ResultText(sHousingMgr->ApplyShell(player, shellId)));
+        return true;
+    }
+
+    /*
+     * Which building a shell is, is a fact about the realm, not about this module: there is no
+     * game object in 8.3.7 called "the Human cottage". So the twelve shells ship unbound and
+     * this is where the object gets chosen. The entry is validated against
+     * `gameobject_template` before the row is written - a typo must not leave a shell pointing
+     * at a display that does not exist.
+     */
+    static bool HandleBindShellCommand(ChatHandler* handler, char const* args)
+    {
+        if (!args)
+        {
+            handler->PSendSysMessage("Usage: .housing bindshell <shellId> <gameobject entry>");
+            return true;
+        }
+
+        std::istringstream stream(args);
+        std::string shellText;
+        std::string entryText;
+
+        if (!(stream >> shellText >> entryText))
+        {
+            handler->PSendSysMessage("Usage: .housing bindshell <shellId> <gameobject entry>");
+            return true;
+        }
+
+        uint32 const shellId = ParseId(shellText);
+        uint32 const entry = ParseId(entryText);
+
+        if (!shellId || !entry)
+        {
+            handler->PSendSysMessage("Both arguments are numbers: shell id and game object entry.");
+            return true;
+        }
+
+        Housing::HousingResult const result = sHousingMgr->BindShell(shellId, entry);
+
+        if (result != Housing::Ok)
+        {
+            handler->PSendSysMessage("Shell {} not bound: {}.", shellId, ResultText(result));
+            return true;
+        }
+
+        handler->PSendSysMessage("Shell {} now spawns object {}. Plots already standing keep the "
+            "old building until their shell is spawned again - .housing shell <id> on the plot, "
+            "or a restart.", shellId, entry);
+
         return true;
     }
 
@@ -637,6 +699,7 @@ public:
             { "storage",  0, false, &HandleStorageCommand,    "Owned decor copies" },
             { "levelup",  0, false, &HandleLevelUpCommand,    "Pay the contractor to skip a level" },
             { "shell",    0, false, &HandleShellCommand,      "Choose or list exterior shells" },
+            { "bindshell", rbac::RBAC_PERM_COMMAND_GM, false, &HandleBindShellCommand, "Point a shell at a game object" },
             { "dye",      0, false, &HandleDyeCommand,        "Dye a placed piece" },
             { "bp",       0, false, &HandleBlueprintCommand,  "Export a build code" },
             { "bpimport", 0, false, &HandleBlueprintImportCommand, "Import a build code" },

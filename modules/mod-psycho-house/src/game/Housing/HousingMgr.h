@@ -236,6 +236,17 @@ namespace Housing
         HousingResult LevelUpWithGold(Player* player);
         HousingResult ApplyShell(Player* player, uint32 shellId);
 
+        /// Point a shell row at a building object. The shells ship unbound because no name in
+        /// `gameobject_template` means "the Human cottage" - see doc 06 sec.1.5 - so the object
+        /// is chosen on the realm that owns it, by `.housing bindshell`, and validated here
+        /// against the template table before the row is written.
+        HousingResult BindShell(uint32 shellId, uint32 gameObjectEntry);
+
+        /// The small shell that matches the character's racial kit: Human, Night Elf, Orc or
+        /// Blood Elf (doc 01 sec.4). Applied when a plot is bought so a new house is dressed,
+        /// instead of standing as a patch of grass until somebody picks an exterior by hand.
+        ShellInfo const* GetStarterShell(Player* player) const;
+
         HouseLevelInfo const* GetHouseLevel(uint8 level) const;
         ShellInfo const* GetShell(uint32 id) const;
         std::map<uint32, ShellInfo> const& GetShells() const { return _shells; }

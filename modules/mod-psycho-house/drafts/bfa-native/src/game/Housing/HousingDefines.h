@@ -126,6 +126,9 @@ namespace Housing
         PlotMine      = 3
     };
 
+    /// Retail's three exterior sizes. The middle one is called Standard here because it was
+    /// named before the record was read; it is retail's medium, and `housing_shell.size_class`
+    /// stores these values.
     enum SizeClass : uint8
     {
         SizeSmall    = 0,
@@ -384,10 +387,12 @@ namespace Housing
     }
 
     // -------------------------------------------------------------------------
-    // The level ladder. Retail publishes the XP thresholds and the endpoints of the three
-    // budgets (910 to 5975 indoor, 19 to 134 room, 200 to 350 exterior); the eleven steps
-    // between the endpoints are the straight line. housing_house_level carries the same
-    // numbers and is what the server loads, so a realm can retune without a rebuild.
+    // The level ladder, all four columns from doc 01 sec.3.1: the XP thresholds, the interior
+    // decor budget, the room count and the exterior budget. housing_house_level carries the
+    // same numbers and is what the server loads, so a realm can retune without a rebuild;
+    // these are the fallback when that table is empty, and check_coverage holds the two
+    // against the record so they cannot drift. The exterior column is flat between 3, 5 and 7
+    // because retail raises it there and not every level.
     // -------------------------------------------------------------------------
 
     inline uint32 LevelXp(uint8 level)
@@ -399,22 +404,22 @@ namespace Housing
 
     inline uint32 BudgetIndoor(uint8 level)
     {
-        static uint32 const budget[kMaxLevel + 1] = { 0, 910, 1370, 1831, 2291, 2752,
-            3212, 3672, 4133, 4593, 5054, 5514, 5975 };
+        static uint32 const budget[kMaxLevel + 1] = { 0, 910, 1155, 1450, 1745, 2050,
+            2360, 3180, 3500, 4340, 4675, 5545, 5975 };
         return level <= kMaxLevel ? budget[level] : budget[kMaxLevel];
     }
 
     inline uint32 BudgetOutdoor(uint8 level)
     {
-        static uint32 const budget[kMaxLevel + 1] = { 0, 200, 214, 227, 241, 255, 268,
-            282, 295, 309, 323, 336, 350 };
+        static uint32 const budget[kMaxLevel + 1] = { 0, 200, 200, 250, 250, 300, 300,
+            350, 350, 350, 350, 350, 350 };
         return level <= kMaxLevel ? budget[level] : budget[kMaxLevel];
     }
 
     inline uint32 BudgetRoom(uint8 level)
     {
-        static uint32 const budget[kMaxLevel + 1] = { 0, 19, 29, 40, 50, 61, 71, 82,
-            92, 103, 113, 124, 134 };
+        static uint32 const budget[kMaxLevel + 1] = { 0, 19, 24, 30, 36, 43, 50, 68,
+            76, 95, 104, 124, 134 };
         return level <= kMaxLevel ? budget[level] : budget[kMaxLevel];
     }
 

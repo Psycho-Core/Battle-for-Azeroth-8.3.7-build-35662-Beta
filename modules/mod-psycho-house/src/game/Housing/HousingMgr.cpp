@@ -27,6 +27,7 @@
 #include "GameObject.h"
 #include "Log.h"
 #include "Map.h"
+#include "MapManager.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "SocialMgr.h"
@@ -1587,18 +1588,37 @@ HousingResult HousingMgr::BuyPlot(Player* player, HousingNeighborhood* neighborh
     std::string ownerName = player->GetName();
     CharacterDatabase.EscapeString(ownerName);
 
+    // A new house arrives in the small shell of the character's racial kit. Retail's first
+    // exterior is free and automatic; without this the plot is grass until somebody runs
+    // .housing shell, which is not a thing a player should have to discover.
+    ShellInfo const* starter = GetStarterShell(player);
+    uint32 const starterShell = starter ? starter->Id : 0;
+
     CharacterDatabase.DirectPExecute(
         "INSERT INTO `character_housing` (`id`, `neighborhoodId`, `plotIndex`, `ownerAccount`, `ownerGuid`, "
-        "`ownerName`, `tier`, `blueprint`, `name`, `locked`, `budget_indoor`, `budget_outdoor`, "
-        "`purchase_time`, `last_edited`) VALUES ({}, {}, {}, {}, {}, '{}', 1, 0, '', 0, 0, 0, {}, {})",
+        "`ownerName`, `tier`, `blueprint`, `name`, `locked`, `shell_id`, `budget_indoor`, `budget_outdoor`, "
+        "`purchase_time`, `last_edited`) VALUES ({}, {}, {}, {}, {}, '{}', 1, 0, '', 0, {}, 0, 0, {}, {})",
         housingId, neighborhood->GetId(), uint32(plotIndex), accountId, player->GetGUID().GetCounter(),
-        ownerName, Now(), Now());
+        ownerName, starterShell, Now(), Now());
 
     player->ModifyMoney(-int64(cost));
 
     plot->SetOwner(housingId, accountId, player->GetGUID(), player->GetName(), 1, 0, "", false);
+
+    if (plot->GetHouse() && starterShell)
+        plot->GetHouse()->SetShellId(uint8(starterShell));
+
     plot->GetHouse()->MarkDirty();
     plot->GetHouse()->Flush();
+
+    // The building goes up now rather than at the next restart: the buyer is standing on the
+    // plot, and a plot that stays a lawn until a server restart reads as broken.
+    if (starterShell)
+    {
+        if (HousingNeighborhood* owned = plot->GetNeighborhood())
+            if (Map* map = sMapMgr->FindMap(owned->GetMapId(), 0))
+                SpawnPlotShell(plot, owned, map);
+    }
 
     if (PlayerState* state = GetPlayerState(player))
     {

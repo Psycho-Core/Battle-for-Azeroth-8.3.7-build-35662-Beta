@@ -250,7 +250,7 @@ CREATE TABLE IF NOT EXISTS `housing_shell` (
   `name`      VARCHAR(64) NOT NULL,
   `gameobject_entry` INT UNSIGNED NOT NULL DEFAULT 0,
   `go_name`   VARCHAR(128) NOT NULL DEFAULT '' COMMENT 'name the bind statement searches for',
-  `size_class` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '0 small, 1 standard, 2 large',
+  `size_class` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '0 small, 1 medium, 2 large - the three retail exterior sizes',
   `faction_mask` TINYINT UNSIGNED NOT NULL DEFAULT 3,
   `level_required` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `flags`     INT UNSIGNED NOT NULL DEFAULT 0,

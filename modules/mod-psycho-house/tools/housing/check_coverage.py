@@ -381,6 +381,81 @@ def check_script_bindings():
     return len(scripts)
 
 
+def check_level_ladder():
+    """Doc 01 sec.3.1 is the ladder. The SQL, the compiled fallback and both drafts match it.
+
+    The first version of this table was a straight line between retail's level-1 and level-12
+    numbers, and two documents called the result verbatim. Nothing caught it because the
+    record's table and the module's table were never read together: the record was prose to
+    the checker, and the SQL was data. So the record's table is parsed now, cell for cell.
+    """
+    reference = read(os.path.join(HERE, "01-retail-housing-reference.md"))
+    section = reference.split("### 3.1 The full level table")[1].split("### 3.2")[0]
+
+    documented = {}
+    outdoor = 0
+    for line in section.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 5 or not cells[0].isdigit():
+            continue
+
+        level = int(cells[0])
+
+        def number(text):
+            return int(text.replace(" ", "").replace("\u00a0", ""))
+
+        # A dash in the exterior column is retail's "unchanged from the level before", which
+        # is why the shipped column repeats 200, 250, 300 and 350.
+        if cells[4] == "-":
+            pass
+        else:
+            outdoor = number(cells[4])
+
+        documented[level] = (number(cells[1]), number(cells[2]), number(cells[3]), outdoor)
+
+    if len(documented) != 12:
+        fail("ladder", "doc 01 sec.3.1 should list 12 levels, found {}".format(len(documented)))
+        return 0
+
+    for draft in sorted(os.listdir(DRAFTS)):
+        path = os.path.join(DRAFTS, draft, "sql", "world", "07_progression.sql")
+        if not os.path.isfile(path):
+            continue
+
+        block = read(path).split("INSERT INTO `housing_house_level`")[1].split(";")[0]
+        shipped = {}
+
+        for match in re.finditer(r"\((\d+), (\d+), (\d+), (\d+), (\d+)\)", block):
+            shipped[int(match.group(1))] = tuple(int(match.group(i)) for i in (2, 3, 4, 5))
+
+        if shipped != documented:
+            for level in sorted(documented):
+                if shipped.get(level) != documented[level]:
+                    fail("ladder", "{}: level {} ships {} and doc 01 sec.3.1 has {}"
+                         .format(draft, level, shipped.get(level), documented[level]))
+
+    header = read(os.path.join(HERE, "src", "game", "Housing", "HousingDefines.h"))
+
+    compiled = {}
+    for name, column in (("BudgetIndoor", 1), ("BudgetRoom", 2), ("BudgetOutdoor", 3)):
+        found = re.search(r"inline uint32 {}\(uint8 level\)\s*\{{\s*static uint32 const budget\[kMaxLevel \+ 1\] = \{{([^}}]*)\}}"
+                          .format(name), header)
+        if not found:
+            fail("ladder", "HousingDefines.h has no {} array to check".format(name))
+            continue
+
+        values = [int(value) for value in re.findall(r"\d+", found.group(1))]
+
+        for level in range(1, 13):
+            if documented[level][column] != values[level]:
+                fail("ladder", "HousingDefines.h {}[{}] is {} and doc 01 sec.3.1 has {}"
+                     .format(name, level, values[level], documented[level][column]))
+
+    print("  {:>3} levels, doc 01 sec.3.1, both drafts and the compiled fallback agreeing"
+          .format(len(documented)))
+    return len(documented)
+
+
 def check_room_catalogue():
     """Doc 04 sec.3's room table, doc 01 sec.3.2's starter list, and the SQL, all one list.
 
@@ -475,6 +550,7 @@ def main():
     b_decor, b_stock = check_native()
     b_hunts = check_hunts("bfa-native", "03_decor_native.sql")
     check_script_bindings()
+    check_level_ladder()
     check_room_catalogue()
     check_documented_counts()
 

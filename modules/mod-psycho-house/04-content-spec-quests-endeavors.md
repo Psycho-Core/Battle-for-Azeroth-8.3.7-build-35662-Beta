@@ -32,18 +32,18 @@ Design notes:
 ## 2. House levels as content
 
 The level table is `housing_house_level`, shipped in `07_progression.sql` and loaded by
-`LoadHouseLevels` at startup: retail's twelve XP thresholds and its exterior budgets verbatim,
-and its interior and room endpoints with the steps between them interpolated, because the
-guide publishes the ends of those two curves and not the middle. The beats below are what each
-level is *for*. Content implications I am committing to:
+`LoadHouseLevels` at startup, and it is doc 01 sec.3.1 column for column: twelve XP thresholds,
+twelve interior budgets, twelve room counts, twelve exterior budgets. Nothing between the
+levels is my arithmetic. The beats below are what each level is *for*. Content implications I
+am committing to:
 
 | Level | Content beat |
 | --- | --- |
 | 1 | Starter shell, the twelve-shape Initial Room Collection, 910/19/200 budgets |
-| 2 | +460 interior, +10 room slots, *Square Room (Medium)* - reachable in one evening (10 XP = one decor)* |
+| 2 | +245 interior, +5 room slots, *Square Room (Medium)* - reachable in one evening (10 XP = one decor)* |
 | 3-5 | Room unlocks, exterior budget steps, the "my house is taking shape" phase |
 | 6 | Hearthlight Armillary as a *placeable ambience device* (not a dye-tier system) |
-| 7 | +460 interior, +11 room slots - the "I built a manor" level |
+| 7 | +820 interior, +18 room slots - the "I built a manor" level, and the last exterior tier |
 | 8-9 | Medium exteriors, then the second big budget step |
 | 10 | Weekly *Treasures from Distant Lands* random decor |
 | 11-12 | Large exteriors, endgame prestige |
@@ -85,8 +85,17 @@ per-shape numbers are mine; retail publishes that bigger rooms cost more and not
 They are set so the twelve-shape Initial Room Collection fits a level-1 house with three slots
 to spare: 16 of the 19. `character_housing.rooms_owned` counts slots spent, not rooms built.
 
-The exteriors are the shells, and they are separate from this list: `housing_shell`, six rows,
-one per size and faction, with the level gate on the medium and large ones.
+The exteriors are the shells, and they are separate from this list: `housing_shell`, twelve
+rows - the four racial kits of doc 01 sec.4 (Human and Night Elf for the Alliance, Orc and
+Blood Elf for the Horde) in the three sizes retail gates. Small at level 1, medium at 8, large
+at 12 (doc 01 sec.3.3), so a new house cannot buy its way into a manor frame. A plot is
+dressed in the small shell of the owner's kit at purchase, and `ApplyShell` swaps it once the
+house has reached the size.
+
+The shells ship with no building behind them. `gameobject_entry` 0 means "not chosen yet" and
+the plot is grass with a door; the object is picked on the realm that owns it, because no name
+in an 8.3.7 `gameobject_template` means "the Human cottage" and a substring search for "House"
+is a guess about somebody else's database. Doc 06 sec.1.5.
 
 One thing this list does **not** carry is a gold price. A room in retail costs gold as well as
 budget, and `housing_room` has no price column, so a room is bought with budget alone here - the

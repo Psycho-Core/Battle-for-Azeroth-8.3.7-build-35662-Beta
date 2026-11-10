@@ -65,7 +65,7 @@ Practical plan:
 | --- | --- | --- |
 | Terrain ADT (one tile, edited from an existing zone) | 1 | Low - reuse and resculpt |
 | Exterior shells (small/medium/large x 4 races) | 12 | High - each needs an interior floor plan |
-| Room shells (18) | 18 | Medium - mostly modular walls/floors/ceilings |
+| Room shells (17) | 17 | Medium - mostly modular walls/floors/ceilings |
 | Amenity props (stage, beer garden, moonwell, bulletin board, mailbox stand) | ~10 | Low - many exist in 8.3.7 already |
 | Custom furniture families (if the harvest pool is not enough) | 0-20 | Only if needed; the harvested catalogue is the plan |
 | Icons | 20-30 | Low, very high visual value |
