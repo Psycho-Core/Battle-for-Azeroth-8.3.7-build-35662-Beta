@@ -206,9 +206,28 @@ REWARDS = [
     (4, 4, 4000, 500, 3363, 200),
 ]
 
-# Creature search names for the decor that owns a creature. A piece is listed here by the
-# name of the creature it should hold, not by id: the bind statement decides.
-PET_DECOR_NAMES = ("Pepe", "Cat", "Dog", "Cockroach", "Whelpling", "Puppy")
+# Which pieces own a creature, and which creature. A pet bed is a piece in the Pets category
+# that can hold one - a cage, a nest, a basket - and nothing else is one. The first version of
+# this rule matched creature names anywhere in a decor name, so "Heartsbane Doom Catcher" was a
+# pet bed because "Cat" is in "Catcher", and "Scattered Wisps of Hay" was one too; the real
+# cages, Crossroads and Westfall, were not. Category plus a bed-shaped noun is a rule that can
+# be read back off the row.
+PET_BED_WORDS = ("cage", "nest", "basket", "pet bed")
+PET_BED_CATEGORY = "Pets"
+
+
+def pet_kind(name, category_name):
+    """0 for a pet bed, or None. One kind so far: mount stands and mannequins are reserved
+    flags with no implementation behind them, and a row claiming one would be a lie."""
+    if category_name != PET_BED_CATEGORY:
+        return None
+
+    low = name.lower()
+
+    if any(word in low for word in PET_BED_WORDS):
+        return 0
+
+    return None
 
 
 def esc(text):
@@ -218,7 +237,7 @@ def esc(text):
 def progression_sql(pet_pieces):
     """Return the whole progression file as one string.
 
-    pet_pieces: iterable of (decor_id, decor_name) for decor rows that are a pet bed.
+    pet_pieces: iterable of (decor_id, kind) for decor rows that own a creature.
     """
     out = []
     add = out.append
@@ -323,19 +342,27 @@ def progression_sql(pet_pieces):
     add("DELETE FROM `housing_decor_creature` WHERE `decor_id` >= 1000;")
     add("INSERT INTO `housing_decor_creature` (`decor_id`, `kind`, `creature_entry`, "
         "`creature_name`, `roaming`, `radius`) VALUES")
-    # The creature is named, not numbered: the entry differs between realms, so the bind
-    # statement resolves 'Cat' against the realm's own creature_template. roaming 0 puts the
-    # animal on the bed instead of walking it round the room, which is what a pet bed is.
+    # No default creature is named. Retail's pet bed holds the companion its owner puts in it,
+    # and a default would be this module deciding that every Westfall Pet Cage comes with a
+    # cat. The row exists so the piece is a bed rather than furniture - it is what makes
+    # `AssignPet` accept the placement - and `creature_entry` 0 means the bed stands empty
+    # until somebody assigns one, which is the state a new cage should be in.
     rows = []
-    for decor_id, _decor_name in pet_pieces:
-        rows.append("({}, 0, 0, 'Cat', 0, 0)".format(decor_id))
+    for decor_id, kind in pet_pieces:
+        rows.append("({}, {}, 0, '', 0, 0)".format(decor_id, kind))
     if rows:
         add(",\n".join(rows) + ";")
+        add("")
+        add("-- {} pet bed(s): a bed with no default creature, because the companion is the".format(
+            len(rows)))
+        add("-- player's and a default would put a cat in every cage.")
     else:
-        add("(0, 0, 0, '', 0, 0);")
+        add("-- No pet bed in this draft's catalogue: see the report for what a bed needs.")
+        add("-- Nothing is inserted, because a row for decor 0 is a bed on a piece that does")
+        add("-- not exist.")
     add("")
-    add("-- kind 0 pet bed, 1 mount stand, 2 mannequin. A bed whose creature_entry stays 0")
-    add("-- after the bind is furniture: the piece places and the creature is simply absent,")
-    add("-- which is visible in the audit report rather than silent.")
+    add("-- kind 0 pet bed, 1 mount stand, 2 mannequin. Only kind 0 is shipped: a mount stand")
+    add("-- and a mannequin need the owner's chosen mount or transmog, and those flags are")
+    add("-- reserved until something reads them.")
     add("")
     return "\n".join(out) + "\n"

@@ -156,9 +156,11 @@ Prices are gold unless marked. A blank price means the vendor sells the piece fo
 currency or condition the mirror does not print.
 
 Where a vendor gates stock behind Endeavor milestones, the gate is written next to the item
-("first", "second", "third", "fourth" = the milestone that unlocks it). `data/town-center-stock.csv`
-carries only the vendor-level count in its note column, because the mirror states the count
-per vendor rather than per row; doc 09 is the per-item record.
+("first", "second", "third", "fourth" = the milestone that unlocks it). For the two Endeavor
+traders - Aeeshna and Hordranin - the mirrors state which item sits behind which milestone,
+and those eighteen lines carry their milestone in `data/town-center-stock.csv` and in both
+drafts' `housing_vendor_stock`. The other four gating vendors print one count for the whole
+set; doc 09 is their per-item record and the capture carries the count alone.
 
 ### 5.1 Faarden the Builder (69, Town Center) - local and Stormwind architecture
 

@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Twelve checks, one line each, exit code 1 on a finding:
+Thirteen checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -26,6 +26,7 @@ Twelve checks, one line each, exit code 1 on a finding:
 | `reference` | The conf keys, the loader's reads and doc 14 are the same set in both directions, and the counts in the prose agree with them: 41 settings in two drafts, 41 recorded, 41 documented |
 | `claims` | Every code span in the completeness entry and in doc 02's matrix is checked against an oracle - opcode against the protocol tables, `Housing.*` against the conf, `table.column` against the schema, `Class::Member` against the source |
 | `floorplan` | The room placement rules restated in Python and run over the seventeen shapes the drafts ship: the Initial Room Collection fits a level-1 budget, nothing is placed above a floor with no stairwell under it, one room per cell, and the plan stays one piece |
+| `drafts` | The two generated drafts read as SQL rather than as documents: every `housing_decor_creature` row names a piece the draft ships and every flagged piece has one, every stock line sits on a piece its own vendor's faction can buy, both factions can buy a pet bed, and the eleven counts doc 10 states equal the rows the SQL inserts |
 
 Current result:
 
@@ -42,8 +43,9 @@ mapping      ok
 reference    ok
 claims       ok
 floorplan    ok
+drafts       ok
 
-0 finding(s) across 12 check(s)
+0 finding(s) across 13 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -1534,3 +1536,74 @@ Neither asked what a room *was* once it had been bought.
 | `check_reference.py` | 0 findings; 41 settings, 66 commands, 6 client settings |
 | `check_protocol.py` | 0 findings; 63 C: and 40 S: documented, both directions |
 | `audit.py` | 0 findings across 12 checks |
+
+### 6.38 The forty-fourth revision: pet beds that were not beds, and stock nobody could buy
+
+The question was what the ported and the native draft are each missing, so the two were read
+against each other and both against doc 10, the document whose job is to say what they ship.
+
+- **The beds.** `housing_decor_creature` is what turns a piece of decor into a bed: `AssignPet`
+  refuses a placement whose decor row is not flagged `0x010`, and the spawner looks the bed up
+  by decor id. Draft A flagged three pieces and flagged the wrong ones - *Scattered Wisps of
+  Hay*, *Elaborate Heartsbane Doom Catcher* and *Heartsbane Doom Catcher*, which contain the
+  letters `Cat` inside their names - and gave all three `creature_entry 0, creature_name 'Cat'`,
+  while the four cages on the pet vendor's stall were furniture. Draft B had no `Pets` piece at
+  all. The rule is now category-aware and shared by both drafts: `Pets`-category pieces whose
+  name is a cage, a nest, a basket or a pet bed. Draft A sells the four cages Agratha stocks
+  (1289 Cozy Bird Nest, 1291 Crossroads Pet Cage, 1292 Crude Pet Cage, 1295 Westfall Pet Cage);
+  draft B builds beds on the same cage models at 50 gold from the Pet Handler (2950 Pet Cage,
+  2951 Bristlelimb Cage, 2952 Borean Cage, 2953 Wardens Cage). Every bed is kind 0 with no
+  creature: the companion is the player's, and a default put a cat in every cage nobody had
+  touched. Kind 1 (mount stand) and 2 (mannequin) stay reserved, and the empty
+  `(0, 0, 0, '', 0, 0)` placeholder that made an empty table look populated is gone.
+- **The 233 lines.** A piece both neighbourhoods stock at the same price becomes one decor row,
+  and the row's `faction_mask` was taken from whichever hub the vendor list reached first. So 50
+  pieces Faarden the Builder sells in Founder's Point were Horde-only, 50 Horde-side pieces were
+  Alliance-only, and 233 of the 972 stock lines sat on a vendor whose own faction `BuyDecor`
+  would refuse - the four pet beds among them, which is why the beds were missing even after
+  they were correct. The mask is the union of the sides that stock the piece now: 232 both, 240
+  Horde only, 99 Alliance only. A piece each hub prices differently is still two rows at two
+  prices, because that is what the retail pages say.
+- **The 18 portcullises.** Draft B's four `Pets` rows were Icecrown roostportcullis doodads: the
+  single reject list matched `PORT`, not `DOOR`, and `Doodad Icecrown Roostportcullis 01` is a
+  gate. Dropping them took the harvested catalogue from 350 to 332, which is why the bed rows
+  are added on top of the harvest rather than replacing anything in it.
+- **The milestone column.** `housing_vendor_stock.milestone` was in the schema, read by
+  `LoadVendors` and `IsStockAvailable`, and set by nothing: every row was 0. The eighteen
+  per-item gated lines the capture states are now written with their milestone, Aeeshna's ten
+  and Hordranin's eight. The other 41 gated lines stay at 0 on purpose - the vendor page prints
+  one count for the whole set - and are listed as a comment at the end of the stock file. Hesta
+  Forlath's 14 are the Deed of Patronage, a different gate with no id in the 8.3.7 record, and
+  have their own comment rather than being filed under milestones.
+- **The gate that read the wrong vendor.** `IsStockAvailable` looked up the stock rows of
+  `DecorInfo::SourceId`, and a piece two stalls stock has one decor row naming whichever stall
+  the capture reached first. All ten of Aeeshna's gated lines are pieces Den Nightshade also
+  carries at the same coupon price, so the lookup found Den's ungated row and the gate passed
+  everybody: the column was filled and enforced against the wrong shelf. There are two
+  questions and now two functions. `IsStockAvailableAt` reads the row of the stall the player
+  stands at, and the vendor window, the price it quotes and its Buy button all use it;
+  `IsStockAvailable` answers the catalogue's question - reachable if any stall sells the piece
+  ungated - and reads every vendor's rows rather than one. `BuyDecor` takes the stall id, so a
+  race between the window and the buy path cannot decide it differently. Doc 02 sec.2 and doc
+  09 sec.5 describe the two levels rather than one.
+- **Ids that moved when a word changed.** Draft B numbered its decor rows by their position in
+  the filtered harvest, so adding `PORT CULLIS` to the reject tuple rewrote every id from 2332
+  onward - every stock row, and every placement and blueprint that pointed at one. Ids are the
+  entry's position in the whole 767-piece decor set now: the range has gaps where a piece was
+  filtered out and nothing shifts when the filter changes. `verify_drafts.py` recomputes all
+  332 from `generated/source-asset-index.csv`, and the four beds sit at 2950-2959, outside the
+  range the harvest can reach.
+- **Doc 10.** It stated 350 native decor rows when the draft shipped 336, three pet beds when
+  both drafts shipped four, a faction split that was two rows out of date before the mask fix
+  and wrong afterwards, and a gated-stock sentence that did not separate the lines recorded per
+  item from the lines left at a vendor-level count. Nothing compared it with the SQL because it
+  was not on any checker's list. It is now, in eleven places.
+
+| checker | result |
+| --- | --- |
+| `verify_drafts.py` | 0 findings; new `check_creatures`, `check_stock_side` and `check_documented_counts` rules, 336 draft rows and 11 doc counts |
+| `check_coverage.py` | 0 findings; 332 native catalogue rows and 336 stock rows, both directions |
+| `check_floorplan.py` | 0 findings; 17 shapes, unchanged |
+| `check_mariadb.py` | 0 findings; the new four-column stock insert and both drafts' progression files parsed |
+| `check_cpp.py` | 0 findings; the new `IsStockAvailableAt` and the third parameter of `BuyDecor` declared, defined and used |
+| `audit.py` | 0 findings across 13 checks |

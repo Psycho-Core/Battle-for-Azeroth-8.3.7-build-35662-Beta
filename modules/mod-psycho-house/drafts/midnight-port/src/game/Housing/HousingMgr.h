@@ -164,7 +164,12 @@ namespace Housing
         HousingResult MoveDecor(Player* player, uint64 placementId, float x, float y, float z, float o,
             float scale, float pitch = 0.0f, float roll = 0.0f);
         HousingResult RemoveDecor(Player* player, uint64 placementId);
-        HousingResult BuyDecor(Player* player, uint32 decorId);
+        /// `vendorId` is the stall the player is shopping at, when there is one. A piece can
+        /// be on two shelves at once: the same bench at the same price in Razorwind Shores and
+        /// in Founder's Point is one decor row with two stock rows, and the milestone that
+        /// gates one of those rows must not gate the other. The catalogue and the chat command
+        /// pass 0 and get the piece-level rule - reachable if any stall sells it ungated.
+        HousingResult BuyDecor(Player* player, uint32 decorId, uint32 vendorId = 0);
 
         /// A duplicate of a piece already unlocked, charged at its own price. `C:BUYCOPY` and
         /// `.housing buycopy` are the same call, not two implementations of it.
@@ -180,10 +185,16 @@ namespace Housing
 
         /// What a piece actually costs this player: the stock override, plus the smuggler's
         /// mark-up for a piece their faction cannot buy at home.
-        uint32 GetPurchasePrice(Player* player, DecorInfo const& info) const;
+        uint32 GetPurchasePrice(Player* player, DecorInfo const& info,
+            uint32 vendorId = 0) const;
 
         /// Whether the neighbourhood has passed the milestone that puts a piece on the shelf.
+        /// Piece-level: true when any stall sells it ungated, which is what the catalogue asks.
         bool IsStockAvailable(Player* player, DecorInfo const& info) const;
+
+        /// The same question about one stall's shelf. The vendor window and its Buy button use
+        /// this, because two stalls can stock one piece and gate only one of the two rows.
+        bool IsStockAvailableAt(Player* player, uint32 vendorId, uint32 decorId) const;
 
         bool HasUnlocked(uint32 accountId, uint32 decorId);
         void LoadCollection(uint32 accountId);

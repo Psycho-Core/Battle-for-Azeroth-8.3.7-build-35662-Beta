@@ -6,7 +6,7 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Eleven checks, in the order a reviewer would want them:
+Thirteen checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
@@ -17,6 +17,9 @@ Eleven checks, in the order a reviewer would want them:
            every stock vendor is in the vendor list
   sql      every INSERT tuple has the right field count and no blank field
   mapping  every decor row has a non-zero game object and a known match class
+  claims   every protocol, command, table and column the docs claim exists
+  floorplan the room placement rules, run over the shapes the drafts ship
+  drafts   the two generated drafts against each other's invariants and doc 10's counts
 
 The script never edits anything. It prints one line per finding so a bad number
 can be fixed in place instead of hunted for.
@@ -401,6 +404,23 @@ def check_floorplan(findings):
                 findings.append(("floorplan", rel(script), line.strip()))
 
 
+def check_drafts(findings):
+    """The two drafts, checked against themselves and against doc 10.
+
+    Every other check in this file reads a document or a CSV. This one reads the generated
+    SQL, which is what an operator actually runs: the pet beds and their creature rows in both
+    directions, the faction mask on every stock line and the counts doc 10 states.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "verify_drafts.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith("  "):
+                findings.append(("drafts", rel(script), line.strip()))
+
+
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
@@ -414,6 +434,7 @@ CHECKS = {
     "reference": check_reference,
     "claims": check_claims,
     "floorplan": check_floorplan,
+    "drafts": check_drafts,
 }
 
 

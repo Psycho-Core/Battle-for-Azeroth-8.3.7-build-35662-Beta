@@ -2223,13 +2223,18 @@ HousingResult HousingMgr::RemoveDecor(Player* player, uint64 placementId)
     return result;
 }
 
-uint32 HousingMgr::GetPurchasePrice(Player* player, DecorInfo const& info) const
+uint32 HousingMgr::GetPurchasePrice(Player* player, DecorInfo const& info,
+    uint32 vendorId) const
 {
     uint32 price = info.Price;
 
     if (info.SourceType == SourceVendor)
     {
-        auto const stockItr = _vendorStock.find(info.SourceId);
+        // At a stall the price is that stall's row. With no stall - the catalogue, a chat
+        // command, an addon quote - it is the source vendor's row, which is where the piece
+        // is listed. One row per price means the two only differ when two hubs disagree
+        // about what a piece costs, and then the stall the player is standing at wins.
+        auto const stockItr = _vendorStock.find(vendorId ? vendorId : info.SourceId);
         if (stockItr != _vendorStock.end())
             for (VendorStockEntry const& entry : stockItr->second)
                 if (entry.DecorId == info.Id && entry.Price)
@@ -2249,19 +2254,47 @@ bool HousingMgr::IsStockAvailable(Player* player, DecorInfo const& info) const
     if (info.SourceType != SourceVendor)
         return true;
 
-    auto const stockItr = _vendorStock.find(info.SourceId);
+    // Piece-level, for the catalogue and the chat command: a piece is reachable if any stall
+    // sells it ungated, so the gate only closes when every listing that carries it is gated.
+    // Reading the source vendor's rows alone made every gate inert the moment a second vendor
+    // stocked the same piece - the ten gated lines draft A ships were all like that.
+    bool listed = false;
+
+    for (auto const& stock : _vendorStock)
+    {
+        for (VendorStockEntry const& entry : stock.second)
+        {
+            if (entry.DecorId != info.Id)
+                continue;
+
+            listed = true;
+
+            if (!entry.Milestone || sHousingEndeavor->GetMilestoneFor(player) >= entry.Milestone)
+                return true;
+        }
+    }
+
+    return !listed;
+}
+
+bool HousingMgr::IsStockAvailableAt(Player* player, uint32 vendorId, uint32 decorId) const
+{
+    auto const stockItr = _vendorStock.find(vendorId);
     if (stockItr == _vendorStock.end())
         return true;
 
-    uint8 needed = 0;
     for (VendorStockEntry const& entry : stockItr->second)
-        if (entry.DecorId == info.Id)
-            needed = entry.Milestone;
+    {
+        if (entry.DecorId != decorId)
+            continue;
 
-    return !needed || sHousingEndeavor->GetMilestoneFor(player) >= needed;
+        return !entry.Milestone || sHousingEndeavor->GetMilestoneFor(player) >= entry.Milestone;
+    }
+
+    return true;
 }
 
-HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
+HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId, uint32 vendorId)
 {
     if (!_enabled)
         return Disabled;
@@ -2293,14 +2326,15 @@ HousingResult HousingMgr::BuyDecor(Player* player, uint32 decorId)
 
     // Milestone-gated stock: the row carries the milestone, the neighbourhood's progress
     // decides whether it is on the shelf. Hiding it in the window is not enough - the buy
-    // path checks again.
-    if (!IsStockAvailable(player, *info))
+    // path checks again, and when the player is at a stall it checks that stall's row rather
+    // than the piece's cheapest listing.
+    if (vendorId ? !IsStockAvailableAt(player, vendorId, decorId) : !IsStockAvailable(player, *info))
         return NotAllowedHere;
 
     // The stock row may override the price the decor row carries, and a smuggler adds a
     // quarter on top of whatever the piece would have cost at home. Both are decided in
     // GetPurchasePrice so that the gossip menu, which quotes it, cannot drift from this.
-    uint32 const price = GetPurchasePrice(player, *info);
+    uint32 const price = GetPurchasePrice(player, *info, vendorId);
 
     if (info->Currency != kCurrencyGold)
     {

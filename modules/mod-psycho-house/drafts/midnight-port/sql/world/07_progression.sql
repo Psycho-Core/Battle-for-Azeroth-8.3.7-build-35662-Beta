@@ -142,11 +142,15 @@ INSERT INTO `housing_dye` (`id`, `name`) VALUES
 
 DELETE FROM `housing_decor_creature` WHERE `decor_id` >= 1000;
 INSERT INTO `housing_decor_creature` (`decor_id`, `kind`, `creature_entry`, `creature_name`, `roaming`, `radius`) VALUES
-(1181, 0, 0, 'Cat', 0, 0),
-(1460, 0, 0, 'Cat', 0, 0),
-(1464, 0, 0, 'Cat', 0, 0);
+(1289, 0, 0, '', 0, 0),
+(1291, 0, 0, '', 0, 0),
+(1292, 0, 0, '', 0, 0),
+(1295, 0, 0, '', 0, 0);
 
--- kind 0 pet bed, 1 mount stand, 2 mannequin. A bed whose creature_entry stays 0
--- after the bind is furniture: the piece places and the creature is simply absent,
--- which is visible in the audit report rather than silent.
+-- 4 pet bed(s): a bed with no default creature, because the companion is the
+-- player's and a default would put a cat in every cage.
+
+-- kind 0 pet bed, 1 mount stand, 2 mannequin. Only kind 0 is shipped: a mount stand
+-- and a mannequin need the owner's chosen mount or transmog, and those flags are
+-- reserved until something reads them.
 
