@@ -353,6 +353,11 @@ namespace Housing
         /// the player leads a guild. The first plot is theirs only after they buy it.
         HousingResult FoundNeighborhood(Player* player);
 
+        /// The founder plus every party member standing on the same map. doc 01 sec.6 says a
+        /// neighbourhood is founded by a minimum number of *players*, not characters, so the
+        /// count is of people who are actually there - not of alts, not of a roster.
+        uint32 CountPresentFounders(Player* player) const;
+
         /// Membership administration. Rank 3 is the founder, 2 an officer, 1 a resident.
         HousingResult InviteToNeighborhood(Player* player, std::string const& name);
         HousingResult SetMemberRank(Player* player, std::string const& name, uint8 rank);
@@ -454,6 +459,7 @@ namespace Housing
         uint32 _xpPerDecor;         // house XP for learning a piece the house has never held
         uint32 _xpPerEndeavorTask;  // house XP for finishing one Endeavor task
         uint32 _maxFounded;         // founded neighbourhoods per account, 0 = unlimited
+        uint32 _minFounders;        // players that have to be present to found a charter, 1 = off
         uint32 _minResidents;       // for dissolving a private/guild neighbourhood
         uint32 _dissolveGraceDays;
         uint32 _arcaneLevel;        // house level needed for the Sphere

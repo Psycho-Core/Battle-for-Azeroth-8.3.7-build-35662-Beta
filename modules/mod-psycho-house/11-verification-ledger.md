@@ -10,30 +10,38 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Seven checks, one line each, exit code 1 on a finding:
+Eleven checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
 | `ascii` | Every tracked text file is pure ASCII, byte for byte. No smart quotes, no Cyrillic or Chinese left over from source comments, no stray section signs |
 | `voice` | No first person plural, no second person address, no tooling talk. Quoted material - a site error message, a quest name, a code sample - is stripped before the scan so a quoted string cannot mask a real slip |
+| `source-voice` | The same rule in the `.cpp`, `.h`, `.lua` and `.sql` files, because a comment that describes the module in the plural reads the same as a document that does |
 | `links` | Every relative markdown link and every backticked `data/`, `docs/`, `sql/`, `src/`, `addon/`, `tools/` path resolves on disk. Globs are expanded; paths into the game source tree and the post-install `PsychoHouse` names are listed as intentional |
+| `docrefs` | Every `.md` named inside a `.cpp`, `.h` or `.lua` resolves in this folder, so a comment cannot point at a document from another tree |
 | `counts` | The headline numbers in `README.md` equal the CSVs: 739 item ids, 1 056 stock rows, 87 blank prices, 618 mapped decor names |
 | `csv` | Item ids are unique per vendor, every stock vendor exists in `data/vendor_npc_ids.csv`, and any vendor without stock rows is named rather than skipped |
 | `sql` | No blank field and no unbalanced quote in any generated `INSERT` tuple |
 | `mapping` | Every decor row has a non-zero game object entry, a known constant name, and one of the five match classes |
+| `reference` | The conf keys, the loader's reads and doc 14 are the same set in both directions, and the counts in the prose agree with them: 41 settings in two drafts, 41 recorded, 41 documented |
+| `claims` | Every code span in the completeness entry and in doc 02's matrix is checked against an oracle - opcode against the protocol tables, `Housing.*` against the conf, `table.column` against the schema, `Class::Member` against the source |
 
 Current result:
 
 ```
-ascii    ok
-voice    ok
-links    ok
-counts   ok
-csv      ok
-sql      ok
-mapping  ok
+ascii        ok
+voice        ok
+source-voice ok
+links        ok
+docrefs      ok
+counts       ok
+csv          ok
+sql          ok
+mapping      ok
+reference    ok
+claims       ok
 
-0 finding(s) across 7 check(s)
+0 finding(s) across 11 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -1430,3 +1438,45 @@ check only read markdown, so nothing ever looked.
 | `audit.py` | 0 findings across 11 checks; the new `docrefs` check is the eleventh |
 | `check_mariadb.py` | 0 findings; the amenity COMMENT change is inside the statement length rule |
 | `check_claims.py` | 0 findings; the README's new rows cite nothing that is not there |
+
+### 6.36 The forty-second revision: a name nobody could check, and a head-count with no owner
+
+Two rows of the retail record were answered by assertion. One said an object called `Coffer`
+would be found in the realm's game object table; the other was never answered at all.
+
+- **The bind.** `02_world_content.sql` gives amenity 23 the object name `Coffer`, and the
+  binder matched it exactly. The only coffer-shaped constant in the build's own tree is
+  `GO_TALON_KING_COFFER` (187372), whose template name is *Dark Talon Pennant*, so the guess
+  is unverifiable against the record and the failure is silent: `COALESCE` turns the missed
+  join into entry 0 and no object is spawned.
+- **The fallback.** Section 1 of `bind_housing_content.sql` runs a second amenity pass that
+  binds on a substring, and only when exactly one row matches (`HAVING COUNT(*) = 1`). Two
+  candidates leave the entry at 0 and are reported rather than resolved alphabetically. No type
+  filter: the record does not say what type a coffer is, and a wrong filter hides more than a
+  wide one.
+- **The report.** Section 7 prints two lists - every amenity still unbound with its candidate
+  count, and every amenity that did bind with entry, name, type and `ScriptName`. A realm can
+  read what the statement did.
+- **The defect underneath.** `LoadAmenities` selected ten columns of `housing_amenity` and
+  never read `gameobject_entry` or `creature_entry`; every amenity, the Coffer included, was a
+  map pin with no object, and no amount of binding in SQL would have changed that. The SELECT
+  is twelve columns now, the load line counts the pins, and `.housing amenities` ends each row with
+  what it spawns, so a pin-only amenity is visible in game and not only in the SQL report.
+- **The head-count.** Doc 01 sec.6 asks for a minimum of players, not characters, to found a
+  neighbourhood. The module had occupancy (`Housing.Neighborhood.MinResidents`) and a limit on
+  how many streets one account may found, which is a different question, so one character could
+  charter a street alone. `Housing.Neighborhood.MinFounders` (3, clamped 1-40, 1 lifts it)
+  counts the founder's group on the housing map, founder included, and refuses a private
+  charter below it with result 39 `NotEnoughFounders`. Guild and public streets are exempt.
+  Forty-one settings.
+- **What is unverified.** The substring bind has been parsed as MySQL, not executed: there is no
+  MariaDB in the environment this was written in. Whether a given realm names its coffer
+  something the substring finds is a question only that realm's table can answer, which is what
+  the section 7 report is for.
+
+| checker | result |
+| --- | --- |
+| `check_sql_columns.py` | 0 findings; the twelve columns the new SELECT reads are columns the schema creates |
+| `check_cpp.py` | 0 findings; `fields[10]` and `fields[11]` are inside twelve, and `CountPresentFounders` has a caller |
+| `check_claims.py` | 0 findings; `MinFounders` is in the conf and the README cites it |
+| `audit.py` | 0 findings across 11 checks |

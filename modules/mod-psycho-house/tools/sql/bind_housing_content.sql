@@ -28,6 +28,30 @@ SET a.`gameobject_entry` = COALESCE((
         WHERE g.`name` = a.`go_name` AND a.`go_name` <> ''), 0)
 WHERE a.`go_name` <> '';
 
+-- The second pass: a name that is not an exact match but is the only object it could mean.
+--
+-- The Endeavor Coffer is the case this exists for. Its row asks for an object named 'Coffer',
+-- and a realm that calls the same chest 'Coffer' binds it in the statement above; a realm that
+-- calls it 'Coffers of the Deep' or 'Kezan Coffer' binds nothing, and an amenity pin with no
+-- object is a map marker and nothing else. So a second attempt matches the name as a substring.
+--
+-- The guard is the difference between this and the shell search that had to be withdrawn: the
+-- `HAVING COUNT(*) = 1` means the update only fires when exactly one object matches. Two
+-- candidates is not a tie to break, it is an ambiguity to report - the query in section 7
+-- lists every row that is still unbound and how many candidates it had, so an operator picks
+-- the chest by hand instead of getting whichever one sorted first.
+--
+-- No type filter: a coffer is a chest (type 3), a bulletin board is type 5 or 6, and a filter
+-- narrow enough to be safe is narrow enough to miss the object. The report prints the type of
+-- whatever it matched, so a wrong pick is visible rather than silent.
+
+UPDATE `housing_amenity` a
+SET a.`gameobject_entry` = COALESCE((
+        SELECT MIN(g.`entry`) FROM `gameobject_template` g
+        WHERE g.`name` LIKE CONCAT('%', a.`go_name`, '%') AND a.`go_name` <> ''
+        HAVING COUNT(*) = 1), 0)
+WHERE a.`gameobject_entry` = 0 AND a.`go_name` <> '';
+
 UPDATE `housing_amenity` a
 SET a.`creature_entry` = COALESCE((
         SELECT MIN(c.`entry`) FROM `creature_template` c
@@ -188,10 +212,40 @@ UNION ALL SELECT 'hunt caches with a housing script', COUNT(*)
     FROM `housing_hunt` h JOIN `gameobject_template` g ON g.`entry` = h.`cache_entry`
     WHERE g.`ScriptName` = 'go_housing_huntcache';
 
+-- Two lists rather than more counts, because a count says how many and an operator needs to
+-- know which.
+--
+-- What the first list prints: every amenity whose object and NPC both failed to bind. `id`,
+-- `type` and `name` identify the row; `go_name` is what it asked for; `candidates` is how many
+-- objects in `gameobject_template` contain that name at all. 0 candidates means the realm has
+-- no such object and the row needs a different name or a hand-written entry; 2 or more means
+-- the name is ambiguous and the second statement in section 1 deliberately did nothing.
+
+SELECT a.`id`, a.`name`, a.`type`, a.`biome_id`, a.`go_name`, a.`creature_name`,
+       (SELECT COUNT(*) FROM `gameobject_template` g
+         WHERE g.`name` LIKE CONCAT('%', a.`go_name`, '%')) AS `candidates`
+FROM `housing_amenity` a
+WHERE a.`gameobject_entry` = 0 AND a.`creature_entry` = 0
+ORDER BY a.`id`;
+
+-- What the second list prints: what the binder chose, so a wrong pick is visible next to the
+-- name it came from. The Endeavor Coffer is the reason - 'Coffer' matching a ship's pennant
+-- would bind, spawn and pay out, and nothing would say it had.
+
+SELECT a.`id`, a.`name`, a.`go_name`, g.`entry`, g.`name` AS `object_name`, g.`type`,
+       g.`ScriptName`
+FROM `housing_amenity` a
+JOIN `gameobject_template` g ON g.`entry` = a.`gameobject_entry`
+ORDER BY a.`id`;
+
 -- What the report means:
 --
 --   * an amenity that is still a pin only appears on the addon map and has no object in the
---     world. Fill `go_name` or `creature_name` for it and re-run;
+--     world. Fill `go_name` or `creature_name` for it and re-run, or set
+--     `gameobject_entry` by hand from the first list's candidates. A Coffer with no object
+--     still pays out - the milestone claim is on The Last Architect's gossip, on
+--     `.housing claim` and on the addon's Endeavors tab - but the chest in the square is the
+--     thing the Endeavor is supposed to put there;
 --   * a shell with entry 0 means the plot has no building on it. Set `gameobject_entry`
 --     by hand from gameobject_template, which is the honest way to choose a house model;
 --   * an unbound Endeavor task never completes. Fix `target_name` and re-run, or set

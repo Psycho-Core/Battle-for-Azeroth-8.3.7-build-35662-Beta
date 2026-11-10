@@ -728,6 +728,12 @@ namespace
         // The same five fields the addon's Amenities tab prints from S:VAREA - type, name, x,
         // y, biome - so a player reading the chat line gets what the window would have shown.
         // The names are AmenityType, in its own order, including the Coffer.
+        //
+        // One field the window does not print, because a player only needs the pin: what the
+        // row spawned. An amenity whose gameobject_entry and creature_entry are both 0 is a
+        // marker on a map and nothing in the world, and it looks exactly the same as a bound
+        // one until somebody stands where the object should be. `bind_housing_content.sql`
+        // reports the same thing in SQL; this is the same answer from in game.
         static char const* const types[] = {
             "bulletin board", "portal", "contractor", "flight point", "gathering",
             "scenery", "vendor", "endeavor", "coffer" };
@@ -735,9 +741,16 @@ namespace
         handler->SendSysMessage("Amenities in this module's town centre:");
 
         for (Housing::AmenityInfo const& amenity : amenities)
-            handler->PSendSysMessage("  {} - {} at {:.1f} {:.1f} (biome {})",
+        {
+            std::string const spawned = amenity.GameObjectEntry
+                ? "object " + std::to_string(amenity.GameObjectEntry)
+                : (amenity.CreatureEntry ? "npc " + std::to_string(amenity.CreatureEntry)
+                                         : std::string("pin only - nothing spawns"));
+
+            handler->PSendSysMessage("  {} - {} at {:.1f} {:.1f} (biome {}) - {}",
                 amenity.Type < 9 ? types[amenity.Type] : "unknown type", amenity.Name,
-                amenity.Pos.m_positionX, amenity.Pos.m_positionY, uint32(amenity.BiomeId));
+                amenity.Pos.m_positionX, amenity.Pos.m_positionY, uint32(amenity.BiomeId), spawned);
+        }
 
         return true;
     }

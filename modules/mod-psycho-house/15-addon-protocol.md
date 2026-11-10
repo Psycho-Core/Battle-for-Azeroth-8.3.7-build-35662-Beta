@@ -298,6 +298,10 @@ a protocol break.
 | 11 | `OutOfBounds` | 24 | `NotAllowedHere` | 37 | `GuildRankTooLow` |
 | 12 | `WrongSurface` | 25 | `InternalError` | 38 | `WrongNeighborhood` |
 
+`39` is `NotEnoughFounders` and is the only code above 38: founding a private charter needs
+`Housing.Neighborhood.MinFounders` players present, and the reply carries the same code whether
+it came from the window or from `.housing found`.
+
 **`PlotState`** - `S:PLOT` field 4 and `S:PLOTINFO` field 6: 0 available, 1 owned, 2 locked,
 3 mine.
 

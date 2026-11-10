@@ -13,7 +13,7 @@ buttons that change it. The three lists are generated from the same sources the 
 
 ## 1. The server settings
 
-Every key is optional, and there are 40 of them. The default below is the value that applies
+Every key is optional, and there are 41 of them. The default below is the value that applies
 when the key is absent, and the clamping in the fourth column is applied by
 `HousingMgr::LoadConfig` before the value is used, so a nonsense value degrades to a usable
 one instead of falling through.
@@ -56,6 +56,7 @@ one instead of falling through.
 | `Housing.Plot.ReservationSeconds` | `60` | seconds an inspection holds a plot for one account; never below 5 | reload |
 | `Housing.Smuggler.MarkupPercent` | `25` | percent a smuggler adds to the other faction's furniture; clamped 0 to 500 | reload |
 | `Housing.Neighborhood.MaxFounded` | `1` | private or guild neighbourhoods one account may found; 0 lifts the limit | reload |
+| `Housing.Neighborhood.MinFounders` | `3` | players that have to be present to found a charter - the founder plus party members on the same map; guild neighbourhoods are exempt and 1 turns it off | reload |
 | `Housing.Endeavor.ScaleFloor` | `0.5` | lowest factor Endeavor requirements scale by; never below 0.1 | reload |
 | `Housing.Endeavor.ScaleCap` | `3.0` | highest factor, never below the floor | reload |
 | `Housing.Xp.PerDecor` | `10` | house XP for learning a piece the house has never held; retail's number, 0 turns it off | reload |
@@ -120,9 +121,9 @@ server dispatches.
 | `.housing reserve` | `<plot>` | player | hold a free plot for 60 seconds while it is bought |
 | `.housing join` | `<neighbourhood>` | player | join a public or charter neighbourhood; `.housing finder` lists them |
 | `.housing leavenb` | `-` | player | leave the neighbourhood the player lives in |
-| `.housing found` | `-` | player | found a new neighbourhood and become its owner |
+| `.housing found` | `-` | player | found a new neighbourhood and become its owner; a private charter needs `Housing.Neighborhood.MinFounders` people present and answers `NotEnoughFounders` (39) otherwise |
 | `.housing movehouse` | `<plot>` | player | move the house to another free plot on the same street |
-| `.housing amenities` | `-` | player | every amenity in the town centre: type, name, position, biome |
+| `.housing amenities` | `-` | player | every amenity in the town centre: type, name, position, biome, and what it spawns (`object <entry>`, `npc <entry>` or `pin only`) |
 | `.housing favor` | `-` | player | the Neighbourhood Favor standing in the player's own street |
 | `.housing storage` | `-` | player | every decor copy in storage, with counts |
 | `.housing levelup` | `-` | player | pay the Contractor to reach the next level without the experience |

@@ -1031,7 +1031,8 @@ neighboursHeader:SetText("The street")
 
 local neighboursIntro = NewLabel(neighboursPane, "GameFontDisableSmall", "TOPLEFT", 0, -24)
 neighboursIntro:SetWidth(540)
-neighboursIntro:SetText("Every plot here, and every public neighbourhood a plot can be bought in.")
+neighboursIntro:SetText("Every plot here, and every public neighbourhood a plot can be bought in. "
+    .. "A private street takes more than one person: whoever founds it stands in a party, on the housing map.")
 
 NewButton(neighboursPane, "Refresh", 80, 0, -46, function()
     H.plots = {}
