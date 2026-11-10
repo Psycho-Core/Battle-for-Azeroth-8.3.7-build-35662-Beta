@@ -19,8 +19,9 @@
  * BFAH addon protocol handling. Split out of HousingMgr.cpp so that the state machine
  * and the wire format can be read separately.
  *
- * Framing rules live in docs/player-housing/04-addon-protocol.md. Every message is
- * treated as hostile: fields are parsed, ids are resolved, and nothing is trusted.
+ * The framing rules are 15-addon-protocol.md sec.2 to sec.5 and every request and reply
+ * is in the tables at the end of it. Every message is treated as hostile: fields are
+ * parsed, ids are resolved, and nothing is trusted.
  */
 
 #include "HousingMgr.h"

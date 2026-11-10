@@ -24,8 +24,8 @@
  * Shared enums, limits, phase maths and value types for the module. Nothing in here
  * touches the world; it is safe to include from anywhere in the game or scripts libs.
  *
- * See docs/player-housing/02-module-architecture.md for the reasoning behind the
- * phase layout and docs/player-housing/04-addon-protocol.md for the wire values.
+ * The phase layout is doc 02 sec.5 and doc 13; the wire values this file holds are
+ * 15-addon-protocol.md sec.8.
  */
 
 #include "Define.h"
@@ -93,7 +93,7 @@ namespace Housing
         return cost != kCurrencyGold && cost != kCurrencyCommunityCoupons;
     }
 
-    // Addon protocol (docs/player-housing/04-addon-protocol.md)
+    // Addon protocol: 15-addon-protocol.md sec.1 to sec.5
     constexpr char const* kAddonPrefix = "BFAH";
     constexpr uint32 kAddonProtocolVersion = 3;
     constexpr size_t kAddonMaxChunk = 200;           // payload bytes per chunk
