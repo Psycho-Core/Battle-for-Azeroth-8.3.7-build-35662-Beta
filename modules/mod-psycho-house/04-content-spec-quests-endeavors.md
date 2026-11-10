@@ -12,10 +12,10 @@ generic enough, with my own ids.
 
 | # | Quest | Id | Giver | Objective | Reward |
 | --- | --- | --- | --- | --- | --- |
-| 1 | *A House For You* | 900100 | Automatic (login breadcrumb) | Speak with the faction Steward in the capital portal room | 2g, first Hearthstone-style hint |
-| 2 | *My First Home* | 900101 | Steward | Travel to the neighborhood, walk a plot, click a **Cornerstone** | 1 000g stipend (so the first house is effectively free, like the retail pitch), 3 starter decor |
-| 3 | *Welcome Home* | 900102 | General Contractor | Place 3 decor pieces, then return | 10 House XP tutorial pop, 5 starter decor |
-| 4 | *Time to Decorate* | 900103 | General Contractor | Reach house level 2 | 250g, and *Square Room (Medium)* is on the Contractor's list from that level (doc 04 sec.3, row 13) |
+| 1 | Square Room (Small) | 1 | 1 | 2x2 | Four footprints, one art family |
+| 2 | Square Room (Tiny) | 1 | 1 | 1x1 ||
+| 3 | Hallway | 1 | 1 | 1x2 | Connective geometry |
+| 4 | Closet | 1 | 1 | 1x1 ||
 
 Design notes:
 
@@ -42,10 +42,10 @@ am committing to:
 | 1 | Starter shell, the twelve-shape Initial Room Collection, 910/19/200 budgets |
 | 2 | +245 interior, +5 room slots, *Square Room (Medium)* - reachable in one evening (10 XP = one decor)* |
 | 3-5 | Room unlocks, exterior budget steps, the "my house is taking shape" phase |
-| 6 | Hearthlight Armillary as a *placeable ambience device* (not a dye-tier system) |
-| 7 | +820 interior, +18 room slots - the "I built a manor" level, and the last exterior tier |
+| 6 | Octagon Room (Small) | 1 | 1 | 2x2 ||
+| 7 | Cross-Shaped Room | 2 | 1 | 2x2 ||
 | 8-9 | Medium exteriors, then the second big budget step |
-| 10 | Weekly *Treasures from Distant Lands* random decor |
+| 10 | Stairwell Left | 1 | 1 | 1x1 | Vertical connector |
 | 11-12 | Large exteriors, endgame prestige |
 
 \* Retail's 10 XP for level 2 only works because every new decor item grants 10. With a
@@ -58,32 +58,47 @@ Seventeen rooms, which is retail's twelve-shape **Initial Room Collection** plus
 level table unlocks (doc 01 sec.3.2 and sec.3.1). Every name below is retail's; nothing here is
 a name I made up, and the ids are the order `housing_room` loads them in (level, then id).
 
-| # | Room | Slots | Level | Notes |
-| --- | --- | --- | --- | --- |
-| 1 | Square Room (Small) | 1 | 1 | Four footprints, one art family |
-| 2 | Square Room (Tiny) | 1 | 1 | |
-| 3 | Hallway | 1 | 1 | Connective geometry |
-| 4 | Closet | 1 | 1 | |
-| 5 | Octagon Room (Medium) | 2 | 1 | |
-| 6 | Octagon Room (Small) | 1 | 1 | |
-| 7 | Cross-Shaped Room | 2 | 1 | |
-| 8 | L-Shaped Room | 2 | 1 | |
-| 9 | T-Shaped Room | 2 | 1 | |
-| 10 | Stairwell Left | 1 | 1 | Vertical connector |
-| 11 | Stairwell Right | 1 | 1 | Vertical connector |
-| 12 | Stairwell Empty | 1 | 1 | Vertical connector, open on both sides |
-| 13 | Square Room (Medium) | 2 | 2 | Unlocked by *Time to Decorate* |
-| 14 | Daylight Circle Room | 2 | 3 | |
-| 15 | Octagon Room (Large) | 3 | 4 | |
-| 16 | Square Room (Large) | 3 | 5 | |
-| 17 | Evening Circle Room | 2 | 5 | |
+`Footprint` is the shape's size on the house floorplan, in four-yard cells (doc 06 sec.1.2).
+Retail publishes that rooms tile and that the plan has to stay walkable; it does not publish
+the dimensions, so the footprints are mine, sized from the art: a closet is one cell, a square
+room is as wide as it is deep, a hallway is one cell wide and two deep.
+
+| # | Room | Slots | Level | Footprint | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Square Room (Small) | 1 | 1 | 2x2 | Four footprints, one art family |
+| 2 | Square Room (Tiny) | 1 | 1 | 1x1 | |
+| 3 | Hallway | 1 | 1 | 1x2 | Connective geometry |
+| 4 | Closet | 1 | 1 | 1x1 | |
+| 5 | Octagon Room (Medium) | 2 | 1 | 3x3 | |
+| 6 | Octagon Room (Small) | 1 | 1 | 2x2 | |
+| 7 | Cross-Shaped Room | 2 | 1 | 2x2 | |
+| 8 | L-Shaped Room | 2 | 1 | 2x2 | |
+| 9 | T-Shaped Room | 2 | 1 | 2x2 | |
+| 10 | Stairwell Left | 1 | 1 | 1x1 | Vertical connector |
+| 11 | Stairwell Right | 1 | 1 | 1x1 | Vertical connector |
+| 12 | Stairwell Empty | 1 | 1 | 1x2 | Vertical connector, open on both sides |
+| 13 | Square Room (Medium) | 2 | 2 | 3x3 | Unlocked by *Time to Decorate* |
+| 14 | Daylight Circle Room | 2 | 3 | 3x3 | |
+| 15 | Octagon Room (Large) | 3 | 4 | 4x4 | |
+| 16 | Square Room (Large) | 3 | 5 | 4x4 | |
+| 17 | Evening Circle Room | 2 | 5 | 3x3 | |
 
 **Room slots, not a price.** Retail's room budget is a count of rooms - 19 at level 1 rising to
 134 at level 12 - and big rooms take more of it. So `housing_room.budget_cost` is how many slots
 a shape spends: one for the small shapes, two for a medium or an L, three for a large. Those
 per-shape numbers are mine; retail publishes that bigger rooms cost more and not by how much.
 They are set so the twelve-shape Initial Room Collection fits a level-1 house with three slots
-to spare: 16 of the 19. `character_housing.rooms_owned` counts slots spent, not rooms built.
+to spare: 16 of the 19. `character_housing.rooms_owned` counts slots spent on the floorplan, not
+rooms built, and it is recomputed from `character_housing_room` every time the plan changes.
+
+**A room is placed, not just bought.** Buying a shape puts it on a cell of the house's grid:
+four yards to a cell, the first room on 0,0 of the ground floor, and every room after it
+touching the plan on a shared side so the house stays one walkable piece. Two rooms may not
+share a cell, a room may not sit outside the sixteen-cell limit, and taking a room out is
+refused if the rooms left behind would be cut off from the door. A stairwell is the only shape
+that reaches the floor above: a room on floor 1 has to stand over one. Those are doc 06
+sec.1.2's rules, and `PlaceRoom` is where they are enforced - for the window, for `.housing
+roomat` and for the Contractor alike.
 
 The exteriors are the shells, and they are separate from this list: `housing_shell`, twelve
 rows - the four racial kits of doc 01 sec.4 (Human and Night Elf for the Alliance, Orc and

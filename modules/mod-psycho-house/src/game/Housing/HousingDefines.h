@@ -583,7 +583,27 @@ namespace Housing
         float Radius = 12.0f;
         uint8 BudgetCost = 1;   // room slots this shape spends, 1 small to 3 large
         uint8 LevelRequired = 1;
+        uint8 CellsX = 1;       // footprint on the floorplan, in four-yard cells
+        uint8 CellsY = 1;
+        bool Stairs = false;    // reaches the floor above when a room is placed over it
     };
+
+    /// One room on a house's floorplan (doc 06 sec.1.2). The grid is four yards a cell, the
+    /// anchor room sits at 0,0 on floor 0, and a room's footprint runs from its own corner
+    /// cell to corner + cells - 1. `floor` is the interior band a stairwell reaches.
+    struct TC_GAME_API PlacedRoom
+    {
+        uint32 RoomId = 0;
+        int16 CellX = 0;
+        int16 CellY = 0;
+        uint8 Floor = 0;
+    };
+
+    /// Four yards a cell, and a plan that cannot grow past sixteen cells from the anchor in
+    /// either direction. The limit is there so a plan stays something a player can walk, and
+    /// so the connectivity flood fill is a bounded loop rather than a graph search.
+    constexpr int32 kRoomCellYards = 4;
+    constexpr int32 kRoomGridLimit = 16;
 
     /// A dyed appearance. A game object cannot be recoloured at runtime, so a dye is a
     /// different entry with the same footprint, and only pieces with rows can be dyed.

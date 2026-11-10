@@ -1824,7 +1824,8 @@ local GUIDE_ROWS = {
         { "C:PET", "pet" }, { "C:ARMILLARY", "armillary" } } },
     { "Rooms", {
         { "C:SHELLS", "shell" }, { "C:SHELL", "shell" }, { "C:ROOMS", "rooms" },
-        { "C:ROOM", "rooms" } } },
+        { "C:ROOM", "rooms" }, { "C:ROOMAT", "roomat" },
+        { "C:ROOMREMOVE", "roomremove" } } },
     { "Storage", {
         { "C:STORAGE", "storage" } } },
     { "Dyes", {
@@ -2003,6 +2004,7 @@ roomsIntro:SetText("The exterior shell is the house itself; rooms are placed ins
 NewButton(roomsPane, "Refresh", 80, 0, -64, function()
     H.shells = {}
     H.rooms = {}
+    H.placed = {}
     H.Send("C:SHELLS")
     H.Send("C:ROOMS")
 end)
@@ -2010,6 +2012,38 @@ end)
 local roomsOwned = NewLabel(roomsPane, "GameFontHighlightSmall", "TOPLEFT", 92, -68)
 roomsOwned:SetWidth(400)
 roomsOwned:SetText(DIM .. "room slots spent: -" .. RESET)
+
+-- Placing on an exact cell. The anchor is 0,0 and the grid is four yards a cell, so the two
+-- boxes are the coordinates a player reads off the plan rows below. A shape has to be picked
+-- first - clicking its name on the list selects it - and the server refuses a cell that is
+-- taken, off the grid or unreachable, so the button cannot put a room somewhere illegal.
+local roomsPicker = NewLabel(roomsPane, "GameFontDisableSmall", "TOPLEFT", 0, -280)
+roomsPicker:SetWidth(540)
+roomsPicker:SetText("pick a shape by clicking its name, then a cell")
+
+local roomCellXBox = CreateFrame("EditBox", nil, roomsPane, "InputBoxTemplate")
+roomCellXBox:SetSize(40, 20)
+roomCellXBox:SetPoint("TOPLEFT", roomsPane, "TOPLEFT", 8, -302)
+roomCellXBox:SetAutoFocus(false)
+roomCellXBox:SetNumeric(false)
+roomCellXBox:SetText("0")
+
+local roomCellYBox = CreateFrame("EditBox", nil, roomsPane, "InputBoxTemplate")
+roomCellYBox:SetSize(40, 20)
+roomCellYBox:SetPoint("TOPLEFT", roomsPane, "TOPLEFT", 76, -302)
+roomCellYBox:SetAutoFocus(false)
+roomCellYBox:SetNumeric(false)
+roomCellYBox:SetText("0")
+
+NewButton(roomsPane, "Place on cell", 100, 140, -300, function()
+    if not Menu.selectedRoom then
+        H.Print("pick a shape first")
+        return
+    end
+
+    H.Send(string.format("C:ROOMAT|%d|%s|%s|0", Menu.selectedRoom,
+        roomCellXBox:GetText() or "0", roomCellYBox:GetText() or "0"))
+end)
 
 local shellScroll = CreateFrame("ScrollFrame", "PsychoHouseShellScroll", roomsPane, "UIPanelScrollFrameTemplate")
 shellScroll:SetPoint("TOPLEFT", roomsPane, "TOPLEFT", 0, -92)
@@ -2077,6 +2111,87 @@ local function BuildShells()
     shellContent:SetHeight(math.max(1, math.min(#sorted, 20) * 24))
 end
 
+Menu.planRows = {}
+Menu.planOffset = 0
+
+-- The floorplan, drawn under the shape list: one row per room standing on the grid, its cell
+-- and floor, and a Remove button. The cells are the server's answer, not a local guess - a
+-- placement it refused never reaches this list.
+local function BuildPlan()
+
+    for _, row in ipairs(Menu.planRows) do
+        row:Hide()
+    end
+
+    local names = {}
+    for _, room in ipairs(H.rooms or {}) do
+        names[room.id] = room.name
+    end
+
+    local sorted = {}
+    for _, placed in ipairs(H.placed or {}) do
+        sorted[#sorted + 1] = placed
+    end
+
+    table.sort(sorted, function(left, right)
+        if (left.floor or 0) ~= (right.floor or 0) then
+            return (left.floor or 0) < (right.floor or 0)
+        end
+        if (left.cellY or 0) ~= (right.cellY or 0) then
+            return (left.cellY or 0) < (right.cellY or 0)
+        end
+        return (left.cellX or 0) < (right.cellX or 0)
+    end)
+
+    if #sorted == 0 then
+        local row = Menu.planRows[1]
+        if not row then
+            row = CreateFrame("Frame", nil, roomContent)
+            row:SetSize(500, 22)
+            row.label = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+            row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
+            row.label:SetWidth(500)
+            row.label:SetJustifyH("LEFT")
+            Menu.planRows[1] = row
+        end
+
+        row:SetPoint("TOPLEFT", roomContent, "TOPLEFT", 0, -Menu.planOffset)
+        row.label:SetText("the plan is empty: Add a shape and it lands on the first cell it fits")
+        row:Show()
+
+        roomContent:SetHeight(math.max(1, Menu.planOffset + 24))
+        return
+    end
+
+    for index = 1, #sorted do
+        local placed = sorted[index]
+        local row = Menu.planRows[index]
+
+        if not row then
+            row = CreateFrame("Frame", nil, roomContent)
+            row:SetSize(500, 22)
+            row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
+            row.label:SetWidth(330)
+            row.label:SetJustifyH("LEFT")
+            row.remove = NewButton(row, "Remove", 70, 370, 0, nil)
+            Menu.planRows[index] = row
+        end
+
+        row:SetPoint("TOPLEFT", roomContent, "TOPLEFT", 0, -(Menu.planOffset + (index - 1) * 24))
+        row.label:SetText(string.format("%s - cell %d,%d, floor %d",
+            tostring(names[placed.id] or ("room " .. tostring(placed.id))),
+            placed.cellX or 0, placed.cellY or 0, placed.floor or 0))
+        row.remove:SetScript("OnClick", function()
+            H.Send(string.format("C:ROOMREMOVE|%d|%d|%d|%d", placed.id,
+                placed.cellX or 0, placed.cellY or 0, placed.floor or 0))
+        end)
+        row:Show()
+    end
+
+    roomContent:SetHeight(math.max(1, Menu.planOffset + #sorted * 24))
+end
+
 local function BuildRooms()
 
     for _, row in ipairs(Menu.roomRows) do
@@ -2116,6 +2231,12 @@ local function BuildRooms()
 
         row.label:SetText(string.format("%s  %s", tostring(room.name), state))
 
+        row.label:SetScript("OnMouseDown", function()
+            Menu.selectedRoom = room.id
+            roomsPicker:SetText(string.format("placing %s - cell %s,%s, floor 0",
+                tostring(room.name), roomCellXBox:GetText() or "0", roomCellYBox:GetText() or "0"))
+        end)
+
         if result ~= 0 then
             row.buy:Hide()
         else
@@ -2128,12 +2249,15 @@ local function BuildRooms()
         row:Show()
     end
 
-    roomContent:SetHeight(math.max(1, math.min(#sorted, 20) * 24))
+    Menu.planOffset = math.max(1, math.min(#sorted, 20)) * 24
+    roomContent:SetHeight(math.max(1, Menu.planOffset))
+    BuildPlan()
 end
 
 Menu.onShow.rooms = function()
     H.shells = {}
     H.rooms = {}
+    H.placed = {}
     H.Send("C:SHELLS")
     H.Send("C:ROOMS")
 end

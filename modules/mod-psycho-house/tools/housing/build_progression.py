@@ -98,27 +98,33 @@ SHELLS = [
 # fits the level-1 budget with three to spare: 16 of 19. A large room is three rooms' worth,
 # which is what "bigger rooms cost more" can mean without inventing a second currency.
 #
-# (id, name, x, y, z, radius, slots, level)
+# `cells` is the footprint on the house floorplan, in four-yard cells, and it is mine for the
+# same reason: retail's rooms tile and it does not publish their dimensions. The shapes are
+# sized by their art - a closet is one cell, a square room is as wide as it is deep, a hallway
+# is one cell wide and two deep - and a stairwell is the only shape that reaches the floor
+# above, which is what its name says in retail's own catalogue.
+#
+# (id, name, x, y, z, radius, slots, level, cells_x, cells_y, stairs)
 ROOMS = [
     # --- the Initial Room Collection, twelve shapes at level 1 -------------------------
-    ("Square Room (Small)", 0.0, 0.0, 0.0, 11.0, 1, 1),
-    ("Square Room (Tiny)", 0.0, -24.0, 0.0, 8.0, 1, 1),
-    ("Hallway", 26.0, 0.0, 0.0, 6.0, 1, 1),
-    ("Closet", 26.0, -18.0, 0.0, 5.0, 1, 1),
-    ("Octagon Room (Medium)", -30.0, 0.0, 0.0, 13.0, 2, 1),
-    ("Octagon Room (Small)", -30.0, -24.0, 0.0, 10.0, 1, 1),
-    ("Cross-Shaped Room", 0.0, 26.0, 0.0, 14.0, 2, 1),
-    ("L-Shaped Room", 26.0, 22.0, 0.0, 12.0, 2, 1),
-    ("T-Shaped Room", -30.0, 26.0, 0.0, 12.0, 2, 1),
-    ("Stairwell Left", 52.0, 0.0, 0.0, 6.0, 1, 1),
-    ("Stairwell Right", 52.0, 22.0, 0.0, 6.0, 1, 1),
-    ("Stairwell Empty", 52.0, -22.0, 0.0, 6.0, 1, 1),
+    ("Square Room (Small)", 0.0, 0.0, 0.0, 11.0, 1, 1, 2, 2, 0),
+    ("Square Room (Tiny)", 0.0, -24.0, 0.0, 8.0, 1, 1, 1, 1, 0),
+    ("Hallway", 26.0, 0.0, 0.0, 6.0, 1, 1, 1, 2, 0),
+    ("Closet", 26.0, -18.0, 0.0, 5.0, 1, 1, 1, 1, 0),
+    ("Octagon Room (Medium)", -30.0, 0.0, 0.0, 13.0, 2, 1, 3, 3, 0),
+    ("Octagon Room (Small)", -30.0, -24.0, 0.0, 10.0, 1, 1, 2, 2, 0),
+    ("Cross-Shaped Room", 0.0, 26.0, 0.0, 14.0, 2, 1, 2, 2, 0),
+    ("L-Shaped Room", 26.0, 22.0, 0.0, 12.0, 2, 1, 2, 2, 0),
+    ("T-Shaped Room", -30.0, 26.0, 0.0, 12.0, 2, 1, 2, 2, 0),
+    ("Stairwell Left", 52.0, 0.0, 0.0, 6.0, 1, 1, 1, 1, 1),
+    ("Stairwell Right", 52.0, 22.0, 0.0, 6.0, 1, 1, 1, 1, 1),
+    ("Stairwell Empty", 52.0, -22.0, 0.0, 6.0, 1, 1, 1, 2, 1),
     # --- the five the level table unlocks ----------------------------------------------
-    ("Square Room (Medium)", 0.0, 52.0, 0.0, 15.0, 2, 2),
-    ("Daylight Circle Room", 0.0, -52.0, 0.0, 15.0, 2, 3),
-    ("Octagon Room (Large)", -30.0, 54.0, 0.0, 18.0, 3, 4),
-    ("Square Room (Large)", 30.0, 52.0, 0.0, 19.0, 3, 5),
-    ("Evening Circle Room", -60.0, 0.0, 0.0, 15.0, 2, 5),
+    ("Square Room (Medium)", 0.0, 52.0, 0.0, 15.0, 2, 2, 3, 3, 0),
+    ("Daylight Circle Room", 0.0, -52.0, 0.0, 15.0, 2, 3, 3, 3, 0),
+    ("Octagon Room (Large)", -30.0, 54.0, 0.0, 18.0, 3, 4, 4, 4, 0),
+    ("Square Room (Large)", 30.0, 52.0, 0.0, 19.0, 3, 5, 4, 4, 0),
+    ("Evening Circle Room", -60.0, 0.0, 0.0, 15.0, 2, 5, 3, 3, 0),
 ]
 
 # The portal amenity's destinations. Position comes from the realm's own `game_tele` table
@@ -247,16 +253,17 @@ def progression_sql(pet_pieces):
 
     add("DELETE FROM `housing_room` WHERE `id` BETWEEN 1 AND 32;")
     add("INSERT INTO `housing_room` (`id`, `shell_id`, `name`, `x`, `y`, `z`, `radius`, "
-        "`budget_cost`, `level_required`) VALUES")
+        "`budget_cost`, `level_required`, `cells_x`, `cells_y`, `stairs`) VALUES")
     rows = []
-    for i, (name, x, y, z, radius, cost, level) in enumerate(ROOMS):
-        rows.append("({}, 0, '{}', {}, {}, {}, {}, {}, {})".format(
-            i + 1, esc(name), x, y, z, radius, cost, level))
+    for i, (name, x, y, z, radius, cost, level, cells_x, cells_y, stairs) in enumerate(ROOMS):
+        rows.append("({}, 0, '{}', {}, {}, {}, {}, {}, {}, {}, {}, {})".format(
+            i + 1, esc(name), x, y, z, radius, cost, level, cells_x, cells_y, stairs))
     add(",\n".join(rows) + ";")
     add("")
-    add("-- shell_id 0 on a room means every shell has it. Rooms are areas of the interior,")
-    add("-- not separate geometry: the room a player stands in is the room they may decorate,")
-    add("-- and the room budget is what pays for it.")
+    add("-- shell_id 0 on a room means every shell has it. A room is a shape and a footprint:")
+    add("-- cells_x by cells_y four-yard cells on the house floorplan, which is what the server")
+    add("-- checks when the room is placed. A room with `stairs` 1 is how a house reaches the")
+    add("-- floor above it, and the three stairwells are the only shapes that carry it.")
     add("")
 
     add("DELETE FROM `housing_portal` WHERE `id` BETWEEN 1 AND 32;")

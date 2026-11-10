@@ -83,7 +83,7 @@ being applied from a setting that is being ignored.
 
 ## 3. Every command
 
-64 commands, of which 56 are player commands and 8 are GM commands. `.housing` with no argument
+66 commands, of which 58 are player commands and 8 are GM commands. `.housing` with no argument
 prints this list from the command table itself, so the in-game help cannot drift from what the
 server dispatches.
 
@@ -129,7 +129,9 @@ server dispatches.
 | `.housing levelup` | `-` | player | pay the Contractor to reach the next level without the experience |
 | `.housing hunt` | `[id]` | player | the ten riddle hunts with the state of each (0 not taken, 1 looking, 2 found); with an id, take that hunt |
 | `.housing shell` | `[id]` | player | list the exterior shells with their size, gate, faction and building, or choose one by id |
-| `.housing rooms` | `[id]` | player | the room shapes the house can build, with their slot cost and level gate; with an id, buy that room |
+| `.housing rooms` | `[id]` | player | the room shapes the house can build, with their slot cost, level gate and footprint in cells; the floorplan with what stands where and what the plan costs; with an id, place that shape on the first cell it fits |
+| `.housing roomat` | `<roomId> <cellX> <cellY> [floor]` | player | place a room shape on an exact floorplan cell; a cell that is out of the grid, taken, or unreachable from the door is refused |
+| `.housing roomremove` | `<roomId> <cellX> <cellY> [floor]` | player | take a placed shape off the floorplan and give its slots back; refused when the rooms left would be cut off |
 | `.housing bindshell` | `<shellId> <entry>` | GM | point a shell at a game object: the shells ship unbound because no 8.3.7 object is named "the Human cottage" (doc 06 sec.1.5) |
 | `.housing dye` | `<placement> <colour> [group]` | player | dye one placed piece; colour 0 strips it, and the group defaults to whichever one this piece keeps that colour in |
 | `.housing bp` | `[kind] [name]` | player | export a build code, PHP1 format |
@@ -155,7 +157,7 @@ server dispatches.
 | `.housing forcesell` | `<plot>` | GM | sell a plot on behalf of its owner |
 
 Two of those rows are parents: `.housing guest` and `.housing neighbor` have their own
-subcommands, listed in the Arguments column. Between them the 64 verbs cover every `C:` op the
+subcommands, listed in the Arguments column. Between them the 66 verbs cover every `C:` op the
 addon sends except `C:HELLO` and `C:PING`, which are the transport handshake - the Guide tab
 lists the mapping, and `check_claims.py` fails if an op has no verb or the tab has lost one.
 

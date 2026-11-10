@@ -469,9 +469,11 @@ def check_room_catalogue():
     section = doc.split("## 3. Rooms and shells")[1].split("\n## 4.")[0]
 
     documented = []
-    for match in re.finditer(r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|",
-                             section, re.M):
+    footprints = []
+    for match in re.finditer(r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|"
+                             r"\s*(\d+)\s*x\s*(\d+)\s*\|", section, re.M):
         documented.append((match.group(2), int(match.group(3)), int(match.group(4))))
+        footprints.append((match.group(2), int(match.group(5)), int(match.group(6))))
 
     if not documented:
         fail("rooms", "doc 04 sec.3 has no room table to check")
@@ -484,13 +486,24 @@ def check_room_catalogue():
 
         sql = read(path)
         block = sql.split("INSERT INTO `housing_room`")[1].split(";")[0]
-        shipped = [(m.group(1).replace("''", "'"), int(m.group(2)), int(m.group(3))) for m in
-                   re.finditer(r"\(\d+, \d+, '((?:[^']|'')*)', [-\d.]+, [-\d.]+, [-\d.]+, "
-                               r"[-\d.]+, (\d+), (\d+)\)", block)]
+        rows = [(m.group(1).replace("''", "'"), int(m.group(2)), int(m.group(3)),
+                 int(m.group(4)), int(m.group(5))) for m in
+                re.finditer(r"\(\d+, \d+, '((?:[^']|'')*)', [-\d.]+, [-\d.]+, [-\d.]+, "
+                            r"[-\d.]+, (\d+), (\d+), (\d+), (\d+), \d+\)", block)]
+
+        shipped = [(name, slots, level) for name, slots, level, _cx, _cy in rows]
+        shipped_feet = [(name, cx, cy) for name, _slots, _level, cx, cy in rows]
 
         if shipped != documented:
             fail("rooms", "{}: `housing_room` and doc 04 sec.3 disagree about the catalogue"
                  .format(draft))
+
+        # The footprint is what the floorplan check runs on, so a shape whose cells in the SQL
+        # and in the doc disagree is a house that can be laid out differently from the document
+        # describing it. The doc prints it as `<x>x<y>` in the Footprint column.
+        if shipped_feet != footprints:
+            fail("rooms", "{}: `housing_room` footprints and doc 04 sec.3's Footprint column "
+                 "disagree".format(draft))
 
     # Retail's Initial Room Collection is twelve shapes and every one of them is available at
     # level 1. That is the row of doc 01 the whole catalogue is supposed to answer to.

@@ -1669,6 +1669,9 @@ void HousingMgr::ForceSellPlot(HousingPlot* plot)
         house->DeleteAllDecor();
     }
 
+    // The floorplan goes with the building: rooms are the house, not furniture in it.
+    ClearPlacedRooms(housingId);
+
     CharacterDatabase.DirectPExecute("DELETE FROM `character_housing` WHERE `id` = {}", housingId);
     CharacterDatabase.DirectPExecute("DELETE FROM `character_housing_guest` WHERE `housingId` = {}", housingId);
 

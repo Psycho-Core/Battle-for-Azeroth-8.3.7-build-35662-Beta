@@ -10,36 +10,75 @@ Retail tiles arbitrary rooms into a floorplan. 8.3.7 has no room renderer, so a
 
 ### 1.1 Data
 
+Two tables, because a shape and a placement are different things:
+
 ```sql
-housing_room
-  id, shell_id,              -- the shell object it places
+housing_room                 -- the shape: what the Contractor sells
+  id, shell_id,              -- the shell it belongs to, 0 = every shell
   name,
-  x, y, z,                   -- offset from the interior anchor
+  x, y, z,                   -- where the shape's own art sits in the interior
   radius,                    -- the room the player must stand in to decorate it
   budget_cost,               -- room slots spent, out of the room budget
-  level_required
+  level_required,
+  cells_x, cells_y,          -- footprint on the floorplan, four-yard cells
+  stairs                     -- 1 = a room placed over this one is on the floor above
+
+character_housing_room       -- the placement: what stands on this house
+  housingId, room_id,
+  cell_x, cell_y,            -- corner cell of the footprint
+  floor,                     -- interior band; a stairwell reaches the one above it
+  placed                     -- unix time
 ```
+
+`cells_x` and `cells_y` are mine: retail publishes that rooms have footprints and that bigger
+ones cost more of the budget, not their dimensions. `budget_cost` is mine for the same reason.
 
 ### 1.2 Placement rules (server-side, identical for UI and commands)
 
-1. Every room occupies an integer grid cell (4x4 yards) or a set of cells.
-2. A new room must touch at least one existing room on a side whose `connects_*` bit is set
-   on **both** rooms, or be the first (anchor) room.
-3. Rooms may not overlap cells.
-4. Total room placement **cost** must fit the level's room budget (19 at level 1 -> 134 at
-   level 12, doc 01 sec.3.1).
-5. Every room must remain reachable from the anchor (flood fill over the adjacency graph).
-6. Rooms can be removed only if removal does not orphan another room.
+These are `HousingMgr::PlaceRoom` and `HousingMgr::RemovePlacedRoom`, and the window, `.housing
+roomat` and the Contractor all go through them, so there is one answer to every question below.
+
+1. Every room occupies a whole number of grid cells, four yards to a cell.
+2. The first room on the ground floor is the anchor and stands on cell 0,0. Every room after
+   it must share at least one full cell edge with the plan - a corner does not connect two
+   rooms, because a corner has no wall.
+3. Rooms may not overlap cells. The primary key of `character_housing_room` is the position,
+   so the database refuses an overlap as well as the check.
+4. Total placement **cost** must fit the level's room budget (19 at level 1 -> 134 at level
+   12, doc 01 sec.3.1).
+5. Every room must remain reachable from the anchor. The check is a flood fill over the plan
+   that treats two rooms as joined when they share an edge, and two rooms on neighbouring
+   floors as joined when one of them is a stairwell and their footprints overlap. A room on
+   the upper floor is therefore refused until a stairwell stands under it.
+6. Rooms can be removed only if removal does not orphan another room: the same flood fill runs
+   on the plan as it would be, and a removal that splits the house is refused.
+
+`rooms_owned` on `character_housing` is the sum of the placed shapes' costs, recomputed after
+every change. It is a cache of the plan, not a counter a purchase increments.
 
 That is the published retail floorplan rule ("what rooms fit and ensure each room can be accessed") rewritten as a graph problem on a small grid. I chose that shape because it is cheap to validate and deterministic, so two servers given the same blueprint build the same house.
 
 ### 1.3 What the player experiences
 
-- Choosing a room shows its footprint and cost.
-- Once placed, the shell spawns as a GO in the interior phase for that house.
-- Interior decor is placed in world space like any other decor; the shell is just scenery.
-- A "stairwell" shell teleports the player to a second interior band (a different
-  `interiorAnchor` z), giving multi-floor buildings without engine support.
+- Choosing a room shows its footprint, its slot cost and the level that unlocks it.
+- Placing it puts it on a cell. The Rooms tab lists what stands where, with a Remove button;
+  `.housing rooms` prints the same plan in chat, `.housing roomat` places on a named cell.
+- A stairwell is what a room on the next floor is built over, so a two-storey house is a
+  stairwell and then rooms above it.
+- Interior decor is placed in world space like any other decor.
+
+What a placed room does **not** do is spawn geometry of its own. There is no per-room object in
+an 8.3.7 game object table that means "Square Room (Medium)", the same way no building is named
+"the Human cottage" (sec.1.5), so the interior art is the shell's and the plan is the part the
+server can enforce. The rules above are real and the budget is real; the tiles are drawn by the
+client patch, or by whoever binds room art to the shapes when an install has any. That is the honest limitation of this section, and it is why the plan is data rather
+than a promise in a comment.
+
+The plan is also not carried by a build code. A blueprint exports placements, dyes and the
+pet beds (sec.3); the floorplan stays with the house, and a house sold inside the regret window
+comes back with its decor and an empty plan, because the rows are deleted with the building.
+That is a place this port is narrower than retail, and it is written here rather than left to
+be discovered.
 
 ### 1.4 The honest limitation
 

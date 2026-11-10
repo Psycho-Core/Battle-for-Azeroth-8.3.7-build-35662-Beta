@@ -41,28 +41,29 @@ INSERT INTO `housing_shell` (`id`, `name`, `gameobject_entry`, `go_name`, `size_
 (12, 'Blood Elf Manor', 0, '', 2, 2, 12, 0);
 
 DELETE FROM `housing_room` WHERE `id` BETWEEN 1 AND 32;
-INSERT INTO `housing_room` (`id`, `shell_id`, `name`, `x`, `y`, `z`, `radius`, `budget_cost`, `level_required`) VALUES
-(1, 0, 'Square Room (Small)', 0.0, 0.0, 0.0, 11.0, 1, 1),
-(2, 0, 'Square Room (Tiny)', 0.0, -24.0, 0.0, 8.0, 1, 1),
-(3, 0, 'Hallway', 26.0, 0.0, 0.0, 6.0, 1, 1),
-(4, 0, 'Closet', 26.0, -18.0, 0.0, 5.0, 1, 1),
-(5, 0, 'Octagon Room (Medium)', -30.0, 0.0, 0.0, 13.0, 2, 1),
-(6, 0, 'Octagon Room (Small)', -30.0, -24.0, 0.0, 10.0, 1, 1),
-(7, 0, 'Cross-Shaped Room', 0.0, 26.0, 0.0, 14.0, 2, 1),
-(8, 0, 'L-Shaped Room', 26.0, 22.0, 0.0, 12.0, 2, 1),
-(9, 0, 'T-Shaped Room', -30.0, 26.0, 0.0, 12.0, 2, 1),
-(10, 0, 'Stairwell Left', 52.0, 0.0, 0.0, 6.0, 1, 1),
-(11, 0, 'Stairwell Right', 52.0, 22.0, 0.0, 6.0, 1, 1),
-(12, 0, 'Stairwell Empty', 52.0, -22.0, 0.0, 6.0, 1, 1),
-(13, 0, 'Square Room (Medium)', 0.0, 52.0, 0.0, 15.0, 2, 2),
-(14, 0, 'Daylight Circle Room', 0.0, -52.0, 0.0, 15.0, 2, 3),
-(15, 0, 'Octagon Room (Large)', -30.0, 54.0, 0.0, 18.0, 3, 4),
-(16, 0, 'Square Room (Large)', 30.0, 52.0, 0.0, 19.0, 3, 5),
-(17, 0, 'Evening Circle Room', -60.0, 0.0, 0.0, 15.0, 2, 5);
+INSERT INTO `housing_room` (`id`, `shell_id`, `name`, `x`, `y`, `z`, `radius`, `budget_cost`, `level_required`, `cells_x`, `cells_y`, `stairs`) VALUES
+(1, 0, 'Square Room (Small)', 0.0, 0.0, 0.0, 11.0, 1, 1, 2, 2, 0),
+(2, 0, 'Square Room (Tiny)', 0.0, -24.0, 0.0, 8.0, 1, 1, 1, 1, 0),
+(3, 0, 'Hallway', 26.0, 0.0, 0.0, 6.0, 1, 1, 1, 2, 0),
+(4, 0, 'Closet', 26.0, -18.0, 0.0, 5.0, 1, 1, 1, 1, 0),
+(5, 0, 'Octagon Room (Medium)', -30.0, 0.0, 0.0, 13.0, 2, 1, 3, 3, 0),
+(6, 0, 'Octagon Room (Small)', -30.0, -24.0, 0.0, 10.0, 1, 1, 2, 2, 0),
+(7, 0, 'Cross-Shaped Room', 0.0, 26.0, 0.0, 14.0, 2, 1, 2, 2, 0),
+(8, 0, 'L-Shaped Room', 26.0, 22.0, 0.0, 12.0, 2, 1, 2, 2, 0),
+(9, 0, 'T-Shaped Room', -30.0, 26.0, 0.0, 12.0, 2, 1, 2, 2, 0),
+(10, 0, 'Stairwell Left', 52.0, 0.0, 0.0, 6.0, 1, 1, 1, 1, 1),
+(11, 0, 'Stairwell Right', 52.0, 22.0, 0.0, 6.0, 1, 1, 1, 1, 1),
+(12, 0, 'Stairwell Empty', 52.0, -22.0, 0.0, 6.0, 1, 1, 1, 2, 1),
+(13, 0, 'Square Room (Medium)', 0.0, 52.0, 0.0, 15.0, 2, 2, 3, 3, 0),
+(14, 0, 'Daylight Circle Room', 0.0, -52.0, 0.0, 15.0, 2, 3, 3, 3, 0),
+(15, 0, 'Octagon Room (Large)', -30.0, 54.0, 0.0, 18.0, 3, 4, 4, 4, 0),
+(16, 0, 'Square Room (Large)', 30.0, 52.0, 0.0, 19.0, 3, 5, 4, 4, 0),
+(17, 0, 'Evening Circle Room', -60.0, 0.0, 0.0, 15.0, 2, 5, 3, 3, 0);
 
--- shell_id 0 on a room means every shell has it. Rooms are areas of the interior,
--- not separate geometry: the room a player stands in is the room they may decorate,
--- and the room budget is what pays for it.
+-- shell_id 0 on a room means every shell has it. A room is a shape and a footprint:
+-- cells_x by cells_y four-yard cells on the house floorplan, which is what the server
+-- checks when the room is placed. A room with `stairs` 1 is how a house reaches the
+-- floor above it, and the three stairwells are the only shapes that carry it.
 
 DELETE FROM `housing_portal` WHERE `id` BETWEEN 1 AND 32;
 INSERT INTO `housing_portal` (`id`, `amenity_id`, `name`, `map`, `x`, `y`, `z`, `o`, `faction_mask`, `level_required`, `tele_name`) VALUES

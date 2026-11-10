@@ -963,13 +963,107 @@ namespace
             return true;
         }
 
-        // Listed with the level gate and the slot cost, because both decide whether the row
-        // can be bought today and both come out of the same budget.
+        // Listed with the level gate, the slot cost and the footprint, because all three decide
+        // whether the row can be placed today.
         for (Housing::RoomInfo const& room : sHousingMgr->GetRoomsForPlot(plot))
-            handler->PSendSysMessage("  {} {} - {} slot(s), level {}", room.Id, room.Name,
-                uint32(room.BudgetCost), uint32(room.LevelRequired));
+            handler->PSendSysMessage("  {} {} - {} slot(s), level {}, {}x{} cells", room.Id,
+                room.Name, uint32(room.BudgetCost), uint32(room.LevelRequired),
+                uint32(room.CellsX), uint32(room.CellsY));
 
-        handler->SendSysMessage(".housing rooms <id> buys one.");
+        // What is standing on the plan, and where. `rooms <id>` is the one-click form: it buys
+        // the shape and puts it on the first cell that fits, which is what the addon's button
+        // does too.
+        sHousingMgr->LoadPlacedRooms(plot->GetHousingId());
+
+        auto const& plan = sHousingMgr->GetPlacedRooms(plot->GetHousingId());
+
+        if (plan.empty())
+            handler->SendSysMessage("  the plan is empty: .housing rooms <id> places the first room on 0,0");
+        else
+            for (Housing::PlacedRoom const& placed : plan)
+                if (Housing::RoomInfo const* room = sHousingMgr->GetRoom(placed.RoomId))
+                    handler->PSendSysMessage("  on the plan: {} {} at {},{}, floor {}", placed.RoomId,
+                        room->Name, int32(placed.CellX), int32(placed.CellY), uint32(placed.Floor));
+
+        handler->PSendSysMessage("  plan cost {}/{} slot(s). .housing rooms <id> places one, "
+            ".housing roomat <id> <x> <y> [floor] places it exactly, .housing roomremove takes it out",
+            sHousingMgr->PlacedRoomCost(plot->GetHousingId()),
+            sHousingMgr->GetHouseLevel(plot->GetHouse()->GetTier())
+                ? sHousingMgr->GetHouseLevel(plot->GetHouse()->GetTier())->BudgetRoom : 0);
+        return true;
+    }
+
+    static bool HandleRoomAtCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (!args || !*args)
+        {
+            handler->SendSysMessage("Usage: .housing roomat <roomId> <cellX> <cellY> [floor]");
+            return true;
+        }
+
+        // The cell is signed: the anchor is 0,0 and a plan grows in every direction from it.
+        std::vector<std::string> parts = Housing::HousingAddon::Split(args, ' ');
+
+        if (parts.size() < 3)
+        {
+            handler->SendSysMessage("Usage: .housing roomat <roomId> <cellX> <cellY> [floor]");
+            return true;
+        }
+
+        uint32 roomId = 0;
+        int32 cellX = 0;
+        int32 cellY = 0;
+        uint32 floor = 0;
+
+        if (!Housing::HousingAddon::ParseUInt(parts[0], roomId)
+            || !Housing::HousingAddon::ParseInt(parts[1], cellX)
+            || !Housing::HousingAddon::ParseInt(parts[2], cellY)
+            || (parts.size() > 3 && !Housing::HousingAddon::ParseUInt(parts[3], floor)))
+        {
+            handler->SendSysMessage("Usage: .housing roomat <roomId> <cellX> <cellY> [floor]");
+            return true;
+        }
+
+        handler->PSendSysMessage("Room {} at {},{}, floor {}: {}", roomId, cellX, cellY, floor,
+            ResultText(sHousingMgr->PlaceRoom(player, roomId, cellX, cellY, uint8(std::min<uint32>(floor, 255)))));
+        return true;
+    }
+
+    static bool HandleRoomRemoveCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (!args || !*args)
+        {
+            handler->SendSysMessage("Usage: .housing roomremove <roomId> <cellX> <cellY> [floor]");
+            return true;
+        }
+
+        std::vector<std::string> parts = Housing::HousingAddon::Split(args, ' ');
+
+        uint32 roomId = 0;
+        int32 cellX = 0;
+        int32 cellY = 0;
+        uint32 floor = 0;
+
+        if (parts.size() < 3
+            || !Housing::HousingAddon::ParseUInt(parts[0], roomId)
+            || !Housing::HousingAddon::ParseInt(parts[1], cellX)
+            || !Housing::HousingAddon::ParseInt(parts[2], cellY)
+            || (parts.size() > 3 && !Housing::HousingAddon::ParseUInt(parts[3], floor)))
+        {
+            handler->SendSysMessage("Usage: .housing roomremove <roomId> <cellX> <cellY> [floor]");
+            return true;
+        }
+
+        handler->PSendSysMessage("Room {} at {},{}, floor {}: {}", roomId, cellX, cellY, floor,
+            ResultText(sHousingMgr->RemovePlacedRoom(player, roomId, cellX, cellY, uint8(std::min<uint32>(floor, 255)))));
         return true;
     }
 
@@ -1117,7 +1211,9 @@ public:
             { "movehouse", 0, false, &HandleMoveHouseCommand, "Move your house to another free plot" },
             { "amenities", 0, false, &HandleAmenitiesCommand, "The amenities in the town centre" },
             { "hunt",     0, false, &HandleHuntCommand,       "List the riddle hunts, or take one by id" },
-            { "rooms",    0, false, &HandleRoomsCommand,      "List the room shapes, or buy one by id" },
+            { "rooms",    0, false, &HandleRoomsCommand,      "List the room shapes and the floorplan, or place one by id" },
+            { "roomat",   0, false, &HandleRoomAtCommand,     "Place a room shape on an exact floorplan cell" },
+            { "roomremove", 0, false, &HandleRoomRemoveCommand, "Take a placed room shape off the floorplan" },
             { "buycopy",  0, false, &HandleBuyCopyCommand,    "Buy another copy of a piece you own" },
             { "placeat",  0, false, &HandlePlaceAtCommand,    "Place a piece in front of you" },
             { "buildmode", 0, false, &HandleBuildModeCommand, "The placement gizmo on or off" },
