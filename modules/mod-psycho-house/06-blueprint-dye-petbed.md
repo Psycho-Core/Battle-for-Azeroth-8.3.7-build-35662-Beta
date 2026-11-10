@@ -49,6 +49,46 @@ retail's twelve-shape Initial Room Collection plus the five its level table unlo
 wall/floor style variants per shell (`SetDisplayId` on a style GO), and decor doing the rest.
 That is the same trick retail players use with interior structures anyway.
 
+### 1.5 Exterior shells: why they ship unbound
+
+The twelve exterior rows are the four racial kits of doc 01 sec.4 - Human and Night Elf for
+the Alliance, Orc and Blood Elf for the Horde - in retail's three sizes, gated at level 1, 8
+and 12 (doc 01 sec.3.3).
+
+The first version of the file gave all six of its rows the search stem `'House'`, and the bind
+statement ran `name LIKE '%House%'` with `MIN(entry)` as the tiebreak. That is not a lookup, it
+is a coin toss with extra steps: an 8.3.7 `gameobject_template` has hundreds of buildings whose
+names contain "House", and nothing in that set means "the Human cottage". A realm that ran it
+would have got one arbitrary building for all six rows, and no error to say so.
+
+So a shell ships with `gameobject_entry` 0 and no stem. Zero is a state the code understands:
+`SpawnPlotShell` checks it and spawns nothing, so the plot is grass with a door rather than the
+wrong house. The building is chosen where somebody can see it:
+
+```sql
+-- the candidates, on the realm that has to look at them
+SELECT `entry`, `name`, `type`, `displayId` FROM `gameobject_template`
+WHERE `type` IN (0, 5, 6, 8, 14)
+  AND (`name` LIKE '%House%' OR `name` LIKE '%Cottage%' OR `name` LIKE '%Hut%'
+       OR `name` LIKE '%Longhouse%' OR `name` LIKE '%Farm%')
+ORDER BY `name`, `entry`;
+```
+
+then `.housing bindshell <shellId> <entry>`, which validates the entry against
+`gameobject_template` before writing the row, or the same UPDATE by hand. The command is a GM
+command because it changes what every plot in the world looks like.
+
+`go_name` still works, and is matched **exactly** rather than as a substring: on a realm whose
+buildings happen to be named one per kit - "Human Cottage", "Orc Longhouse" - filling the stem
+in is one statement. The bind file prints any name that matches more than one entry, so two
+shells cannot quietly become the same building.
+
+A new plot is dressed on purchase: `GetStarterShell` picks the small shell of the buyer's kit -
+an allied race borrows the kit whose architecture its starting zone is built from, so a Void
+Elf gets the Human cottage and a Nightborne the Blood Elf one - and writes it into
+`character_housing.shell_id` with the plot. A race with no kit at all falls back to any small
+shell of its faction, because a house with an outside is better than a house without one.
+
 ## 2. Dyes
 
 ### 2.1 The constraint, stated plainly

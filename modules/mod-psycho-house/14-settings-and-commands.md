@@ -82,7 +82,7 @@ being applied from a setting that is being ignored.
 
 ## 3. Every command
 
-48 commands, of which 41 are player commands and 7 are GM commands. `.housing` with no argument
+49 commands, of which 41 are player commands and 8 are GM commands. `.housing` with no argument
 prints this list from the command table itself, so the in-game help cannot drift from what the
 server dispatches.
 
@@ -115,7 +115,8 @@ server dispatches.
 | `.housing reserve` | `<plot>` | player | hold a free plot for 60 seconds while it is bought |
 | `.housing storage` | `-` | player | every decor copy in storage, with counts |
 | `.housing levelup` | `-` | player | pay the Contractor to reach the next level without the experience |
-| `.housing shell` | `[id]` | player | list the exterior shells, or choose one by id |
+| `.housing shell` | `[id]` | player | list the exterior shells with their size, gate, faction and building, or choose one by id |
+| `.housing bindshell` | `<shellId> <entry>` | GM | point a shell at a game object: the shells ship unbound because no 8.3.7 object is named "the Human cottage" (doc 06 sec.1.5) |
 | `.housing dye` | `<placement> <colour> [group]` | player | dye one placed piece; colour 0 strips it, and the group defaults to whichever one this piece keeps that colour in |
 | `.housing bp` | `[kind] [name]` | player | export a build code, PHP1 format |
 | `.housing bpimport` | `<code>` | player | import a build code |

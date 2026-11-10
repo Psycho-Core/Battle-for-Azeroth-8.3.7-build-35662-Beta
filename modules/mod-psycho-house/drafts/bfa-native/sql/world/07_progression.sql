@@ -13,26 +13,32 @@
 DELETE FROM `housing_house_level`;
 INSERT INTO `housing_house_level` (`level`, `xp`, `budget_indoor`, `budget_room`, `budget_outdoor`) VALUES
 (1, 0, 910, 19, 200),
-(2, 10, 1370, 29, 214),
-(3, 1200, 1831, 40, 227),
-(4, 2400, 2291, 50, 241),
-(5, 3700, 2752, 61, 255),
-(6, 5700, 3212, 71, 268),
-(7, 7900, 3672, 82, 282),
-(8, 10300, 4133, 92, 295),
-(9, 12900, 4593, 103, 309),
-(10, 15750, 5054, 113, 323),
-(11, 18850, 5514, 124, 336),
+(2, 10, 1155, 24, 200),
+(3, 1200, 1450, 30, 250),
+(4, 2400, 1745, 36, 250),
+(5, 3700, 2050, 43, 300),
+(6, 5700, 2360, 50, 300),
+(7, 7900, 3180, 68, 350),
+(8, 10300, 3500, 76, 350),
+(9, 12900, 4340, 95, 350),
+(10, 15750, 4675, 104, 350),
+(11, 18850, 5545, 124, 350),
 (12, 22200, 5975, 134, 350);
 
 DELETE FROM `housing_shell` WHERE `id` BETWEEN 1 AND 12;
 INSERT INTO `housing_shell` (`id`, `name`, `gameobject_entry`, `go_name`, `size_class`, `faction_mask`, `level_required`, `flags`) VALUES
-(1, 'Cottage', 0, 'House', 0, 1, 1, 0),
-(2, 'Townhouse', 0, 'House', 1, 1, 1, 0),
-(3, 'Manor', 0, 'House', 2, 1, 8, 0),
-(4, 'Cottage', 0, 'House', 0, 2, 1, 0),
-(5, 'Townhouse', 0, 'House', 1, 2, 1, 0),
-(6, 'Manor', 0, 'House', 2, 2, 8, 0);
+(1, 'Human Cottage', 0, '', 0, 1, 1, 0),
+(2, 'Night Elf Cottage', 0, '', 0, 1, 1, 0),
+(3, 'Orc Cottage', 0, '', 0, 2, 1, 0),
+(4, 'Blood Elf Cottage', 0, '', 0, 2, 1, 0),
+(5, 'Human Townhouse', 0, '', 1, 1, 8, 0),
+(6, 'Night Elf Townhouse', 0, '', 1, 1, 8, 0),
+(7, 'Orc Townhouse', 0, '', 1, 2, 8, 0),
+(8, 'Blood Elf Townhouse', 0, '', 1, 2, 8, 0),
+(9, 'Human Manor', 0, '', 2, 1, 12, 0),
+(10, 'Night Elf Manor', 0, '', 2, 1, 12, 0),
+(11, 'Orc Manor', 0, '', 2, 2, 12, 0),
+(12, 'Blood Elf Manor', 0, '', 2, 2, 12, 0);
 
 DELETE FROM `housing_room` WHERE `id` BETWEEN 1 AND 32;
 INSERT INTO `housing_room` (`id`, `shell_id`, `name`, `x`, `y`, `z`, `radius`, `budget_cost`, `level_required`) VALUES

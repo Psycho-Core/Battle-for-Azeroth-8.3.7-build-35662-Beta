@@ -70,7 +70,7 @@ written so the estimate can be compared with what it took.
 | Apply level at the General Contractor | NPC interaction | Gossip | `npc_housing_contractor`: upgrade for gold (`LevelUpWithGold`), and the free claim once the XP threshold is met. XP is never applied automatically - the contract is signed in person, as in retail | S | P1 |
 | Room unlocks by level | Retail's Initial Room Collection: 12 shapes at level 1, 5 more by level 5 | GO shells | `housing_room` with `level_required` and `budget_cost`, seventeen shapes under retail's own names - Square, Octagon, the two Circles, Cross, L, T, Hallway, Closet and the three stairwells; `CanBuyRoom` / `BuyRoom` / `GetRoomsForPlot`, sold by the Contractor and by `C:ROOMS` | M | P2 |
 | Weekly Arcanostorage Sphere at level 10 | Weekly quest | Weekly quest + item | `OpenArcanostorage`: house level `Housing.Arcanostorage.Level`, once per `Housing.Arcanostorage.CooldownDays` per account, rolls one faction-eligible non-hidden piece from the catalogue | M | P3 |
-| Medium exteriors at 8, Large at 12 | Shell sizes | GO shells | `housing_shell` with `size` and `level_required`; `ApplyShell` refuses what the house has not reached, and writes `character_housing.shell_id` | M | P2 |
+| Medium exteriors at 8, Large at 12 | Shell sizes | GO shells | `housing_shell`, twelve rows: Human, Night Elf, Orc and Blood Elf kits in three sizes, `level_required` 1, 8 and 12. `ApplyShell` refuses what the house has not reached and writes `character_housing.shell_id`; a new plot is dressed in its racial small shell by `GetStarterShell` | M | P2 |
 
 ### 2.4 Decor
 
@@ -148,7 +148,7 @@ written so the estimate can be compared with what it took.
 | Comms fallback | n/a | Gossip + commands | Every addon action has a `.housing` equivalent (forty-eight commands), and every one of those is reachable from the five NPCs and the four game objects. `.housing` with no argument prints the whole table, read out of the table itself | M | P1 |
 | Server settings | Conf file | Conf file | 40 keys, all read by `HousingMgr::LoadConfig`, each recorded with the value it kept after clamping and printable with `.housing config [filter]`. Doc 14 lists every one with its default, clamp and reload behaviour, and `check_reference.py` fails if the conf, the loader and the document disagree | S | P1 |
 | Client settings | SavedVariables | SavedVariables | Six preferences in `HousingUIDB.settings` - snapping, grid, rotation step, scale step, window scale, window position - editable on the Settings tab and written the moment they change. The single table is the only copy: `H.SnapValue` and friends read it directly | S | P2 |
-| Settings reference | n/a | Doc + checker | Doc 14 collects the 40 server settings, the 48 commands, the six client settings and the five tables that hold numbers instead of the conf file. `check_reference.py` compares all four lists against the code and runs as the audit's ninth check | S | P1 |
+| Settings reference | n/a | Doc + checker | Doc 14 collects the 40 server settings, the 49 commands, the six client settings and the five tables that hold numbers instead of the conf file. `check_reference.py` compares all four lists against the code and runs as the audit's ninth check | S | P1 |
 
 ## 3. What I am explicitly not porting
 
@@ -173,9 +173,9 @@ the protocol. mod-psycho-house adds:
 
 | New table | Purpose |
 | --- | --- |
-| `housing_house_level` | Level 1-12: XP, interior/room/exterior budgets, unlocks. XP and the exterior budget are retail's verbatim; the interior and room columns are retail's endpoints with the eleven steps between them interpolated |
+| `housing_house_level` | Level 1-12: XP, interior/room/exterior budgets, unlocks - doc 01 sec.3.1 column for column, twelve rows, nothing interpolated between them |
 | `housing_room` | Room shells: the retail shape list, its footprint, the room slots it spends (1 small, 2 medium, 3 large) and the level required |
-| `housing_shell` | Exterior shells: GO entry, size (small/medium/large), faction mask, level required |
+| `housing_shell` | Exterior shells: the four racial kits in three sizes, its GO entry (0 until `bindshell` fills it), size, faction mask, level required |
 | `housing_dye` + `housing_decor_variant` | Six dye groups; the variant table carries one row per decor, group and colour with the game object entry that colour switches to |
 | `housing_decor_creature` | The creature a piece owns: pet bed, mount stand or mannequin, with the entry, the roaming flag and the roaming radius |
 | `housing_endeavor` / `_task` / `_reward` / `_props` | Endeavor definition; `_reward` carries a `milestone` (1-4) that gates vendor stock, exactly as retail does |
@@ -195,7 +195,7 @@ the protocol. mod-psycho-house adds:
 ## 5. The three things that will actually be hard
 
 1. **Room shells.** Not the code - placing GOs at fixed offsets is easy - but the **art**:
-   authoring enough shells that a house does not look like six identical boxes. Doc 06 sec.1.
+   authoring enough shells that a house does not look like twelve identical boxes. Doc 06 sec.1.
 2. **Dyes.** GO material colour is not runtime-mutable. Everything else in this document is
    data; this is the one place where the honest answer is "only works for pieces that have
    authored colour variants". Doc 06 sec.2.

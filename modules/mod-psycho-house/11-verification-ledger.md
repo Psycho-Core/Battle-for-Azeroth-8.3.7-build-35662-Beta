@@ -1323,3 +1323,40 @@ how many rooms there are, what they are called, and which level opens them.
 | `check_cpp.py` | 0 findings; `Rooms`/`RoomCount` gone, 33 constants all read |
 | `check_mariadb.py` | 0 findings; the level INSERT is five columns over twelve rows in both drafts |
 | `audit.py` | 0 findings across 10 checks |
+
+### 6.33 The thirty-ninth revision: shells nobody had chosen, and a ladder that was a line
+
+Two things were promised in prose and not done in data. Both are the same failure mode: a
+document describing an intention that the file never carried, with no rule between them.
+
+- **The shells.** Six rows, Cottage / Townhouse / Manor per faction. Retail's kits are four -
+  Human and Night Elf, Orc and Blood Elf - and the sizes are gated small at 1, medium at 8,
+  large at 12; the draft had a medium frame for sale at level 1 and a large one at 8. It is
+  twelve rows now, one per kit and size, with retail's gates.
+- **The bind that was a coin toss.** Every shell carried the stem `'House'`, so the bind
+  statement ran `name LIKE '%House%'` with `MIN(entry)` and gave all six the same building -
+  whatever with "House" in its name sorted first. That is not a lookup. The rows ship unbound
+  now (`go_name` empty, entry 0, which `SpawnPlotShell` already treats as "no building"), and
+  the object is chosen on the realm with `.housing bindshell <shellId> <entry>`, which validates
+  the entry before writing it. Doc 06 sec.1.5 has the reasoning and the candidate query.
+- **The new house.** `BuyPlot` wrote no `shell_id`, so a plot arrived as grass until somebody
+  ran a command. `GetStarterShell` now picks the small shell of the buyer's kit - allied races
+  borrow the kit their starting zone is built from - and the purchase carries it.
+- **The ladder.** `housing_house_level` and the `BudgetIndoor` / `BudgetRoom` /
+  `BudgetOutdoor` arrays were straight lines between retail's level-1 and level-12 numbers
+  while README and doc 02 called the table retail's verbatim. Levels 2, 5, 7 and 9 were all
+  wrong by between 100 and 500 interior budget and up to 14 rooms. All twelve rows are doc 01
+  sec.3.1 now, including the exterior column, which retail raises at 3, 5 and 7 and holds
+  between.
+- **The rule.** `check_coverage.py` gained `ladder`, which parses the record's table, treats a
+  "-" in the exterior column as "unchanged from the level before", and compares all twelve rows
+  against both drafts and against the three compiled arrays. `.housing bindshell` is counted
+  by `check_reference.py` with the rest, so the command table and doc 14 stay in step at 49.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; 12 levels across the record, both drafts and `HousingDefines.h`, and 17 rooms still agreeing |
+| `check_reference.py` | 0 findings; 40 settings, 49 commands, 6 client settings |
+| `check_cpp.py` | 0 findings; `BindShell` and `GetStarterShell` present, constants all read |
+| `check_mariadb.py` | 0 findings; the shell INSERT is eight columns over twelve rows in both drafts |
+| `audit.py` | 0 findings across 10 checks |

@@ -42,6 +42,7 @@
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "QuaternionData.h"
+#include "SharedDefines.h"
 #include "Timer.h"
 #include "Weather.h"
 #include "Util.h"
@@ -1827,6 +1828,100 @@ namespace Housing
         }
 
         return Ok;
+    }
+
+    HousingResult HousingMgr::BindShell(uint32 shellId, uint32 gameObjectEntry)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        if (!GetShell(shellId))
+            return InvalidPlot;
+
+        if (!gameObjectEntry || !sObjectMgr->GetGameObjectTemplate(gameObjectEntry))
+            return NotFound;
+
+        // The row is the record, the in-memory copy is what the plot reader sees. Writing
+        // both means a shell bound on a live realm takes effect on the next plot shell spawn
+        // rather than at the next restart.
+        WorldDatabase.DirectPExecute(
+            "UPDATE `housing_shell` SET `gameobject_entry` = {}, `go_name` = '' WHERE `id` = {}",
+            gameObjectEntry, shellId);
+
+        _shells[shellId].GameObjectEntry = gameObjectEntry;
+
+        return Ok;
+    }
+
+    ShellInfo const* HousingMgr::GetStarterShell(Player* player) const
+    {
+        if (!player)
+            return nullptr;
+
+        // Retail's exterior kits are Human and Night Elf for the Alliance, Orc and Blood Elf
+        // for the Horde (doc 01 sec.4). An allied race does not have a kit of its own, so it
+        // borrows the one whose architecture its starting zone is built out of.
+        char const* kit = nullptr;
+
+        switch (player->getRace())
+        {
+            case RACE_HUMAN:
+            case RACE_DWARF:
+            case RACE_GNOME:
+            case RACE_WORGEN:
+            case RACE_KUL_TIRAN:
+            case RACE_DARK_IRON_DWARF:
+            case RACE_LIGHTFORGED_DRAENEI:
+            case RACE_VOID_ELF:
+            case RACE_PANDAREN_ALLIANCE:
+                kit = "Human";
+                break;
+            case RACE_NIGHTELF:
+            case RACE_DRAENEI:
+                kit = "Night Elf";
+                break;
+            case RACE_BLOODELF:
+            case RACE_NIGHTBORNE:
+                kit = "Blood Elf";
+                break;
+            case RACE_ORC:
+            case RACE_UNDEAD_PLAYER:
+            case RACE_TAUREN:
+            case RACE_TROLL:
+            case RACE_GOBLIN:
+            case RACE_HIGHMOUNTAIN_TAUREN:
+            case RACE_ZANDALARI_TROLL:
+            case RACE_MAGHAR_ORC:
+            case RACE_VULPERA:
+            case RACE_PANDAREN_HORDE:
+                kit = "Orc";
+                break;
+            default:
+                break;
+        }
+
+        uint8 const factionBit = player->GetTeamId() == TEAM_ALLIANCE ? 0x01 : 0x02;
+
+        // The kit first, then any small shell of the faction: a race with no kit still gets a
+        // starter exterior rather than none.
+        ShellInfo const* fallback = nullptr;
+
+        for (auto const& pair : _shells)
+        {
+            ShellInfo const& shell = pair.second;
+
+            if (!(shell.FactionMask & factionBit) || shell.SizeClass != SizeSmall ||
+                shell.LevelRequired > 1)
+                continue;
+
+            if (kit && shell.Name.rfind(kit, 0) == 0)
+                return &shell;
+
+            if (!fallback)
+                fallback = &shell;
+        }
+
+        return fallback;
     }
 
     // -------------------------------------------------------------------------

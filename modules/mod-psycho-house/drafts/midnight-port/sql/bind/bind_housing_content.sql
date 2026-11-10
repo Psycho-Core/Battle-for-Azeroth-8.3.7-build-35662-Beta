@@ -35,20 +35,47 @@ SET a.`creature_entry` = COALESCE((
 WHERE a.`creature_name` <> '';
 
 -- ---------------------------------------------------------------------------
--- 2. Exterior shells
+-- 2. Exterior shells: deliberately not bound here
 --
--- A shell is a building, so the search is on the game object name and takes the lowest
--- entry: the oldest model of that name is the one that has been in the client longest and
--- is the least likely to be a later expansion's placeholder. Change `MIN` to `MAX` for the
--- newest, or set the row by hand - both are supported and neither is guessed here.
+-- The shells ship with `go_name` empty and `gameobject_entry` 0, and this file does not fill
+-- them. The first version of this section searched `name LIKE CONCAT('%', go_name, '%')` with
+-- `MIN(entry)` as the tiebreak, and every shell carried the stem 'House' - so a Human cottage,
+-- an Orc manor and four rows between them all received whichever building with "House" in its
+-- name happened to be oldest. A name is not an identity: `gameobject_template` has hundreds of
+-- rows called House, Stormwind House, Ruined House and so on, and "the Human cottage" is not
+-- one of those names.
+--
+-- So the object is picked where somebody can see it: `.housing bindshell <shellId> <entry>` in
+-- game, which validates the entry against `gameobject_template`, or an UPDATE by hand. The
+-- query at the end of this section lists candidates to choose from.
+--
+-- A name can still be used, and is matched exactly rather than as a substring, for a realm
+-- where the buildings are named one per kit:
 -- ---------------------------------------------------------------------------
 
 UPDATE `housing_shell` s
 SET s.`gameobject_entry` = COALESCE((
         SELECT MIN(g.`entry`) FROM `gameobject_template` g
-        WHERE g.`name` LIKE CONCAT('%', s.`go_name`, '%')
-          AND g.`type` IN (0, 5, 6, 8, 14) AND s.`go_name` <> ''), 0)
+        WHERE g.`name` = s.`go_name` AND s.`go_name` <> ''), 0)
 WHERE s.`go_name` <> '';
+
+-- Two rows sharing one name would bind to the same building, so the report names them.
+SELECT s.`id`, s.`name`, s.`go_name`, COUNT(g.`entry`) AS `entries_with_that_name`
+FROM `housing_shell` s
+LEFT JOIN `gameobject_template` g ON g.`name` = s.`go_name`
+WHERE s.`go_name` <> ''
+GROUP BY s.`id`, s.`name`, s.`go_name`
+HAVING COUNT(g.`entry`) > 1;
+
+-- Candidates for the twelve shells. A building object is type 5 (generic), 6 (trap), 8
+-- (transport) or 14, and the ones that look like a house are the ones worth trying. Nothing
+-- here is written back: this is the list somebody reads before running `.housing bindshell`.
+SELECT g.`entry`, g.`name`, g.`type`, g.`displayId`
+FROM `gameobject_template` g
+WHERE g.`type` IN (0, 5, 6, 8, 14)
+  AND (g.`name` LIKE '%House%' OR g.`name` LIKE '%Cottage%' OR g.`name` LIKE '%Hut%'
+       OR g.`name` LIKE '%Longhouse%' OR g.`name` LIKE '%Farm%')
+ORDER BY g.`name`, g.`entry`;
 
 -- ---------------------------------------------------------------------------
 -- 3. Portals: the destination list comes from `game_tele`
