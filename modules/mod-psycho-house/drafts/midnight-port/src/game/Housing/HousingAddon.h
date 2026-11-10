@@ -35,6 +35,9 @@ namespace Housing
         static std::vector<std::string> Split(std::string const& payload, char separator = '|');
 
         static bool ParseUInt(std::string const& field, uint32& out);
+        /// The same, with a sign: a floorplan cell is negative as often as not, and the
+        /// ground floor's anchor is 0,0.
+        static bool ParseInt(std::string const& field, int32& out);
         static bool ParseFloat(std::string const& field, float& out);
         static bool ParseBool(std::string const& field, bool& out);
 

@@ -55,6 +55,27 @@ CREATE TABLE IF NOT EXISTS `character_housing` (
  KEY `idx_housing_owner_guid` (`ownerGuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Owned plots and their houses';
 
+-- ---------------------------------------------------------------------------
+-- The floorplan: one row per room standing on a house's grid (doc 06 sec.1.2). The grid is
+-- four yards a cell, the anchor room sits on cell 0,0 of floor 0, and a room's footprint runs
+-- from its stored corner to corner + the shape's cells - 1. The primary key is the position,
+-- not a surrogate id: a cell holds one room, and the same guest room can stand in two places.
+--
+-- A unique key on the position is also the last line of defence behind the server's overlap
+-- check, which is the thing that actually refuses a placement.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `character_housing_room` (
+ `housingId` INT UNSIGNED NOT NULL,
+ `room_id`   INT UNSIGNED NOT NULL COMMENT 'housing_room.id',
+ `cell_x`    SMALLINT NOT NULL DEFAULT 0 COMMENT 'corner cell, four yards a cell',
+ `cell_y`    SMALLINT NOT NULL DEFAULT 0,
+ `floor`     TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'interior band; a stairwell reaches the one above it',
+ `placed`    INT UNSIGNED NOT NULL DEFAULT 0,
+ PRIMARY KEY (`housingId`, `room_id`, `cell_x`, `cell_y`, `floor`),
+ KEY `idx_housing_room_house` (`housingId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Room shapes standing on a house floorplan';
+
 CREATE TABLE IF NOT EXISTS `character_housing_decor` (
  `id`    BIGINT UNSIGNED NOT NULL COMMENT 'placement id, server allocated',
  `housingId` INT UNSIGNED NOT NULL,

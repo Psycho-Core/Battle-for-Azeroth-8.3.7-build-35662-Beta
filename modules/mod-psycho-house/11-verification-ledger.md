@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Eleven checks, one line each, exit code 1 on a finding:
+Twelve checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -25,6 +25,7 @@ Eleven checks, one line each, exit code 1 on a finding:
 | `mapping` | Every decor row has a non-zero game object entry, a known constant name, and one of the five match classes |
 | `reference` | The conf keys, the loader's reads and doc 14 are the same set in both directions, and the counts in the prose agree with them: 41 settings in two drafts, 41 recorded, 41 documented |
 | `claims` | Every code span in the completeness entry and in doc 02's matrix is checked against an oracle - opcode against the protocol tables, `Housing.*` against the conf, `table.column` against the schema, `Class::Member` against the source |
+| `floorplan` | The room placement rules restated in Python and run over the seventeen shapes the drafts ship: the Initial Room Collection fits a level-1 budget, nothing is placed above a floor with no stairwell under it, one room per cell, and the plan stays one piece |
 
 Current result:
 
@@ -40,8 +41,9 @@ sql          ok
 mapping      ok
 reference    ok
 claims       ok
+floorplan    ok
 
-0 finding(s) across 11 check(s)
+0 finding(s) across 12 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -1400,7 +1402,7 @@ public street, or read the town centre's amenities.
 | checker | result |
 | --- | --- |
 | `check_claims.py` | 0 findings; 59 ops mapped to 52 verbs, every one dispatched and documented |
-| `check_reference.py` | 0 findings; 40 settings, 64 commands, 6 client settings |
+| `check_reference.py` | 0 findings; 41 settings, 66 commands, 6 client settings |
 | `check_lua.py` | 0 findings; fifteen tabs, the Guide on a scroll frame |
 | `check_cpp.py` | 0 findings; the three lifted methods and the fourteen new handlers |
 | `audit.py` | 0 findings across 10 checks |
@@ -1480,3 +1482,55 @@ would be found in the realm's game object table; the other was never answered at
 | `check_cpp.py` | 0 findings; `fields[10]` and `fields[11]` are inside twelve, and `CountPresentFounders` has a caller |
 | `check_claims.py` | 0 findings; `MinFounders` is in the conf and the README cites it |
 | `audit.py` | 0 findings across 11 checks |
+
+### 6.37 The forty-third revision: a room catalogue nothing could buy a room from
+
+The eighth revision of this folder put retail's seventeen room shapes into `housing_room`, and
+the thirty-eighth revision made doc 04, doc 01 and both drafts agree about them row for row.
+Neither asked what a room *was* once it had been bought.
+
+- **What was there.** `BuyRoom` read the shape's `budget_cost`, added it to
+  `character_housing.rooms_owned` and wrote the number back. Doc 06 sec.1.2 listed six
+  placement rules and sec.1.3 said a placed room spawns a game object. There was no floorplan,
+  no cell, no removal, no table, and no query that could tell a house with seventeen rooms from
+  a house with none.
+- **The plan.** `character_housing_room` is one row per placed shape: `housingId`, `room_id`,
+  `cell_x`, `cell_y`, `floor`, the position as the primary key so a cell cannot hold two rooms.
+  `housing_room` gained `cells_x`, `cells_y` and `stairs`. The footprints are mine for the same
+  reason the slot costs are - retail publishes that rooms tile and that bigger ones cost more,
+  not their dimensions - and doc 04 sec.3 now prints them beside each shape.
+- **The rules.** `HousingMgr::PlaceRoom` and `RemovePlacedRoom`: four yards a cell, the first
+  ground-floor room on 0,0, every later room sharing a full wall, no overlap, one walkable piece
+  by flood fill over shared edges and over stairwells between floors, and the level's room
+  budget. Removal runs the same flood fill on the plan as it would be. `rooms_owned` is the sum
+  of the placed shapes' costs, recomputed - a cache, not a counter.
+- **The doors.** `C:ROOM` still buys and now places on the first cell that fits; `C:ROOMAT` and
+  `C:ROOMREMOVE` take a cell; `S:ROOM` carries the footprint and `S:ROOMPLACED` the plan; the
+  Rooms tab lists what stands where with a Remove button, and `.housing rooms`, `roomat` and
+  `roomremove` do the same in chat. Sixty-six commands.
+- **What is still not there.** A placed room spawns no geometry. No 8.3.7 game object means
+  "Square Room (Medium)", so the interior art is the shell's and the plan is the part the server
+  can enforce; doc 06 sec.1.3 says so in those words instead of describing retail. The plan is
+  also not carried by a build code, and a house restored inside the regret window comes back
+  with its decor and an empty plan. Both are written down where a reader will meet them.
+- **The check.** `check_floorplan.py` is the rules in Python, run over the shapes the drafts
+  ship: the collection places twelve rooms for 16 of 19 slots, three closets reach exactly 19
+  and the next is refused, floor 1 is only reachable over a stairwell, the anchor's cell cannot
+  be taken twice, removing the anchor breaks the plan, and all seventeen shapes fit at level 12
+  for 134 slots. Three mutations were caught - stairwells stripped, a cost raised, a footprint
+  wider than the grid - each naming a different defect.
+- **The count the audit list printed.** The finding said eighteen rooms: Square in four sizes,
+  Octagon in three, the two Circles, Cross, L, T, Hallway, Closet and three stairwells. That
+  list adds to seventeen, which is what doc 01 sec.3.2 names and what ships - twelve at level 1
+  and five unlocks. The eighteen was arithmetic in the finding, not a shape nobody had noticed.
+- **The drift the audit found on the way.** Doc 10's side-by-side table said the drafts ship six
+  shells and eighteen rooms; they ship twelve and seventeen, and the table had survived two
+  revisions. It is corrected and the room count is now read in three places.
+
+| checker | result |
+| --- | --- |
+| `check_floorplan.py` | 0 findings; new, and the audit's twelfth check |
+| `check_coverage.py` | 0 findings; 17 rooms, doc 04 sec.3 and both drafts agreeing, footprints compared as well as names |
+| `check_reference.py` | 0 findings; 41 settings, 66 commands, 6 client settings |
+| `check_protocol.py` | 0 findings; 63 C: and 40 S: documented, both directions |
+| `audit.py` | 0 findings across 12 checks |

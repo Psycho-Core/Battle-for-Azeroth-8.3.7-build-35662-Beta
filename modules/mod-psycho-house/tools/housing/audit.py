@@ -384,6 +384,23 @@ def check_reference(findings):
                 findings.append(("reference", rel(script), line.strip()))
 
 
+def check_floorplan(findings):
+    """The floorplan rules, run over the shapes the drafts ship.
+
+    `PlaceRoom` cannot be compiled here, so the rules it enforces are restated in Python and
+    run against the real `housing_room` rows: the collection fits a level-1 house, nothing
+    floats, one room per cell and the plan stays one piece.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "check_floorplan.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith("  "):
+                findings.append(("floorplan", rel(script), line.strip()))
+
+
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
@@ -396,6 +413,7 @@ CHECKS = {
     "mapping": check_mapping,
     "reference": check_reference,
     "claims": check_claims,
+    "floorplan": check_floorplan,
 }
 
 

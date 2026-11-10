@@ -237,9 +237,12 @@ namespace Housing
     {
         _rooms.clear();
 
+        // The footprint and the stairwell flag are what the floorplan is checked against, so
+        // they are part of the load: a shape with no footprint would be a room that covers no
+        // cell and could be stacked on another one.
         if (QueryResult result = WorldDatabase.Query(
             "SELECT `id`, `shell_id`, `name`, `x`, `y`, `z`, `radius`, `budget_cost`, "
-            "`level_required` FROM `housing_room`"))
+            "`level_required`, `cells_x`, `cells_y`, `stairs` FROM `housing_room`"))
         {
             do
             {
@@ -254,6 +257,9 @@ namespace Housing
                 info.Radius = fields[6].GetFloat();
                 info.BudgetCost = fields[7].GetUInt8();
                 info.LevelRequired = fields[8].GetUInt8();
+                info.CellsX = fields[9].GetUInt8();
+                info.CellsY = fields[10].GetUInt8();
+                info.Stairs = fields[11].GetUInt8() != 0;
                 _rooms[info.Id] = info;
             }
             while (result->NextRow());
@@ -1065,7 +1071,285 @@ namespace Housing
 
     // -------------------------------------------------------------------------
     // Rooms
+    //
+    // A room in retail is tiled geometry. 8.3.7 has no room renderer, so a room here is two
+    // things at once: a shape in `housing_room` with a footprint and a budget cost, and a cell
+    // on the house's floorplan in `character_housing_room`. The plan is checked before a row
+    // is written - bounds, overlap, one piece, budget - which is what makes buying a room a
+    // placement instead of a counter increment. The interior art belongs to the shell; the plan
+    // is the part the server can honestly enforce.
     // -------------------------------------------------------------------------
+
+    namespace
+    {
+        /// The cells a shape covers, its stored corner included.
+        struct CellRect
+        {
+            int32 MinX = 0;
+            int32 MinY = 0;
+            int32 MaxX = 0;
+            int32 MaxY = 0;
+        };
+
+        CellRect FootprintOf(RoomInfo const& room, int32 cellX, int32 cellY)
+        {
+            CellRect rect;
+            rect.MinX = cellX;
+            rect.MinY = cellY;
+            rect.MaxX = cellX + int32(room.CellsX ? room.CellsX : 1) - 1;
+            rect.MaxY = cellY + int32(room.CellsY ? room.CellsY : 1) - 1;
+            return rect;
+        }
+
+        bool RectsOverlap(CellRect const& left, CellRect const& right)
+        {
+            return left.MinX <= right.MaxX && right.MinX <= left.MaxX
+                && left.MinY <= right.MaxY && right.MinY <= left.MaxY;
+        }
+
+        /// Sharing a side, not a corner: retail's rule is that rooms connect through a wall,
+        /// and two rooms meeting at one cell corner have no wall between them.
+        bool RectsShareEdge(CellRect const& left, CellRect const& right)
+        {
+            bool const overlapsX = left.MinX <= right.MaxX && right.MinX <= left.MaxX;
+            bool const overlapsY = left.MinY <= right.MaxY && right.MinY <= left.MaxY;
+
+            if (overlapsX && (left.MaxY + 1 == right.MinY || right.MaxY + 1 == left.MinY))
+                return true;
+
+            if (overlapsY && (left.MaxX + 1 == right.MinX || right.MaxX + 1 == left.MinX))
+                return true;
+
+            return false;
+        }
+
+        bool SameRoom(PlacedRoom const& left, PlacedRoom const& right)
+        {
+            return left.RoomId == right.RoomId && left.CellX == right.CellX
+                && left.CellY == right.CellY && left.Floor == right.Floor;
+        }
+    }
+
+    std::vector<PlacedRoom> const& HousingMgr::GetPlacedRooms(uint32 housingId) const
+    {
+        static std::vector<PlacedRoom> const empty;
+
+        auto it = _placedRooms.find(housingId);
+        return it == _placedRooms.end() ? empty : it->second;
+    }
+
+    void HousingMgr::LoadPlacedRooms(uint32 housingId)
+    {
+        if (_placedRooms.count(housingId))
+            return;
+
+        std::vector<PlacedRoom> plan;
+
+        // An install that updated the world schema and not the character one has no table yet.
+        // The plan then reads as empty, which is what a house with no rooms bought means, so
+        // the failure is a missing feature rather than a crash on load.
+        if (QueryResult result = CharacterDatabase.Query(
+            "SELECT `room_id`, `cell_x`, `cell_y`, `floor` FROM `character_housing_room` "
+            "WHERE `housingId` = {} ORDER BY `floor`, `cell_y`, `cell_x`", housingId))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+
+                PlacedRoom placed;
+                placed.RoomId = fields[0].GetUInt32();
+                placed.CellX = fields[1].GetInt16();
+                placed.CellY = fields[2].GetInt16();
+                placed.Floor = fields[3].GetUInt8();
+
+                if (GetRoom(placed.RoomId))
+                    plan.push_back(placed);
+            }
+            while (result->NextRow());
+        }
+
+        _placedRooms[housingId] = plan;
+    }
+
+    void HousingMgr::ClearPlacedRooms(uint32 housingId)
+    {
+        _placedRooms.erase(housingId);
+        CharacterDatabase.DirectPExecute(
+            "DELETE FROM `character_housing_room` WHERE `housingId` = {}", housingId);
+    }
+
+    uint32 HousingMgr::PlacedRoomCost(uint32 housingId) const
+    {
+        uint32 cost = 0;
+
+        for (PlacedRoom const& placed : GetPlacedRooms(housingId))
+            if (RoomInfo const* room = GetRoom(placed.RoomId))
+                cost += room->BudgetCost;
+
+        return cost;
+    }
+
+    bool HousingMgr::PlanIsConnected(std::vector<PlacedRoom> const& plan) const
+    {
+        if (plan.empty())
+            return true;
+
+        // The anchor is the room standing on cell 0,0 of the ground floor: the door. A plan with
+        // no such room cannot be walked from the entrance, so it is not a plan.
+        size_t anchor = plan.size();
+
+        for (size_t i = 0; i < plan.size(); ++i)
+        {
+            RoomInfo const* room = GetRoom(plan[i].RoomId);
+            if (!room || plan[i].Floor)
+                continue;
+
+            CellRect const rect = FootprintOf(*room, plan[i].CellX, plan[i].CellY);
+            if (rect.MinX <= 0 && 0 <= rect.MaxX && rect.MinY <= 0 && 0 <= rect.MaxY)
+            {
+                anchor = i;
+                break;
+            }
+        }
+
+        if (anchor == plan.size())
+            return false;
+
+        std::vector<bool> seen(plan.size(), false);
+        std::vector<size_t> queue{ anchor };
+        seen[anchor] = true;
+        size_t reached = 1;
+
+        for (size_t head = 0; head < queue.size(); ++head)
+        {
+            PlacedRoom const& from = plan[queue[head]];
+            RoomInfo const* fromRoom = GetRoom(from.RoomId);
+            if (!fromRoom)
+                continue;
+
+            CellRect const fromRect = FootprintOf(*fromRoom, from.CellX, from.CellY);
+
+            for (size_t i = 0; i < plan.size(); ++i)
+            {
+                if (seen[i])
+                    continue;
+
+                RoomInfo const* toRoom = GetRoom(plan[i].RoomId);
+                if (!toRoom)
+                    continue;
+
+                CellRect const toRect = FootprintOf(*toRoom, plan[i].CellX, plan[i].CellY);
+
+                bool linked = false;
+
+                if (plan[i].Floor == from.Floor)
+                    linked = RectsShareEdge(fromRect, toRect);
+                else if (plan[i].Floor + 1 == from.Floor || plan[i].Floor == from.Floor + 1)
+                    linked = (fromRoom->Stairs || toRoom->Stairs) && RectsOverlap(fromRect, toRect);
+
+                if (!linked)
+                    continue;
+
+                seen[i] = true;
+                queue.push_back(i);
+                ++reached;
+            }
+        }
+
+        return reached == plan.size();
+    }
+
+    bool HousingMgr::PlanStaysConnected(uint32 housingId, PlacedRoom const& ignore) const
+    {
+        std::vector<PlacedRoom> rest;
+
+        for (PlacedRoom const& placed : GetPlacedRooms(housingId))
+            if (!SameRoom(placed, ignore))
+                rest.push_back(placed);
+
+        return PlanIsConnected(rest);
+    }
+
+    bool HousingMgr::RoomFits(uint32 housingId, RoomInfo const& room, int32 cellX, int32 cellY,
+        uint8 floor) const
+    {
+        if (cellX < -kRoomGridLimit || cellY < -kRoomGridLimit
+            || cellX + int32(room.CellsX ? room.CellsX : 1) - 1 > kRoomGridLimit
+            || cellY + int32(room.CellsY ? room.CellsY : 1) - 1 > kRoomGridLimit)
+            return false;
+
+        CellRect const footprint = FootprintOf(room, cellX, cellY);
+
+        bool groundFloorUsed = false;
+
+        for (PlacedRoom const& placed : GetPlacedRooms(housingId))
+        {
+            if (placed.Floor == 0)
+                groundFloorUsed = true;
+
+            if (placed.Floor != floor)
+                continue;
+
+            RoomInfo const* existing = GetRoom(placed.RoomId);
+            if (!existing)
+                continue;
+
+            if (RectsOverlap(footprint, FootprintOf(*existing, placed.CellX, placed.CellY)))
+                return false;
+        }
+
+        // The first room on the ground floor is the anchor and stands on 0,0; every room after
+        // it has to be reachable from the door. A room above the ground floor is reached
+        // through a stairwell under it, and the same walk sees that.
+        if (floor == 0 && !groundFloorUsed)
+            return cellX == 0 && cellY == 0;
+
+        std::vector<PlacedRoom> plan = GetPlacedRooms(housingId);
+
+        PlacedRoom candidate;
+        candidate.RoomId = room.Id;
+        candidate.CellX = int16(cellX);
+        candidate.CellY = int16(cellY);
+        candidate.Floor = floor;
+        plan.push_back(candidate);
+
+        return PlanIsConnected(plan);
+    }
+
+    bool HousingMgr::FindFreeCell(uint32 housingId, RoomInfo const& room, PlacedRoom& out) const
+    {
+        // The ground floor first, from the anchor outwards, then each floor above. Bounded by
+        // the grid, so this is 33 x 33 cells a floor and at most a handful of floors - and it
+        // is only run when a player buys without naming a cell.
+        for (uint8 floor = 0; floor < 4; ++floor)
+        {
+            for (int32 y = -kRoomGridLimit; y <= kRoomGridLimit; ++y)
+            {
+                for (int32 x = -kRoomGridLimit; x <= kRoomGridLimit; ++x)
+                {
+                    if (!RoomFits(housingId, room, x, y, floor))
+                        continue;
+
+                    out.RoomId = room.Id;
+                    out.CellX = int16(x);
+                    out.CellY = int16(y);
+                    out.Floor = floor;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    void HousingMgr::SyncRoomCost(HousingPlot* plot)
+    {
+        if (!plot || !plot->GetHouse())
+            return;
+
+        uint32 const cost = PlacedRoomCost(plot->GetHousingId());
+        plot->GetHouse()->SetRoomsOwned(uint8(std::min<uint32>(255, cost)));
+    }
 
     std::vector<RoomInfo> HousingMgr::GetRoomsForPlot(HousingPlot* plot) const
     {
@@ -1099,7 +1383,8 @@ namespace Housing
         return Ok;
     }
 
-    HousingResult HousingMgr::BuyRoom(Player* player, uint32 roomId)
+    HousingResult HousingMgr::PlaceRoom(Player* player, uint32 roomId, int32 cellX, int32 cellY,
+        uint8 floor)
     {
         if (!_enabled)
             return Disabled;
@@ -1119,20 +1404,105 @@ namespace Housing
         if (!level)
             return NotFound;
 
-        // The room budget is retail's room count - 19 rooms at level 1, 134 at 12 - and a
-        // shape spends one slot, or three if it is a large one. `rooms_owned` counts slots
-        // consumed rather than rooms built, because a house with two small rooms and one
-        // large one has spent 2 + 3 = 5 of its budget and cannot be charged for three rooms
-        // at the price of the last one bought.
-        uint32 const spent = house->GetRoomsOwned();
-        if (spent + room->BudgetCost > level->BudgetRoom)
+        uint32 const housingId = plot->GetHousingId();
+        LoadPlacedRooms(housingId);
+
+        // The budget is retail's room count - 19 slots at level 1, 134 at 12 - and a shape spends
+        // one, two or three of it. The plan is what the budget is spent on: a house that has
+        // placed nothing has spent nothing, whatever `rooms_owned` last said.
+        if (PlacedRoomCost(housingId) + room->BudgetCost > level->BudgetRoom)
             return BudgetExceeded;
 
-        house->SetRoomsOwned(uint8(std::min<uint32>(255, spent + room->BudgetCost)));
+        // A cell that is taken, out of the grid, or not reachable from the door is not a
+        // placement. `InvalidPlot` is the code the addon already prints for a refused position.
+        if (!RoomFits(housingId, *room, cellX, cellY, floor))
+            return InvalidPlot;
+
+        PlacedRoom placed;
+        placed.RoomId = roomId;
+        placed.CellX = int16(cellX);
+        placed.CellY = int16(cellY);
+        placed.Floor = floor;
+        _placedRooms[housingId].push_back(placed);
 
         CharacterDatabase.DirectPExecute(
-            "UPDATE `character_housing` SET `rooms_owned` = {} WHERE `id` = {}",
-            uint32(house->GetRoomsOwned()), plot->GetHousingId());
+            "INSERT INTO `character_housing_room` (`housingId`, `room_id`, `cell_x`, `cell_y`, "
+            "`floor`, `placed`) VALUES ({}, {}, {}, {}, {}, {})",
+            housingId, roomId, cellX, cellY, uint32(floor), uint32(std::time(nullptr)));
+
+        SyncRoomCost(plot);
+
+        TC_LOG_INFO("housing", "Housing %u: placed '%s' on cell %d,%d of floor %u (%d yards a cell)",
+            housingId, room->Name.c_str(), cellX, cellY, uint32(floor), kRoomCellYards);
+
+        return Ok;
+    }
+
+    HousingResult HousingMgr::BuyRoom(Player* player, uint32 roomId)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        RoomInfo const* room = GetRoom(roomId);
+        if (!room)
+            return NotFound;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        if (!plot || !plot->GetHouse())
+            return NoHouse;
+
+        uint32 const housingId = plot->GetHousingId();
+        LoadPlacedRooms(housingId);
+
+        // Buying without naming a cell is the addon's button and the command's short form: the
+        // shape goes on the first cell it fits, so the common case is one click and no grid.
+        PlacedRoom cell;
+        if (!FindFreeCell(housingId, *room, cell))
+            return InvalidPlot;
+
+        return PlaceRoom(player, roomId, cell.CellX, cell.CellY, cell.Floor);
+    }
+
+    HousingResult HousingMgr::RemovePlacedRoom(Player* player, uint32 roomId, int32 cellX,
+        int32 cellY, uint8 floor)
+    {
+        if (!_enabled)
+            return Disabled;
+
+        HousingPlot* plot = GetOwnedPlot(player);
+        HousingHouse* house = plot ? plot->GetHouse() : nullptr;
+        if (!house)
+            return NoHouse;
+
+        uint32 const housingId = plot->GetHousingId();
+        LoadPlacedRooms(housingId);
+
+        PlacedRoom target;
+        target.RoomId = roomId;
+        target.CellX = int16(cellX);
+        target.CellY = int16(cellY);
+        target.Floor = floor;
+
+        std::vector<PlacedRoom>& plan = _placedRooms[housingId];
+        auto found = std::find_if(plan.begin(), plan.end(),
+            [&target](PlacedRoom const& placed) { return SameRoom(placed, target); });
+
+        if (found == plan.end())
+            return NotFound;
+
+        // A room comes out only if the rest of the house is still walkable. Taking the hallway
+        // out from under a wing would leave rooms nobody can reach, and retail refuses that too.
+        if (!PlanStaysConnected(housingId, target))
+            return InvalidPlot;
+
+        plan.erase(found);
+
+        CharacterDatabase.DirectPExecute(
+            "DELETE FROM `character_housing_room` WHERE `housingId` = {} AND `room_id` = {} "
+            "AND `cell_x` = {} AND `cell_y` = {} AND `floor` = {}",
+            housingId, roomId, cellX, cellY, uint32(floor));
+
+        SyncRoomCost(plot);
 
         return Ok;
     }
@@ -3714,15 +4084,70 @@ namespace Housing
             return true;
         }
 
+        if (op == "ROOMAT")
+        {
+            // `C:ROOMAT|<roomId>|<cellX>|<cellY>|<floor>`. The cell is the client's choice and
+            // the server's to refuse: out of the grid, taken, or unreachable from the door all
+            // answer `InvalidPlot`, which is the answer the Placed tab already prints.
+            uint32 roomId = 0;
+            int32 cellX = 0;
+            int32 cellY = 0;
+            uint32 floor = 0;
+
+            if (fields.size() < 5
+                || !HousingAddon::ParseUInt(fields[1], roomId)
+                || !HousingAddon::ParseInt(fields[2], cellX)
+                || !HousingAddon::ParseInt(fields[3], cellY)
+                || !HousingAddon::ParseUInt(fields[4], floor))
+            {
+                SendResult(player, "ROOMAT", NotFound);
+                return true;
+            }
+
+            SendResult(player, "ROOMAT",
+                PlaceRoom(player, roomId, cellX, cellY, uint8(std::min<uint32>(floor, 255))),
+                roomId);
+            return true;
+        }
+
+        if (op == "ROOMREMOVE")
+        {
+            uint32 roomId = 0;
+            int32 cellX = 0;
+            int32 cellY = 0;
+            uint32 floor = 0;
+
+            if (fields.size() < 5
+                || !HousingAddon::ParseUInt(fields[1], roomId)
+                || !HousingAddon::ParseInt(fields[2], cellX)
+                || !HousingAddon::ParseInt(fields[3], cellY)
+                || !HousingAddon::ParseUInt(fields[4], floor))
+            {
+                SendResult(player, "ROOMREMOVE", NotFound);
+                return true;
+            }
+
+            SendResult(player, "ROOMREMOVE",
+                RemovePlacedRoom(player, roomId, cellX, cellY, uint8(std::min<uint32>(floor, 255))),
+                roomId);
+            return true;
+        }
+
         if (op == "ROOMS")
         {
             HousingPlot* plot = GetOwnedPlot(player);
             if (plot && plot->GetHouse())
             {
                 for (RoomInfo const& room : GetRoomsForPlot(plot))
-                    SendChunk(player, Trinity::StringFormat("S:ROOM|{}|{}|{}|{}|{}",
+                    SendChunk(player, Trinity::StringFormat("S:ROOM|{}|{}|{}|{}|{}|{}|{}",
                         room.Id, room.Name, uint32(room.BudgetCost), uint32(room.LevelRequired),
-                        uint32(CanBuyRoom(player, room.Id))));
+                        uint32(CanBuyRoom(player, room.Id)), uint32(room.CellsX), uint32(room.CellsY)));
+
+                LoadPlacedRooms(plot->GetHousingId());
+
+                for (PlacedRoom const& placed : GetPlacedRooms(plot->GetHousingId()))
+                    SendChunk(player, Trinity::StringFormat("S:ROOMPLACED|{}|{}|{}|{}",
+                        placed.RoomId, int32(placed.CellX), int32(placed.CellY), uint32(placed.Floor)));
 
                 SendChunk(player, Trinity::StringFormat("S:ROOMS|{}",
                     uint32(plot->GetHouse()->GetRoomsOwned())));

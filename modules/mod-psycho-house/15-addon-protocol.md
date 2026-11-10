@@ -1,6 +1,6 @@
 # 15 - The BFAH protocol
 
-The contract between `addon/HousingUI/` and the worldserver. Sixty-one client ops, thirty-nine
+The contract between `addon/HousingUI/` and the worldserver. Sixty-three client ops, forty
 server ops, one prefix, one framing rule, one version number. Everything a second
 implementation of either half needs is here; nothing here is inferred from a screenshot.
 
@@ -203,8 +203,10 @@ table, so alternatives are written `0 or 1`.
 | `C:STORAGE` | - | `S:STORAGE`* `S:STORAGEEND` | Owned copies by decor id |
 | `C:SHELLS` | - | `S:SHELL`* `S:SHELLEND` | Exterior shells of the player's faction |
 | `C:SHELL` | 2: shell id | `S:RESULT SHELL` | Applies the exterior, gated on house level |
-| `C:ROOMS` | - | `S:ROOM`* then `S:ROOMS` | Each shape with its slot cost and level gate, then the slots spent |
-| `C:ROOM` | 2: room id | `S:RESULT ROOM` | `<extra>` is the room id |
+| `C:ROOMS` | - | `S:ROOM`*, `S:ROOMPLACED`*, `S:ROOMS` | Each shape with its slot cost, level gate and footprint, then the floorplan, then the slots spent |
+| `C:ROOM` | 2: room id | `S:RESULT ROOM` | Buy the shape and place it on the first cell it fits; `<extra>` is the room id |
+| `C:ROOMAT` | 2: room id, 3: cell x, 4: cell y, 5: floor | `S:RESULT ROOMAT` | Place the shape on an exact cell; the cells are signed and four yards each |
+| `C:ROOMREMOVE` | 2: room id, 3: cell x, 4: cell y, 5: floor | `S:RESULT ROOMREMOVE` | Take the placed shape off the plan and return its slots |
 
 ### 6.6 Progression, Endeavors and hunts
 
@@ -264,7 +266,8 @@ Field 1 is the op. Counts are of the fields after it.
 | `S:STORAGEEND` | - | `C:STORAGE` | |
 | `S:SHELL` | 2: id, 3: name, 4: size class, 5: level required | `C:SHELLS` | |
 | `S:SHELLEND` | - | `C:SHELLS` | |
-| `S:ROOM` | 2: id, 3: name, 4: slot cost, 5: level required, 6: buy result | `C:ROOMS` | Field 6 is a `HousingResult`, not a boolean: 0 means the server would sell this shape |
+| `S:ROOM` | 2: id, 3: name, 4: slot cost, 5: level required, 6: buy result, 7: cells x, 8: cells y | `C:ROOMS` | Field 6 is a `HousingResult`, not a boolean: 0 means the server would sell this shape |
+| `S:ROOMPLACED` | 2: room id, 3: cell x, 4: cell y, 5: floor | `C:ROOMS` | One room standing on the plan, sent before the terminator |
 | `S:ROOMS` | 2: slots spent | `C:ROOMS` | The terminator of the room list |
 | `S:PORTAL` | 2: id, 3: name, 4: level required | `C:PORTALS` | |
 | `S:PORTALEND` | - | `C:PORTALS` | |

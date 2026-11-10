@@ -302,6 +302,7 @@ H.finder = {}
 H.rooms = {}
 H.dyesReady = false
 H.roomsOwned = 0
+H.placed = {}
 H.nightMode = false
 H.gryphon = 0
 H.storage = {}
@@ -538,6 +539,16 @@ H.handlers["ROOM"] = function(fields)
     H.rooms[#H.rooms + 1] = {
         id = tonumber(fields[2]), name = fields[3], cost = tonumber(fields[4]),
         level = tonumber(fields[5]), state = tonumber(fields[6]),
+        cellsX = tonumber(fields[7]) or 1, cellsY = tonumber(fields[8]) or 1,
+    }
+end
+
+-- A room standing on the plan. The list is rebuilt from the server's answer rather than
+-- patched locally, because a placement the server refused must not appear here.
+H.handlers["ROOMPLACED"] = function(fields)
+    H.placed[#H.placed + 1] = {
+        id = tonumber(fields[2]), cellX = tonumber(fields[3]),
+        cellY = tonumber(fields[4]), floor = tonumber(fields[5]),
     }
 end
 
@@ -770,7 +781,12 @@ SlashCmdList["HOUSING"] = function(input)
         Send("C:ROOM|" .. rest)
     elseif command == "rooms" then
         H.rooms = {}
+        H.placed = {}
         Send("C:ROOMS")
+    elseif command == "roomat" then
+        Send("C:ROOMAT|" .. rest)
+    elseif command == "roomremove" then
+        Send("C:ROOMREMOVE|" .. rest)
     elseif command == "arcane" then
         Send("C:ARCANE")
     elseif command == "armillary" then

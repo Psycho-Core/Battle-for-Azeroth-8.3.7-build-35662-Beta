@@ -20,7 +20,7 @@ modules/mod-psycho-house/
   13-mod-psychohouse-design.md  the third draft: one island house per character, why
                          every decision in it is the 8.3.7-compatible one, and what the
                          build does and does not provide
-  14-settings-and-commands.md  all 41 server settings, all 64 commands, the six client
+  14-settings-and-commands.md  all 41 server settings, all 66 commands, the six client
                          settings, and the three-way check that keeps them in step
   data/                  CSV snapshots: 1 056 stock lines, 739 item ids, 618
                          decor-to-gameobject mappings, 39 of 39 npc ids, and the raw
@@ -35,7 +35,7 @@ modules/mod-psycho-house/
   src/game/Housing/      the C++ core the drafts copy: 21 files, the manager, the
                          neighbourhoods, the houses, the Endeavor engine, the four NPC
                          scripts and the five gameobject scripts
-  src/scripts/Housing/   commands (64 of them), player/world/guild hooks, loader
+  src/scripts/Housing/   commands (66 of them), player/world/guild hooks, loader
   sql/world/             the schema update
   sql/characters/        the character-side update
   sql/generated/         output of the world-DB harvest (empty until run)
@@ -77,7 +77,7 @@ publish entry ids for the interior quests.
 | 12 | [Midnight item port](12-midnight-item-port.md) | Item by item: what a decor id has to be for the module to work, keeping the retail ids, the catalogue-only route, the full port with model and texture conversion, the five DB2 tables, icons, packaging, the order to verify in, and how the housing menus are rebuilt client side. |
 | 13 | [mod-psychohouse design](13-mod-psychohouse-design.md) | The third draft, end to end: one house per character on GM Island, phase allocation in 50000-64999, transient spawns so nothing can be orphaned, the 13 row facility catalogue with prices, the two NPCs, the 78 `creature_template` columns this build's loader reads, a table of what build 35662 provides and what it dropped, and exactly what was checked and what is still open. |
 | 14 | [Settings and commands](14-settings-and-commands.md) | Every server setting with its default, its clamp and whether a reload picks it up; every `.housing` command with its arguments and who may use it; every persisted client preference; the `.housing config` output; and the four lists `check_reference.py` holds in step with the code. |
-| 15 | [Addon protocol](15-addon-protocol.md) | The BFAH contract: transport and the whisper-self channel, framing, chunking, protocol version 3, the rate limit, and then a row for each of the 61 client ops with its arguments and reply and each of the 39 server ops with its fields, plus the enums that travel on the wire. `check_protocol.py` fails if a table and the code disagree. |
+| 15 | [Addon protocol](15-addon-protocol.md) | The BFAH contract: transport and the whisper-self channel, framing, chunking, protocol version 3, the rate limit, and then a row for each of the 63 client ops with its arguments and reply and each of the 40 server ops with its fields, plus the enums that travel on the wire. `check_protocol.py` fails if a table and the code disagree. |
 | - | [Generated index](generated/source-asset-index.md) | Auto-generated inventory (28 314 named id constants) plus the CSV. |
 
 ## Tools that ship with this
@@ -99,7 +99,7 @@ publish entry ids for the interior quests.
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
 | `tools/housing/patch_cmake.py` | Widens `GetScriptModuleList` so a root `modules/` folder is actually built, and warns about the folder name that would break the loader export. Idempotent, keeps a backup. |
 | `tools/housing/build_appendix.py` | Regenerates doc 08 from the index with **every** row, and `--check` reports any section whose printed count disagrees with the rows under it. |
-| `tools/housing/audit.py` | Eleven checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, the documents named in source comments, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping, the settings-and-commands reference, and the names the documents cite. Exits non-zero on a finding. |
+| `tools/housing/audit.py` | Twelve checks over the whole folder: ASCII, voice in the documents, voice in the comments of the SQL, C++ and Lua, links, the documents named in source comments, doc-vs-CSV counts, CSV integrity, SQL tuples, decor mapping, the settings-and-commands reference, the names the documents cite, and the floorplan rules run over the shipped room shapes. Exits non-zero on a finding. |
 | `tools/housing/check_reference.py` | The four lists that have to agree: conf keys, the keys `LoadConfig` records, and the keys doc 14 lists; the command table and the commands doc 14 lists; the addon's defaults and the client settings doc 14 lists; and that in-game help is read out of the command table rather than typed out. Mutation-tested four ways - a dropped setting row, a renamed command, a renamed client default and a deleted `note` call were each reported. |
 | `tools/housing/build_quests.py` | Writes the four introduction quests into both drafts as `quest_template` rows, with every column taken from the build's own SQL vocabulary. |
 | `tools/housing/build_hunts.py` | Writes `08_hunts.sql` into both drafts: the ten reward pieces (1900-1909 and 2900-2909), the ten `housing_hunt` rows, the ten `quest_objectives` rows and the ten riddle quests 900110-900119. Separate from the quest builder because the two drafts number the reward pieces differently. |
@@ -212,6 +212,27 @@ than names - which is exactly where an unchecked answer goes wrong.
 | 171 | **Dyeing was free, so it was not a decision.** Retail's dyes are crafted by Alchemy and Inscription, tradeable and sold on the auction house; here a dye change cost nothing and doc 06 sec.2.4 described recipes that do not exist while sec.2.3 said no dye is consumed - the two halves of one document contradicted each other | `Housing.Dye.Cost` prices a change, defaults to 0, and re-applying the colour a piece already has stays free. Doc 06 sec.2.4 now says why there is no dye item: an item and a spell row per colour would have to be invented, and seventy-seven invented ids is a worse trade than a price the realm sets |
 | 172 | **The palette claim was quietly wrong.** Retail has 77 colours in nine groups; `housing_dye` seeds six words, and nothing said so - a reader comparing the two counts had to work out that a dye here is a recoloured game object rather than a client dye | Doc 06 sec.2.2 states the rule: a colour exists when the realm's own furniture names carry that word, the draft seeds six, and `bind_decor_variants.sql` fills the variants from whatever is in `housing_dye`, so a realm that adds a seventh word gets its variants |
 | 173 | **A documented gap that was never written down, and a stale line beside it.** Doc 09 sec.5.13 describes three vendor gates and doc 01 sec.7.5 lists them; only two are implemented. Doc 10 said "nothing is enforced yet - that is phase 3", which had been false since the milestone gate shipped | Doc 02 sec.3 has the ninth substitution: currency and milestone gates are enforced, the entitlement gate is not, because both named entitlements lack an id. Doc 10 now says which half is enforced and which half waits |
+## Audit pass, forty-third revision
+
+The worst row of the audit list, asked again: the room catalogue in the data, the room catalogue
+in the documents, and retail's. Two of the three had been reconciled in the thirty-eighth
+revision. What nobody had asked was whether a room, once bought, was anywhere.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 208 | **The catalogue was retail's and buying a room bought nothing.** Doc 06 sec.1.2 listed six placement rules - grid cells, a shared wall, no overlap, the budget, reachability, no orphaned room on removal - and doc 06 sec.1.3 said a placed room "spawns as a GO in the interior phase". `BuyRoom` added the shape's cost to a counter called `rooms_owned` and wrote the number; there was no floorplan, no cell, no removal, no table and no code that could enforce one rule of the six. A house with seventeen rooms and a house with none were the same house with a different `TINYINT` | The plan is data now. `character_housing_room` holds one row per placed shape with its corner cell and floor; `housing_room` gained `cells_x`, `cells_y` and `stairs`, so a footprint is a property of the shape rather than a guess in code. `PlaceRoom` and `RemovePlacedRoom` enforce all six rules - the anchor on 0,0, a shared wall, no overlap, the level budget, one walkable piece by flood fill over edges and stairwells, and no removal that strands a room - and `rooms_owned` is recomputed from the plan instead of incremented. `C:ROOMAT` and `C:ROOMREMOVE` place and remove on a named cell, `S:ROOM` now carries the footprint, `S:ROOMPLACED` carries the plan, and `.housing rooms` / `roomat` / `roomremove` do the same in chat |
+| 209 | **Doc 06 sec.1.3 promised geometry the build cannot have.** "Once placed, the shell spawns as a GO" was never true and could not be: no 8.3.7 game object means "Square Room (Medium)", exactly as no building means "the Human cottage". The document described the retail behaviour in the present tense, so a reader had no way to tell which half of the room system was real | Sec.1.3 says what is real - the plan, the rules, the budget - and what is not: the interior art belongs to the shell, and a room adds cells and slots rather than a model. The regret window is named as narrower than retail's there too: the floorplan is deleted with the building, so a restored house comes back with its decor and an empty plan. The substitution list in doc 02 sec.3 carries the same sentence |
+| 210 | **Doc 10 counted six exterior shells and eighteen rooms; the drafts ship twelve and seventeen.** "Shells, rooms, portals: 6 / 18 / 10" sat in the side-by-side table under a build that generates twelve shells, seventeen rooms and ten portals, and had survived two revisions of room work because the checker read doc 04 and the SQL and never read this table | Twelve, seventeen, ten. The room count is now cross-checked in three places rather than two: doc 04 sec.3's table, both drafts, and doc 10's own line |
+| 211 | **Nothing ran the floorplan rules, because there was no floorplan.** With no compiler in the folder, "the rules are enforced" was going to be a claim in a comment again | `check_floorplan.py` restates the rules in Python and runs them over the seventeen shapes the drafts actually ship: the Initial Room Collection places twelve rooms for 16 of 19 slots, three closets fill the budget to exactly 19 and the next is refused, a room on floor 1 is only reachable over a stairwell, a second room cannot take the anchor's cell, and removing the anchor breaks the plan. Mutation-tested three ways - stairwells stripped, a shape made to cost more, a footprint wider than the grid - and each mutation named a different room defect. It is the audit's twelfth check |
+
+| checker | result |
+| --- | --- |
+| `check_floorplan.py` | 0 findings; 12 rooms of the collection, 16 of 19 slots, 134 at level 12, three mutations caught |
+| `check_coverage.py` | 0 findings; 17 rooms, doc 04 sec.3 and both drafts agreeing row for row, footprints compared as well as names |
+| `check_protocol.py` | 0 findings; `C:ROOMAT` and `C:ROOMREMOVE` documented, `S:ROOMPLACED` documented and sent |
+| `check_reference.py` | 0 findings; 41 settings, 66 commands |
+| `audit.py` | 0 findings across 12 checks |
+
 ## Audit pass, forty-second revision
 
 The Coffer was bound by a name nobody could check, and the founding minimum in doc 01 had no
@@ -341,7 +362,11 @@ interior, room and outdoor budgets and the room unlocks are one table, `housing_
 in `07_progression.sql`, populated with doc 01 sec.3.1 column for column - all twelve rows, no
 interpolated middle. Level-up at the General
 Contractor, never automatically: `npc_housing_contractor`, `LevelUpWithGold` or the free claim
-once the XP is there. Medium exteriors at 8 and large at 12: `housing_shell.level_required`
+once the XP is there. The rooms are a floorplan, not a counter: `housing_room` sells the
+seventeen shapes and `character_housing_room` is what stands on this house, four yards a cell,
+the first room on 0,0 and every later one on a shared wall, `PlaceRoom` and `RemovePlacedRoom`
+holding the overlap, reachability and budget rules, stairwells carrying the floors above, and
+`rooms_owned` recomputed from the plan instead of incremented by a purchase. Medium exteriors at 8 and large at 12: `housing_shell.level_required`
 and `ApplyShell`, over the four racial kits of doc 01 sec.4. The level-10 weekly Arcanostorage Sphere: `OpenArcanostorage`, on
 `Housing.Arcanostorage.Level` and `Housing.Arcanostorage.CooldownDays`.
 
@@ -420,7 +445,7 @@ rooms. Dyes named in the export: the importer lists the pieces it will skip for 
 `housing_vendor_stock.currency_id` and `housing_endeavor_reward.currency_id` carrying all three.
 
 **Settings.** 41 keys in the conf file, all read by `LoadConfig` and all clamped, printable
-with `.housing config`. Six client preferences on the Settings tab. 64 commands, 56 player and
+with `.housing config`. Six client preferences on the Settings tab. 66 commands, 58 player and
 8 GM. Fifteen addon tabs. Doc 14 is generated from the same lists and `check_reference.py`
 fails if the three disagree.
 

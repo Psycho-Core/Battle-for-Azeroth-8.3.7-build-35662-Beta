@@ -385,8 +385,23 @@ namespace Housing
 
         /// Rooms bought at the Contractor: a room is an area of the interior and a budget.
         HousingResult CanBuyRoom(Player* player, uint32 roomId) const;
+        /// Buy a shape and put it on the plan in the first cell that fits it.
         HousingResult BuyRoom(Player* player, uint32 roomId);
         std::vector<RoomInfo> GetRoomsForPlot(HousingPlot* plot) const;
+
+        /// The floorplan (doc 06 sec.1.2). A room that is bought is placed, not counted: the
+        /// plan is the record, `rooms_owned` is its cost, and every rule below is checked
+        /// before a row is written.
+        std::vector<PlacedRoom> const& GetPlacedRooms(uint32 housingId) const;
+        void LoadPlacedRooms(uint32 housingId);
+        /// Buy a shape and put it on an exact cell.
+        HousingResult PlaceRoom(Player* player, uint32 roomId, int32 cellX, int32 cellY, uint8 floor);
+        /// Take a placed shape off the plan, returning its slots to the budget.
+        HousingResult RemovePlacedRoom(Player* player, uint32 roomId, int32 cellX, int32 cellY, uint8 floor);
+        /// Slots the plan spends. The house's `rooms_owned` is this number.
+        uint32 PlacedRoomCost(uint32 housingId) const;
+        /// Drop the plan when the house is sold: the rooms go with the building.
+        void ClearPlacedRooms(uint32 housingId);
 
         /// The weekly Arcanostorage Sphere: level 10, one roll per account per week.
         HousingResult OpenArcanostorage(Player* player);
@@ -477,6 +492,22 @@ namespace Housing
         std::map<uint32, DecorInfo> _decor;
         std::map<uint32, VendorInfo> _vendors;
         std::map<uint32, std::vector<VendorStockEntry>> _vendorStock;
+        /// Does this footprint sit inside the grid, clear of every room on its floor, and
+        /// touch the plan that is already there? A first room on floor 0 is the anchor and
+        /// sits at 0,0; a room above floor 0 has to be reached by a stairwell below it.
+        bool RoomFits(uint32 housingId, RoomInfo const& room, int32 cellX, int32 cellY,
+            uint8 floor) const;
+        /// Is every room on this plan reachable from the anchor over shared cell edges, and
+        /// across a floor only where a stairwell stands under the room above.
+        bool PlanIsConnected(std::vector<PlacedRoom> const& plan) const;
+        /// The same question asked about a plan with one room taken out of it.
+        bool PlanStaysConnected(uint32 housingId, PlacedRoom const& ignore) const;
+        /// Find the first cell a shape fits in, scanning floor 0 outwards and then each floor
+        /// a stairwell reaches. Returns false when the plan has no room for it.
+        bool FindFreeCell(uint32 housingId, RoomInfo const& room, PlacedRoom& out) const;
+        /// Recompute `rooms_owned` from the plan and write it to the character DB.
+        void SyncRoomCost(HousingPlot* plot);
+
         std::map<uint32, AmenityInfo> _amenities;
         std::vector<AmenityInfo> _amenityList;
         std::vector<HuntInfo> _huntList;
@@ -486,6 +517,7 @@ namespace Housing
         std::map<uint8, HouseLevelInfo> _levels;
         std::map<uint32, ShellInfo> _shells;
         std::map<uint32, RoomInfo> _rooms;
+        std::map<uint32, std::vector<PlacedRoom>> _placedRooms;          // housingId -> floorplan
         std::map<uint8, std::string> _dyes;
         std::vector<std::pair<std::string, std::string>> _configValues;
         std::map<uint32, HousingPortal> _portals;

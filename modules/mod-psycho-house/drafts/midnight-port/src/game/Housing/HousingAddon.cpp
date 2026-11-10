@@ -63,6 +63,24 @@ bool HousingAddon::ParseUInt(std::string const& field, uint32& out)
     return true;
 }
 
+bool HousingAddon::ParseInt(std::string const& field, int32& out)
+{
+    if (field.empty() || field.size() > 11)
+        return false;
+
+    size_t start = (field[0] == '-') ? 1 : 0;
+
+    if (start == field.size())
+        return false;
+
+    for (size_t i = start; i < field.size(); ++i)
+        if (field[i] < '0' || field[i] > '9')
+            return false;
+
+    out = int32(std::strtol(field.c_str(), nullptr, 10));
+    return true;
+}
+
 bool HousingAddon::ParseFloat(std::string const& field, float& out)
 {
     if (field.empty() || field.size() > 16)

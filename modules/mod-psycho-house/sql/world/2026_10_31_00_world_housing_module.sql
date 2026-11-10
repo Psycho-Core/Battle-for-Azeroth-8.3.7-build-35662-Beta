@@ -238,6 +238,21 @@ CREATE TABLE IF NOT EXISTS `housing_house_level` (
 --
 --   ALTER TABLE `housing_house_level` DROP COLUMN `rooms`;
 --
+-- The footprint columns on `housing_room` are newer than the table. `CREATE TABLE IF NOT
+-- EXISTS` leaves an existing table alone, so an install that already has `housing_room` needs
+-- these three statements by hand before the first room is placed. They are written out here
+-- rather than in the file because a duplicate column is an error, and this file has to import
+-- on a fresh database as well as an old one:
+--
+--   ALTER TABLE `housing_room`
+--     ADD COLUMN `cells_x` TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER `level_required`,
+--     ADD COLUMN `cells_y` TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER `cells_x`,
+--     ADD COLUMN `stairs`  TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `cells_y`;
+--
+-- Then re-run `07_progression.sql`, which carries the footprints of the seventeen shapes. A
+-- room with a footprint of 1x1 and no stairs - what the default gives - can still be placed:
+-- it is simply a one-cell room on the ground floor.
+
 -- ---------------------------------------------------------------------------
 -- Exterior shells and the rooms inside them. `gameobject_entry` stays 0 until
 -- tools/sql/bind_housing_content.sql fills it from the realm's own gameobject_template,
@@ -268,9 +283,12 @@ CREATE TABLE IF NOT EXISTS `housing_room` (
   `radius`    FLOAT NOT NULL DEFAULT 12 COMMENT 'the room the player must stand in to decorate it',
   `budget_cost` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'room slots this shape spends; 1 small, 2 medium, 3 large',
   `level_required` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `cells_x`   TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'footprint on the floorplan in four-yard cells',
+  `cells_y`   TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `stairs`    TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 = a room placed over this one is on the floor above',
   PRIMARY KEY (`id`),
   KEY `idx_housing_room_shell` (`shell_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Rooms inside a shell';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Room shapes: a footprint, a slot cost and the level that unlocks it';
 
 -- ---------------------------------------------------------------------------
 -- Dyes. A game object cannot be recoloured at runtime, so a dye is a different object with

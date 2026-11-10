@@ -93,7 +93,7 @@ decision I can change and re-generate in seconds.
 | Endeavor gating | yes, 4 milestones | no, every stall open |
 | Introduction quests | 900100-900103 | 900100-900103 |
 | House levels | 12, retail's XP curve and budgets | 12, the same ladder |
-| Shells, rooms, portals | 6 / 18 / 10 | 6 / 18 / 10 |
+| Shells, rooms, portals | 12 / 17 / 10 | 12 / 17 / 10 |
 | Dyes and pet beds | in, data-driven | in, data-driven |
 | Blueprints | export and import, `PHP1` codes | same |
 | Map mode default | `native` | `anchor` |
