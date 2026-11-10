@@ -720,7 +720,7 @@ namespace Housing
                 if (slot >= page.size())
                     return false;
 
-                HousingResult const result = sHousingMgr->BuyDecor(player, page[slot]);
+                HousingResult const result = sHousingMgr->BuyDecor(player, page[slot], vendor->Id);
                 ChatHandler handler(player->GetSession());
                 handler.PSendSysMessage("{}", HousingMgr::ResultName(result));
 
@@ -783,7 +783,9 @@ namespace Housing
                 if (!smuggler && !(info->FactionMask & factionBit))
                     continue;
 
-                if (!sHousingMgr->IsStockAvailable(player, *info))
+                // This stall's own row, not the piece's first listing: two stalls can stock
+                // one piece and gate only one of them.
+                if (!sHousingMgr->IsStockAvailableAt(player, vendor.Id, info->Id))
                     continue;
 
                 shown.push_back(info->Id);
@@ -816,7 +818,7 @@ namespace Housing
                     ? " (known)" : "";
 
                 std::string const line = Trinity::StringFormat("{} - {}{}",
-                    info->Name, sHousingMgr->GetPurchasePrice(player, *info), owned);
+                    info->Name, sHousingMgr->GetPurchasePrice(player, *info, vendor.Id), owned);
 
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, line, GOSSIP_SENDER_MAIN,
                     VendorBuy + (index - start));

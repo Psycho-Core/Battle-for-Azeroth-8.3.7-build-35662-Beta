@@ -274,6 +274,345 @@ def check_dead_columns(root):
     return checks
 
 
+DECOR_FLAG_PET_BED = 0x010
+
+
+def check_creatures(base, draft, tables, findings_before=0):
+    """The pieces that own a creature, against the pieces the draft ships.
+
+    `housing_decor_creature` is what makes a pet bed a bed: `AssignPet` refuses a placement
+    whose decor row is not flagged, and `SpawnDecorCreature` looks the row up by decor id. The
+    two have to agree in both directions, and a row pointing at a decor id the draft does not
+    ship is a bed on a piece that does not exist - which is exactly what draft B shipped until
+    this check existed, as a single placeholder row for decor 0.
+    """
+    checks = 0
+    flags = {}
+    beds = {}
+    hunts = []
+
+    for name in sorted(os.listdir(base)):
+        if not name.endswith(".sql"):
+            continue
+
+        for table, columns, tuples in statements(read(os.path.join(base, name))):
+            for tuple_row in tuples:
+                record = {c: value(f) for c, f in zip(columns, tuple_row)}
+
+                if table == "housing_decor":
+                    flags[record.get("id")] = record.get("flags") or 0
+                elif table == "housing_decor_creature":
+                    beds[record.get("decor_id")] = record.get("kind")
+                elif table == "housing_hunt":
+                    hunts.append((record.get("id"), record.get("reward_decor")))
+
+    checks += 1
+    for decor_id in sorted(beds):
+        if decor_id not in flags:
+            fail(draft, "housing_decor_creature row for decor {} does not exist in the "
+                        "catalogue".format(decor_id))
+
+    checks += 1
+    for decor_id, kind in sorted(flags.items()):
+        if kind & DECOR_FLAG_PET_BED and decor_id not in beds:
+            fail(draft, "decor {} is flagged as a pet bed and has no housing_decor_creature "
+                        "row".format(decor_id))
+
+    checks += 1
+    for decor_id in sorted(beds):
+        if decor_id in flags and not flags[decor_id] & DECOR_FLAG_PET_BED:
+            fail(draft, "decor {} owns a creature and is not flagged as a pet bed".format(
+                decor_id))
+
+    # Both drafts say pet beds are in (doc 10 sec.4), so one with none is a feature the
+    # documents promise and the data cannot deliver.
+    checks += 1
+    if not beds:
+        fail(draft, "no pet bed at all: doc 10 says both drafts ship them")
+
+    checks += 1
+    for hunt_id, reward in hunts:
+        if reward and reward not in flags:
+            fail(draft, "hunt {} rewards decor {} which the draft does not ship".format(
+                hunt_id, reward))
+
+    return checks
+
+
+def draft_stats(draft):
+    """Counts doc 10 states, taken from the draft itself."""
+    base = os.path.join(DRAFTS, draft, "sql", "world")
+    stats = {"decor": 0, "stock": 0, "vendors": 0, "horde": 0, "alliance": 0,
+             "gated": 0, "items": set(), "item_rows": 0, "beds": 0, "both": 0}
+
+    for name in sorted(os.listdir(base)):
+        # The hunt file carries the ten reward pieces, which doc 10 counts on its own line
+        # rather than in the catalogue. Counting them here would make the catalogue look ten
+        # pieces larger than the number the document states.
+        if not name.endswith(".sql") or name == "08_hunts.sql":
+            continue
+
+        for table, columns, tuples in statements(read(os.path.join(base, name))):
+            for tuple_row in tuples:
+                record = {c: value(f) for c, f in zip(columns, tuple_row)}
+
+                if table == "housing_vendor":
+                    stats["vendors"] += 1
+                elif table == "housing_vendor_stock":
+                    stats["stock"] += 1
+                    if record.get("milestone"):
+                        stats["gated"] += 1
+                elif table == "housing_decor":
+                    stats["decor"] += 1
+                    if str(record.get("faction_mask")) == "1":
+                        stats["alliance"] += 1
+                    elif str(record.get("faction_mask")) == "2":
+                        stats["horde"] += 1
+                    elif str(record.get("faction_mask")) == "3":
+                        stats["both"] += 1
+                    if record.get("item_entry"):
+                        stats["items"].add(record["item_entry"])
+                        stats["item_rows"] += 1
+                elif table == "housing_decor_creature":
+                    stats["beds"] += 1
+
+    return stats
+
+
+def native_rank():
+    """Entry to position, over every decor-shaped game object in the source index."""
+    path = os.path.join(HERE, "generated", "source-asset-index.csv")
+    entries = set()
+
+    for row in csv.DictReader(open(path, newline="", encoding="utf-8")):
+        if row["kind"] == "gameobject" and row["decor"] == "yes":
+            entries.add(int(row["entry"]))
+
+    return {entry: i for i, entry in enumerate(sorted(entries))}
+
+
+NATIVE_RANK = native_rank()
+
+
+def check_ids(base, draft, band, findings_before=0):
+    """Decor ids: unique, inside the draft's band, and the same piece never given twice.
+
+    Draft B's ids used to be the row's position in the filtered harvest, so adding one word to
+    the reject tuple renumbered every piece after the first rejected one - and a piece's id is
+    what a placement, a stock row and a saved blueprint point at. They are the entry's position
+    in the whole decor-shaped set now, which means gaps in the band and no shift.
+    """
+    seen = {}
+    checks = 1
+
+    for name in sorted(os.listdir(base)):
+        if not name.endswith(".sql"):
+            continue
+
+        for table, columns, tuples in statements(read(os.path.join(base, name))):
+            if table != "housing_decor":
+                continue
+
+            for tuple_row in tuples:
+                record = {c: value(f) for c, f in zip(columns, tuple_row)}
+                decor_id = record.get("id")
+
+                if decor_id in seen:
+                    fail(draft, "decor {} appears twice: {} and {}".format(
+                        decor_id, seen[decor_id], name))
+                seen[decor_id] = name
+
+                if not band[0] <= decor_id <= band[1]:
+                    fail(draft, "decor {} is outside the {}-{} band".format(
+                        decor_id, band[0], band[1]))
+
+                if draft == "bfa-native" and decor_id < 2900:
+                    expected = 2000 + NATIVE_RANK.get(record.get("gameobject_entry"))
+                    if expected != decor_id:
+                        fail(draft, "decor {} should be {} for game object {} - native ids "
+                                    "are the entry's position in the whole decor set, not in "
+                                    "the harvest".format(decor_id, expected,
+                                                         record.get("gameobject_entry")))
+
+    return checks
+
+
+HORDE = 0x02
+ALLIANCE = 0x01
+
+
+def check_stock_side(base, draft, findings_before=0):
+    """Every stock line against the mask on the piece it sells.
+
+    A decor row's `faction_mask` is what `BuyDecor` and the shop listing test, so a row whose
+    mask does not carry the buying side is a line on a vendor's shelf that nobody can buy.
+    Draft A shipped 233 of them: a piece both neighbourhoods stock at the same price becomes
+    one row, and the mask was taken from whichever hub was read first - so 50 pieces Faarden
+    the Builder sells in Founder's Point were Horde-only, the four pet beds among them.
+    """
+    vendor_side = {}
+    masks = {}
+    bed_ids = set()
+    stock = []
+
+    for name in sorted(os.listdir(base)):
+        if not name.endswith(".sql"):
+            continue
+
+        for table, columns, tuples in statements(read(os.path.join(base, name))):
+            for tuple_row in tuples:
+                record = {c: value(f) for c, f in zip(columns, tuple_row)}
+
+                if table == "housing_vendor":
+                    comment = record.get("comment") or ""
+                    if "Horde" in comment:
+                        vendor_side[record.get("id")] = HORDE
+                    elif "Alliance" in comment:
+                        vendor_side[record.get("id")] = ALLIANCE
+                elif table == "housing_decor":
+                    masks[record.get("id")] = record.get("faction_mask") or 0
+                    if (record.get("flags") or 0) & DECOR_FLAG_PET_BED:
+                        bed_ids.add(record.get("id"))
+                elif table == "housing_vendor_stock":
+                    stock.append((record.get("vendor_id"), record.get("decor_id")))
+
+    checks = 0
+    checks += 1
+    for vendor_id, decor_id in stock:
+        side = vendor_side.get(vendor_id)
+        if side is None or decor_id not in masks:
+            continue
+        if not masks[decor_id] & side:
+            fail(draft, "vendor {} stocks decor {} which is masked {} - no character on that "
+                        "side can buy it".format(vendor_id, decor_id, masks[decor_id]))
+
+    # Every side must be able to buy a pet bed, or the feature is one faction's.
+    checks += 1
+    for side, label in ((HORDE, "Horde"), (ALLIANCE, "Alliance")):
+        if not any(mask & side for mask in
+                   (masks[d] for v, d in stock if d in masks and d in bed_ids)):
+            fail(draft, "no pet bed is buyable by {}".format(label))
+
+    return checks
+
+
+def check_documented_counts():
+    """Doc 10's numbers against the two drafts.
+
+    Doc 10 is the document that says what each draft ships, and every number in it was typed
+    by hand: the decor count, the stock count, the vendor count, the faction split, how many
+    stock rows an Endeavor gate holds back, how many retail item ids the rows carry and how
+    many pet beds the progression file carries. Nothing compared them, because doc 10 was not
+    on any checker's list - the side-by-side table still said 350 decor pieces when the draft
+    shipped 336, and the pet-bed line said three when both drafts had shipped four.
+    """
+    doc = read(os.path.join(HERE, "10-draft-modules.md"))
+    a = draft_stats("midnight-port")
+    b = draft_stats("bfa-native")
+
+    def stated(pattern, what):
+        match = re.search(pattern, doc, re.S)
+        if not match:
+            fail("10-draft-modules.md", "no longer states {}".format(what))
+            return None
+        return int(match.group(1))
+
+    checks = 0
+
+    checks += 1
+    value = stated(r"\| Vendors \| (\d+), each with the retail npc id", "the vendor count")
+    if value is not None and value != a["vendors"]:
+        fail("10-draft-modules.md", "says {} vendors in draft A, the SQL has {}".format(
+            value, a["vendors"]))
+
+    checks += 1
+    value = stated(r"\| Decor rows \| (\d+), every one carrying", "draft A's decor count")
+    if value is not None and value != a["decor"]:
+        fail("10-draft-modules.md", "says {} decor rows in draft A, the SQL has {}".format(
+            value, a["decor"]))
+
+    checks += 1
+    value = stated(r"\| Stock lines \| (\d+) \|", "draft A's stock count")
+    if value is not None and value != a["stock"]:
+        fail("10-draft-modules.md", "says {} stock lines in draft A, the SQL has {}".format(
+            value, a["stock"]))
+
+    checks += 1
+    match = re.search(r"\| Faction split \| (\d+) pieces are sold only in Razorwind Shores "
+                      r"\(Horde\) and (\d+) only in Founder's Point \(Alliance\); the other "
+                      r"(\d+) are sold in both", doc)
+    if not match:
+        fail("10-draft-modules.md", "no longer states draft A's faction split")
+    elif (int(match.group(1)) != a["horde"] or int(match.group(2)) != a["alliance"]
+          or int(match.group(3)) != a["both"]):
+        fail("10-draft-modules.md", "says {} Horde, {} Alliance and {} both, the SQL has {}, "
+             "{} and {}".format(match.group(1), match.group(2), match.group(3), a["horde"],
+                                a["alliance"], a["both"]))
+
+    checks += 1
+    match = re.search(r"\| Gated stock \| (\d+) stock lines on six vendors are locked behind "
+                      r"Endeavor milestones at retail.*?(\d+) of them are shipped as gated "
+                      r"rows", doc, re.S)
+    if not match:
+        fail("10-draft-modules.md", "no longer states how many stock rows are gated")
+    elif int(match.group(2)) != a["gated"]:
+        fail("10-draft-modules.md", "says {} milestone-gated stock rows in draft A, the SQL "
+             "has {}".format(match.group(2), a["gated"]))
+
+    checks += 1
+    match = re.search(r"\| Retail item ids on those rows \| (\d+) rows carry one; between them "
+                      r"they cover all (\d+) distinct ids", doc)
+    if not match:
+        fail("10-draft-modules.md", "no longer states how many rows carry a retail item id")
+    elif int(match.group(1)) != a["item_rows"] or int(match.group(2)) != len(a["items"]):
+        fail("10-draft-modules.md", "says {} rows carry {} ids, the SQL has {} rows and {} ids"
+             .format(match.group(1), match.group(2), a["item_rows"], len(a["items"])))
+
+    checks += 1
+    match = re.search(r"\| Decor rows \| (\d+): (\d+) game objects that already exist", doc)
+    if not match:
+        fail("10-draft-modules.md", "no longer states draft B's decor count")
+    elif int(match.group(1)) != b["decor"]:
+        fail("10-draft-modules.md", "says {} decor rows in draft B, the SQL has {}".format(
+            match.group(1), b["decor"]))
+    elif int(match.group(2)) != b["decor"] - b["beds"]:
+        fail("10-draft-modules.md", "says {} harvested decor rows in draft B, the SQL has {} "
+             "besides the {}".format(match.group(2), b["decor"] - b["beds"], b["beds"]))
+
+    checks += 1
+    value = stated(r"\| Stock lines \| (\d+), every piece sold somewhere", "draft B's stock "
+                                                                             "count")
+    if value is not None and value != b["stock"]:
+        fail("10-draft-modules.md", "says {} stock lines in draft B, the SQL has {}".format(
+            value, b["stock"]))
+
+    checks += 1
+    match = re.search(r"\| Number of vendors \| \d+ \| (\d+) \|", doc)
+    if not match:
+        fail("10-draft-modules.md", "the side-by-side table no longer states draft B's vendors")
+    elif int(match.group(1)) != b["vendors"]:
+        fail("10-draft-modules.md", "the side-by-side table says {} vendors in draft B, the SQL "
+             "has {}".format(match.group(1), b["vendors"]))
+
+    checks += 1
+    match = re.search(r"\| Number of decor pieces \| \d+, split \d+ Horde / \d+ Alliance \| "
+                      r"(\d+), both factions \|", doc)
+    if not match:
+        fail("10-draft-modules.md", "the side-by-side table no longer states draft B's decor")
+    elif int(match.group(1)) != b["decor"]:
+        fail("10-draft-modules.md", "the side-by-side table says {} decor pieces in draft B, the "
+             "SQL has {}".format(match.group(1), b["decor"]))
+
+    checks += 1
+    value = stated(r"(\d+) pet beds? ", "how many pet beds the progression file carries")
+    if value is not None and (value != a["beds"] or value != b["beds"]):
+        fail("10-draft-modules.md", "says {} pet beds, draft A has {} and draft B has {}".format(
+            value, a["beds"], b["beds"]))
+
+    print("{:<52} {:>2} checks".format("doc 10's numbers against the drafts", checks))
+    return checks
+
+
 def main():
     index = list(csv.DictReader(open(INDEX, newline="", encoding="utf-8")))
     go_entries = {int(r["entry"]) for r in index if r["kind"] == "gameobject" and r["entry"]}
@@ -327,6 +666,11 @@ def main():
             checks_run += 1
             if not tables[need]:
                 fail(draft, "no rows in " + need)
+
+        checks_run += check_creatures(base, draft, tables, findings_before=len(findings))
+        checks_run += check_stock_side(base, draft, findings_before=len(findings))
+        checks_run += check_ids(base, draft,
+                                (1000, 1999) if draft == "midnight-port" else (2000, 2999))
 
     # every item id the town centre catalogue knows must reach draft A
     items_csv = os.path.join(HERE, "data", "town-center-items.csv")
@@ -382,6 +726,8 @@ def main():
     if a != b:
         fail("drafts", "the two src/game/Housing trees differ: {}".format(
             set(a) ^ set(b)))
+
+    check_documented_counts()
 
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:

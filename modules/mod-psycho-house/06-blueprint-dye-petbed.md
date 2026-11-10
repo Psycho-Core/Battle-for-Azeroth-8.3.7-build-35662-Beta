@@ -288,9 +288,21 @@ enforced when a bed is placed.
 ### 4.1 Implementation
 
 1. A bed is **decor with a creature attached**, not a table of its own: the row in
-   `housing_decor_creature` says which creature the piece shows when nobody has chosen, and
-   the placement row carries `pet_entry` and `pet_roaming` for the companion that was.
-2. On assignment, spawn a `Creature` from the pet's `creature_entry` (from
+   `housing_decor_creature` is what makes the piece a bed at all - `AssignPet` refuses a
+   placement whose decor row is not flagged `0x010` - and the placement row carries
+   `pet_entry` and `pet_roaming` for the companion that is on it. The row's own
+   `creature_entry` stays 0 for a bed and the name stays empty: the companion is the player's,
+   and a default would put a cat in every cage nobody had touched. The bind statement fills
+   the entry only for the kinds that own a fixed creature - 1, a mount stand, and 2, a
+   mannequin, neither of which is shipped yet.
+2. Which pieces are beds is a data question answered in one place: `Pets`-category pieces
+   whose name is a cage, a nest, a basket or a pet bed. Both drafts ship four. Draft A sells
+   the four cages on Agratha's stall - 1289 Cozy Bird Nest, 1291 Crossroads Pet Cage, 1292
+   Crude Pet Cage, 1295 Westfall Pet Cage - and Perry Winkles stocks the same four in
+   Founder's Point, so both factions have them. Draft B builds beds on the same cage models
+   (178147, 181714, 187369, 246506) and sells them at 50 gold from the Pet Handler, on both
+   sides because every native stall is.
+3. On assignment, spawn a `Creature` from the pet's `creature_entry` (from
    `BattlePetSpecies`, which 8.3.7 has) in the plot's phase. `HousingMgr::AssignPet` takes the
    creature the player currently has summoned, then confirms through
    `sBattlePetSpeciesStore` and `Player::GetBattlePetCountForSpecies` that the species is in
@@ -305,9 +317,9 @@ pet->GetMotionMaster()->MoveRandom(6.0f);   // Roaming
 ```
 
    Stationary: skip `MoveRandom`, and freeze facing.
-3. Cleanup on: unassign, bed removal, house despawn, plot sell, logout of the last viewer.
-4. Caps enforced per house: 100 indoor, 25 outdoor.
-5. Pets are affected by the plot phase, so a neighbour cannot see another player's cats  -
+4. Cleanup on: unassign, bed removal, house despawn, plot sell, logout of the last viewer.
+5. Caps enforced per house: 100 indoor, 25 outdoor.
+6. Pets are affected by the plot phase, so a neighbour cannot see another player's cats  -
    which is also true in retail.
 
 ### 4.2 Edge cases I have to handle

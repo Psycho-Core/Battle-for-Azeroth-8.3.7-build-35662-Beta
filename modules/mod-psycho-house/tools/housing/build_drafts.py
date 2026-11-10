@@ -21,7 +21,7 @@ import re
 import shutil
 import sys
 
-from build_progression import progression_sql, PET_DECOR_NAMES
+from build_progression import progression_sql, pet_kind
 from build_hunts import build as build_hunts
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -102,6 +102,11 @@ CATEGORY_RULES = [
     ("Holiday", ("pumpkin", "gift", "snow", "mistletoe", "stocking", "sled", "candy",
                  "veil", "heartsbane", "horseman", "jack-o", "winter", "lantern")),
 ]
+
+# The Pet Handler's stall id in the native draft (201 + its index in the vendor list) and the
+# price its four beds sell for: retail's own pet cages are 50g pieces.
+PET_HANDLER = 206
+PET_BED_PRICE = 50
 
 NATIVE_PRICE = {"Structural": 50, "Tables": 75, "Seating": 25, "Beds": 50, "Rugs": 25,
                 "Lighting": 10, "Nature": 25, "Storage": 10, "Wall Art": 25,
@@ -192,6 +197,30 @@ def copy_binds(draft):
             shutil.copyfile(src, os.path.join(dst_dir, name))
 
 
+MILESTONE_WORDS = {"first": 1, "second": 2, "third": 3, "fourth": 4}
+
+
+def milestone_of(note):
+    """The Endeavor milestone a captured stock line is gated behind, or 0.
+
+    Two shapes appear in the capture: "Endeavor milestone 3" and "Reach the second Endeavor
+    milestone". Both name one milestone for that line. The vendor-level notes - "10 of 27
+    gated by Endeavor milestone" - do not say which ten, so those stay at 0 and are listed in
+    the file's comment instead of being guessed at.
+    """
+    low = note.lower()
+    match = re.search(r"milestone (\d)", low)
+
+    if match:
+        return int(match.group(1))
+
+    for word, number in MILESTONE_WORDS.items():
+        if "{} endeavor milestone".format(word) in low or "{} milestone".format(word) in low:
+            return number
+
+    return 0
+
+
 def build_midnight():
     draft = "midnight-port"
     schema, world = read_schema_parts()
@@ -226,6 +255,7 @@ def build_midnight():
 
     # One decor row per (name, price, currency); stock rows point at it.
     decor_key = {}
+    piece_sides = {}
     decor_rows = []
     stock_rows = []
     unpriced = {}
@@ -278,12 +308,20 @@ def build_midnight():
                 # prices, and the mask is what keeps the cheaper one out of the other
                 # faction's shop - HousingMgr::BuyDecor refuses a piece whose mask does not
                 # carry the buyer's bit, and the shop listing filters the same way.
-                "faction": 2 if vendor in HORDE_VENDORS else 1,
+                "side": None,
                 "price": price,
                 "currency": currency,
                 "note": row["note"],
             })
-        stock_rows.append((vendor_ids[vendor], decor_key[key], price))
+        # Both hubs stock the same piece at the same price more often than not, and the two
+        # lines collapse onto one decor row. The mask cannot then come from whichever hub was
+        # read first: Faarden the Builder sells 50 pieces in Founder's Point that \"Len\"
+        # Splinthoof sells in Razorwind Shores at the same price, and taking the Horde side
+        # made every one of them unbuyable for an Alliance character at the Alliance stall.
+        # A piece both hubs sell is mask 3; a piece only one hub sells is that hub's bit.
+        piece_sides.setdefault(decor_key[key], set()).add(
+            "horde" if vendor in HORDE_VENDORS else "alliance")
+        stock_rows.append((vendor_ids[vendor], decor_key[key], price, milestone_of(row["note"])))
 
     # The vendor comment states how many stock lines the file actually inserts, not how many
     # the vendor page listed. Four comments used to promise a line that was not there - one
@@ -315,22 +353,69 @@ def build_midnight():
     decor_sql = ["DELETE FROM `housing_decor` WHERE `id` BETWEEN 1000 AND 1999;",
                  "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
     dlines = []
+    both = 0
     for d in decor_rows:
-        flags = 0x010 if is_pet_piece(d["name"]) else 0
+        flags = 0x010 if is_pet_piece(d["name"], d["category"]) else 0
+        sides = piece_sides.get(d["id"], set())
+        if len(sides) > 1:
+            faction = 3
+            both += 1
+        else:
+            faction = 2 if "horde" in sides else 1
         dlines.append("({}, '{}', {}, {}, {}, {}, 2, '{}', 0, {}, {}, {}, {}, 0.5, 3, {})".format(
             d["id"], sql_escape(d["name"]), d["go"], d["item"], d["budget"],
             surface_band(d["category"]), d["category"],
-            d["source"], d["price"], d["currency"], d["faction"], flags))
+            d["source"], d["price"], d["currency"], faction, flags))
     decor_sql.append(",\n".join(dlines) + ";")
     decor_sql.append("\n-- gameobject_entry is a real 8.3.7 game object chosen by tools/housing/map_decor_go.py.")
     decor_sql.append("-- Provenance per piece is in data/town-center-go-map.csv; a 0 here means no")
     decor_sql.append("-- candidate existed and the row stays flagged DecorFlagUnmapped at load.")
     decor_sql.append("-- item_entry holds the Midnight decor item id where it is known ({} of {}).".format(
         sum(1 for d in decor_rows if d["item"] != "0"), len(decor_rows)))
+    decor_sql.append("-- faction_mask: {} pieces are sold in both neighbourhoods at the same price and".format(both))
+    decor_sql.append("-- carry both bits; the rest are one hub's, from the vendor that sells them.")
 
     stock_sql = ["DELETE FROM `housing_vendor_stock` WHERE `vendor_id` BETWEEN 101 AND 199;",
-                 "INSERT INTO `housing_vendor_stock` (`vendor_id`, `decor_id`, `price`) VALUES"]
-    stock_sql.append(",\n".join("({}, {}, {})".format(*s) for s in stock_rows) + ";")
+                 "INSERT INTO `housing_vendor_stock` (`vendor_id`, `decor_id`, `price`, `milestone`) VALUES"]
+    stock_sql.append(",\n".join("({}, {}, {}, {})".format(*s) for s in stock_rows) + ";")
+
+    # Vendors whose captured page gives a gated count but not which lines. Nothing is invented
+    # for them: the number is printed here so an operator can gate them by hand from a page
+    # that says which pieces those are.
+    aggregate = {}
+    deed = {}
+    for row in stock:
+        note = row["note"].strip()
+        match = re.match(r"(\d+) of (\d+) gated", note)
+        if not match:
+            continue
+        # Hesta Forlath's gate is the Deed of Patronage, not an Endeavor milestone, so the
+        # `milestone` column cannot express it and it does not belong under the milestone
+        # heading. Two gates, two paragraphs.
+        if "deed" in note.lower():
+            deed[row["vendor"]] = (int(match.group(1)), int(match.group(2)))
+        else:
+            aggregate[row["vendor"]] = (int(match.group(1)), int(match.group(2)))
+
+    if aggregate:
+        stock_sql.append("")
+        stock_sql.append("-- Gated by an Endeavor milestone on the vendor page, but the page does not say")
+        stock_sql.append("-- which lines: the count is printed and the rows are left open rather than")
+        stock_sql.append("-- guessed at. Gate them by hand by setting `milestone` on the rows.")
+        for vendor in sorted(aggregate):
+            gated, total = aggregate[vendor]
+            stock_sql.append("--   vendor {} (id {}): {} of {} lines gated".format(
+                vendor, vendor_ids.get(vendor, 0), gated, total))
+    if deed:
+        stock_sql.append("")
+        stock_sql.append("-- Gated on the Deed of Patronage instead of a milestone. Neither the deed nor")
+        stock_sql.append("-- the piece it unlocks has an id in the 8.3.7 record, so there is nothing for")
+        stock_sql.append("-- the `milestone` column to hold and no condition the shop can test. Left")
+        stock_sql.append("-- open on purpose, with the count written down:")
+        for vendor in sorted(deed):
+            gated, total = deed[vendor]
+            stock_sql.append("--   vendor {} (id {}): {} of {} lines gated".format(
+                vendor, vendor_ids.get(vendor, 0), gated, total))
     if unpriced:
         stock_sql.append("\n\n-- No price on the vendor page and none on the item page either, so the line is")
         stock_sql.append("-- deliberately not inserted: a row with no price would come out free. Fill the")
@@ -347,17 +432,22 @@ def build_midnight():
           BANNER + "\n".join(stock_sql) + "\n")
     print("midnight-port: {} vendors, {} decor, {} stock".format(
         len(vendor_order), len(decor_rows), len(stock_rows)))
-    write_progression(draft, [(d["id"], d["name"]) for d in decor_rows if is_pet_piece(d["name"])])
+    write_progression(draft, [(d["id"], pet_kind(d["name"], d["category"]))
+                              for d in decor_rows if is_pet_piece(d["name"], d["category"])])
     copy_core(draft)
 
 
 SMALL_WORDS = {"of", "the", "and", "for", "in", "on", "with", "to"}
 
 
-def is_pet_piece(name):
-    """A piece that owns a creature rather than only being furniture."""
-    low = name.lower()
-    return any(word.lower() in low for word in PET_DECOR_NAMES)
+def is_pet_piece(name, category_name):
+    """A piece that owns a creature rather than only being furniture.
+
+    Category and name together, not a creature name looking for a home in a decor name: the
+    previous rule made a pet bed out of hay and a hanging cat catcher because "Cat" is in
+    "Catcher", and left the three real pet cages alone.
+    """
+    return pet_kind(name, category_name) is not None
 
 
 def write_progression(draft, pieces):
@@ -401,7 +491,8 @@ def build_native():
 
     index = read_csv(os.path.join(GEN, "source-asset-index.csv"))
     gos = [r for r in index if r["kind"] == "gameobject" and r["decor"] == "yes"]
-    reject = ("DOOR", "GATE", "TRAP", "TRIGGER", "PORTAL", "INSTANCE", "CORPSE",
+    reject = ("DOOR", "GATE", "PORT CULLIS", "PORTCULLIS", "TRAP", "TRIGGER", "PORTAL",
+              "INSTANCE", "CORPSE",
               "SPAWN", "SOUND", "SPELL", "AURA", "DUMMY", "BOSS", "GOSSIP",
               "MARKER", "EXPLOSION", "MISSILE", "PROJECTILE", "GRAVEYARD", "ZONE",
               "BARRIER", "INVISIBLE", "ARENA", "CORPSE", "QUEST", "WAYPOINT",
@@ -418,6 +509,14 @@ def build_native():
         seen[entry] = row
     rows = sorted(seen.values(), key=lambda r: int(r["entry"]))
     print("native: {} decor rows from {}".format(len(rows), "generated/source-asset-index.csv"))
+
+    # Decor ids are the entry's position in the whole decor-shaped set, not in the filtered
+    # one. Positional ids over the filter renumbered the catalogue the moment a word was added
+    # to the reject tuple: dropping eighteen portcullis doodads rewrote every id after 2332,
+    # and an id is what a placement, a stock row and a saved blueprint all point at. A gap in
+    # the range is harmless; a piece that changes id is not.
+    rank = {int(entry): i for i, entry in enumerate(
+        sorted({r["entry"] for r in gos}, key=int))}
 
     vendors = [("Housing Steward", 0, 2), ("Groundskeeper", 0, 0),
                ("Stonewright", 0, 0), ("Lamplighter", 0, 0),
@@ -442,12 +541,41 @@ def build_native():
         label = humanise(label)
         price = NATIVE_PRICE.get(cat, 10)
         vendor = 201 + (entry % len(vendors))
-        flags = 0x010 if is_pet_piece(label) else 0
+        cat_name = category(label.replace("_", " ").lower())
+        flags = 0x010 if is_pet_piece(label, cat_name) else 0
+        decor_id = 2000 + rank[entry]
         dlines.append("({}, '{}', {}, {}, {}, 2, '{}', 0, {}, {}, 0, 3, 0.5, 3, {})".format(
-            2000 + i, sql_escape(label), entry, budget(price), surface_band(cat),
+            decor_id, sql_escape(label), entry, budget(price), surface_band(cat),
             cat, vendor, price, flags))
-        ssql_lines.append("({}, {}, {})".format(vendor, 2000 + i, price))
+        ssql_lines.append("({}, {}, {})".format(vendor, decor_id, price))
     dsql.append(",\n".join(dlines) + ";")
+
+    # Pet beds. The harvest cannot supply one: it keeps game objects its own scan calls decor,
+    # and a cage is a cage - the only cage-shaped entry it marks is a door. So the four beds are
+    # named here, from entries this build's tree declares as cages, and they are sold by the
+    # Pet Handler like any other pet stock. The first one is the object retail's own pet cages
+    # use (Crossroads, Crude and Westfall Pet Cage are all 178147 in draft A), so the port is
+    # showing the same cage in both drafts.
+    beds = [
+        (2950, "Pet Cage", 178147),
+        (2951, "Bristlelimb Cage", 181714),
+        (2952, "Borean Cage", 187369),
+        (2953, "Wardens Cage", 246506),
+    ]
+    bed_sql = ["\n-- The four pet beds, sold by the Pet Handler. Entries are cages this tree",
+               "-- declares; the display name is filled from gameobject_template at install like",
+               "-- every other native piece.",
+               "DELETE FROM `housing_decor` WHERE `id` BETWEEN 2950 AND 2959;",
+               "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
+    bed_lines = []
+    bed_stock = []
+    for decor_id, label, entry in beds:
+        bed_lines.append("({}, '{}', {}, {}, {}, 2, 'Pets', 0, {}, {}, 0, 3, 0.5, 3, 16)".format(
+            decor_id, label, entry, budget(PET_BED_PRICE), surface_band("Pets"),
+            PET_HANDLER, PET_BED_PRICE))
+        bed_stock.append("({}, {}, {})".format(PET_HANDLER, decor_id, PET_BED_PRICE))
+    bed_sql.append(",\n".join(bed_lines) + ";")
+    dsql.append("\n".join(bed_sql))
     dsql.append("\n-- Display names come from the world DB, not from the constant name:")
     dsql.append("UPDATE `housing_decor` hd JOIN `gameobject_template` gt")
     dsql.append("  ON gt.`entry` = hd.`gameobject_entry`")
@@ -456,15 +584,16 @@ def build_native():
 
     ssql = ["DELETE FROM `housing_vendor_stock` WHERE `vendor_id` BETWEEN 201 AND 208;",
             "INSERT INTO `housing_vendor_stock` (`vendor_id`, `decor_id`, `price`) VALUES"]
-    ssql.append(",\n".join(ssql_lines) + ";")
+    ssql.append(",\n".join(ssql_lines + bed_stock) + ";")
 
     write(os.path.join(DRAFTS, draft, "sql", "world", "03_decor_native.sql"),
           BANNER + "\n".join(dsql) + "\n")
     write(os.path.join(DRAFTS, draft, "sql", "world", "04_vendors_native.sql"),
           BANNER + "\n".join(vsql) + "\n" + "\n".join(ssql) + "\n")
-    write_progression(draft, [(2000 + i, humanise(r["constant"] or r["name"]))
-                              for i, r in enumerate(rows)
-                              if is_pet_piece(humanise(r["constant"] or r["name"]))])
+    write_progression(draft, [(2000 + i, 0) for i, r in enumerate(rows)
+                              if is_pet_piece(humanise(r["constant"] or r["name"]),
+                                              category((r["constant"] or r["name"]).replace("_", " ").lower()))]
+                      + [(decor_id, 0) for decor_id, _label, _entry in beds])
     copy_core(draft)
 
 
