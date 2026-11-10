@@ -171,7 +171,7 @@ namespace Housing
         _levels.clear();
 
         if (QueryResult result = WorldDatabase.Query(
-            "SELECT `level`, `xp`, `budget_indoor`, `budget_room`, `budget_outdoor`, `rooms` "
+            "SELECT `level`, `xp`, `budget_indoor`, `budget_room`, `budget_outdoor` "
             "FROM `housing_house_level` ORDER BY `level`"))
         {
             do
@@ -183,7 +183,6 @@ namespace Housing
                 info.BudgetIndoor = fields[2].GetUInt32();
                 info.BudgetRoom = fields[3].GetUInt32();
                 info.BudgetOutdoor = fields[4].GetUInt32();
-                info.Rooms = fields[5].GetUInt8();
                 _levels[info.Level] = info;
             }
             while (result->NextRow());
@@ -200,7 +199,6 @@ namespace Housing
                 info.BudgetIndoor = BudgetIndoor(level);
                 info.BudgetRoom = BudgetRoom(level);
                 info.BudgetOutdoor = BudgetOutdoor(level);
-                info.Rooms = RoomCount(level);
                 _levels[level] = info;
             }
 
@@ -1072,13 +1070,16 @@ namespace Housing
         if (!level)
             return NotFound;
 
-        // A room costs budget the same way a chair does, and the budget is what the level
-        // hands out - so a level-3 house cannot buy an 18th room by owning fewer chairs.
-        uint32 const spent = house->GetRoomsOwned() * room->BudgetCost;
+        // The room budget is retail's room count - 19 rooms at level 1, 134 at 12 - and a
+        // shape spends one slot, or three if it is a large one. `rooms_owned` counts slots
+        // consumed rather than rooms built, because a house with two small rooms and one
+        // large one has spent 2 + 3 = 5 of its budget and cannot be charged for three rooms
+        // at the price of the last one bought.
+        uint32 const spent = house->GetRoomsOwned();
         if (spent + room->BudgetCost > level->BudgetRoom)
             return BudgetExceeded;
 
-        house->SetRoomsOwned(uint8(house->GetRoomsOwned() + 1));
+        house->SetRoomsOwned(uint8(std::min<uint32>(255, spent + room->BudgetCost)));
 
         CharacterDatabase.DirectPExecute(
             "UPDATE `character_housing` SET `rooms_owned` = {} WHERE `id` = {}",

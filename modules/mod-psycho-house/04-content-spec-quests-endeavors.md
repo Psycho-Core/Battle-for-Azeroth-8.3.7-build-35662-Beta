@@ -15,7 +15,7 @@ generic enough, with my own ids.
 | 1 | *A House For You* | 900100 | Automatic (login breadcrumb) | Speak with the faction Steward in the capital portal room | 2g, first Hearthstone-style hint |
 | 2 | *My First Home* | 900101 | Steward | Travel to the neighborhood, walk a plot, click a **Cornerstone** | 1 000g stipend (so the first house is effectively free, like the retail pitch), 3 starter decor |
 | 3 | *Welcome Home* | 900102 | General Contractor | Place 3 decor pieces, then return | 10 House XP tutorial pop, 5 starter decor |
-| 4 | *Time to Decorate* | 900103 | General Contractor | Reach house level 2 | *Square Room (Medium)* shell, 250g |
+| 4 | *Time to Decorate* | 900103 | General Contractor | Reach house level 2 | 250g, and *Square Room (Medium)* is on the Contractor's list from that level (doc 04 sec.3, row 13) |
 
 Design notes:
 
@@ -31,19 +31,19 @@ Design notes:
 
 ## 2. House levels as content
 
-The level table is retail's (doc 01 sec.3.1) and belongs in `housing_house_level`, which
-is phase 1 work - the table is not in the draft yet. Until it lands the core uses the
-five-rung ladder compiled into `HousingDefines.h`, so the beats below are what each retail
-level is *for*, not what the draft currently charges. Content implications I am
-committing to:
+The level table is `housing_house_level`, shipped in `07_progression.sql` and loaded by
+`LoadHouseLevels` at startup: retail's twelve XP thresholds and its exterior budgets verbatim,
+and its interior and room endpoints with the steps between them interpolated, because the
+guide publishes the ends of those two curves and not the middle. The beats below are what each
+level is *for*. Content implications I am committing to:
 
 | Level | Content beat |
 | --- | --- |
-| 1 | Starter shell, 12 rooms, 910/19/200 budgets |
-| 2 | +245 interior, +5 rooms - reachable in one evening (10 XP = one decor)* |
+| 1 | Starter shell, the twelve-shape Initial Room Collection, 910/19/200 budgets |
+| 2 | +460 interior, +10 room slots, *Square Room (Medium)* - reachable in one evening (10 XP = one decor)* |
 | 3-5 | Room unlocks, exterior budget steps, the "my house is taking shape" phase |
 | 6 | Hearthlight Armillary as a *placeable ambience device* (not a dye-tier system) |
-| 7 | The big jump (+830 interior, +18 rooms) - the "I built a manor" level |
+| 7 | +460 interior, +11 room slots - the "I built a manor" level |
 | 8-9 | Medium exteriors, then the second big budget step |
 | 10 | Weekly *Treasures from Distant Lands* random decor |
 | 11-12 | Large exteriors, endgame prestige |
@@ -54,22 +54,43 @@ the reason Endeavor XP matters is the level 6+ grind.
 
 ## 3. Rooms and shells (what the player is buying at each level)
 
-| Shell / room | Type | Placement cost | Level | Notes |
-| --- | --- | --- | --- | --- |
-| Square Room (Tiny / Small / Medium / Large) | Room | 1 / 2 / 3 / 5 | 1 / 1 / 2 / 5 | Four footprints, one art family |
-| Octagon Room (Small / Medium / Large) | Room | 2 / 3 / 5 | 1 / 1 / 4 | |
-| Circle Room (Daylight / Evening) | Room | 3 | 3 / 5 | |
-| Cross / L / T shaped | Room | 3 | 1 | Connective geometry |
-| Hallway / Closet | Room | 1 | 1 | |
-| Stairwell Left / Right / Empty | Room | 2 | 1 | Vertical connectors |
-| Small Human / Night Elf / Orc / Blood Elf House | Exterior | - | 1 | Faction-masked |
-| Medium exteriors (4 racial) | Exterior | - | 8 | |
-| Large exteriors (4 racial) | Exterior | - | 12 | |
+Seventeen rooms, which is retail's twelve-shape **Initial Room Collection** plus the five the
+level table unlocks (doc 01 sec.3.2 and sec.3.1). Every name below is retail's; nothing here is
+a name I made up, and the ids are the order `housing_room` loads them in (level, then id).
 
-Retail's 12 starter rooms and their shapes are listed in doc 01 sec.3.2; each becomes a GO/WMO
-shell in the custom map's interior space. **Shell placement cost** is my number: retail
-publishes that rooms have costs but not the values, so these are balanced against the 19
-room budget at level 1: one large room plus a few small ones fits, anything bigger needs levels.
+| # | Room | Slots | Level | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | Square Room (Small) | 1 | 1 | Four footprints, one art family |
+| 2 | Square Room (Tiny) | 1 | 1 | |
+| 3 | Hallway | 1 | 1 | Connective geometry |
+| 4 | Closet | 1 | 1 | |
+| 5 | Octagon Room (Medium) | 2 | 1 | |
+| 6 | Octagon Room (Small) | 1 | 1 | |
+| 7 | Cross-Shaped Room | 2 | 1 | |
+| 8 | L-Shaped Room | 2 | 1 | |
+| 9 | T-Shaped Room | 2 | 1 | |
+| 10 | Stairwell Left | 1 | 1 | Vertical connector |
+| 11 | Stairwell Right | 1 | 1 | Vertical connector |
+| 12 | Stairwell Empty | 1 | 1 | Vertical connector, open on both sides |
+| 13 | Square Room (Medium) | 2 | 2 | Unlocked by *Time to Decorate* |
+| 14 | Daylight Circle Room | 2 | 3 | |
+| 15 | Octagon Room (Large) | 3 | 4 | |
+| 16 | Square Room (Large) | 3 | 5 | |
+| 17 | Evening Circle Room | 2 | 5 | |
+
+**Room slots, not a price.** Retail's room budget is a count of rooms - 19 at level 1 rising to
+134 at level 12 - and big rooms take more of it. So `housing_room.budget_cost` is how many slots
+a shape spends: one for the small shapes, two for a medium or an L, three for a large. Those
+per-shape numbers are mine; retail publishes that bigger rooms cost more and not by how much.
+They are set so the twelve-shape Initial Room Collection fits a level-1 house with three slots
+to spare: 16 of the 19. `character_housing.rooms_owned` counts slots spent, not rooms built.
+
+The exteriors are the shells, and they are separate from this list: `housing_shell`, six rows,
+one per size and faction, with the level gate on the medium and large ones.
+
+One thing this list does **not** carry is a gold price. A room in retail costs gold as well as
+budget, and `housing_room` has no price column, so a room is bought with budget alone here - the
+one place the room system is cheaper than retail rather than different from it.
 
 ## 4. Endeavors
 

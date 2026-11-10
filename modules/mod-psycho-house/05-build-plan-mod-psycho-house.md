@@ -299,6 +299,6 @@ Run the prototype's 28-row matrix (legacy docs, `06-build-test-operations.md`) p
 
 1. Rename (P0) and re-baseline the test matrix.
 2. Run the harvest tool, hand-review 100 rows, apply them.
-3. Insert `housing_house_level` with retail numbers and switch the prototype's 5-tier
-   budget code to read from it.
+3. Insert `housing_house_level` with retail's XP and exterior numbers and the interior and room
+   curves between them, and switch the prototype's 5-tier budget code to read from it.
 4. Spawn the two Steward NPCs and the portal GOs; wire the intro quest 1.
