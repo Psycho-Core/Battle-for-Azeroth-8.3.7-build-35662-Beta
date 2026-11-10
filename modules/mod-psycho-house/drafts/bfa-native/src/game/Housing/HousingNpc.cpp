@@ -558,7 +558,7 @@ namespace Housing
                     handler.PSendSysMessage("House level {}: {} indoor budget, {} room budget, {} outdoor.",
                         uint32(house->GetTier()), info ? info->BudgetIndoor : 0,
                         info ? info->BudgetRoom : 0, info ? info->BudgetOutdoor : 0);
-                    handler.PSendSysMessage("Applied exterior: {}, rooms bought: {}.",
+                    handler.PSendSysMessage("Applied exterior: {}, room slots spent: {}.",
                         house->GetShellId(), house->GetRoomsOwned());
                     break;
                 }

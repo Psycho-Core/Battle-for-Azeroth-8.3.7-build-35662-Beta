@@ -50,7 +50,7 @@ namespace Housing
         uint32 GetBlueprint() const { return _blueprint; }
         void SetBlueprint(uint32 blueprint);
 
-        /// The exterior shell applied to the plot, and how many extra rooms have been built.
+        /// The exterior shell applied to the plot, and how many room slots the extra rooms have spent.
         /// Both are bought at the General Contractor and both cost decor budget through
         /// BudgetRoom(), which is why the house has to know them.
         uint8 GetShellId() const { return _shellId; }
@@ -160,6 +160,8 @@ namespace Housing
         uint8 _plotMask;
         uint8 _houseMask;
         uint8 _shellId;
+        /// Room slots consumed, not rooms built: the budget is retail's room count and a
+        /// large shape spends three of it. The column is still called `rooms_owned`.
         uint8 _roomsOwned;
         bool _decorLoaded;
         bool _spawned;

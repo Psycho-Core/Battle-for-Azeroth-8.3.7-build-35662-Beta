@@ -418,15 +418,6 @@ namespace Housing
         return level <= kMaxLevel ? budget[level] : budget[kMaxLevel];
     }
 
-    /// Rooms unlocked at this level. The guide gives two points - twelve rooms, then
-    /// eighteen - and nothing in between, so the ramp is mine.
-    inline uint8 RoomCount(uint8 level)
-    {
-        static uint8 const rooms[kMaxLevel + 1] =
-            { 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18 };
-        return level <= kMaxLevel ? rooms[level] : rooms[kMaxLevel];
-    }
-
     // The coffer's payout is retail's own number and stays a constant; a realm that wants to
     // change what learning decor or a task pays sets the two keys instead.
     constexpr uint32 kXpPerEndeavor = 250;
@@ -560,7 +551,6 @@ namespace Housing
         uint32 BudgetIndoor = 0;
         uint32 BudgetRoom = 0;
         uint32 BudgetOutdoor = 0;
-        uint8 Rooms = 0;
     };
 
     struct TC_GAME_API ShellInfo
@@ -585,7 +575,7 @@ namespace Housing
         float Y = 0.0f;
         float Z = 0.0f;
         float Radius = 12.0f;
-        uint8 BudgetCost = 5;
+        uint8 BudgetCost = 1;   // room slots this shape spends, 1 small to 3 large
         uint8 LevelRequired = 1;
     };
 

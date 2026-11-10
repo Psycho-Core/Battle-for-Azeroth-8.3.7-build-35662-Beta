@@ -16,7 +16,7 @@ housing_room
   name,
   x, y, z,                   -- offset from the interior anchor
   radius,                    -- the room the player must stand in to decorate it
-  budget_cost,               -- rooms come out of the room budget
+  budget_cost,               -- room slots spent, out of the room budget
   level_required
 ```
 
@@ -44,8 +44,8 @@ That is the published retail floorplan rule ("what rooms fit and ensure each roo
 ### 1.4 The honest limitation
 
 Because shells are pre-authored, two players' houses will share silhouettes. Mitigations:
-several shells per shape and size (Square Tiny/Small/Medium/Large, Octagon, Circle,
-Cross, L, T, Hallway, Closet, 3 stairwells = 18 starter shells, retail's 12 plus my own),
+several shells per shape and size - the seventeen room shapes of doc 04 sec.3, which are
+retail's twelve-shape Initial Room Collection plus the five its level table unlocks -
 wall/floor style variants per shell (`SetDisplayId` on a style GO), and decor doing the rest.
 That is the same trick retail players use with interior structures anyway.
 

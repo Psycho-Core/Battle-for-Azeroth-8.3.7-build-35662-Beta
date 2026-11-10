@@ -1292,3 +1292,34 @@ type 8 to the coffer script. The area keeps its banner, the coffer gets a chest.
 | `check_protocol.py` | 0 findings; `C:HOMES` and `C:SELECTHOME` reachable from the Travel tab, both replies handled |
 | `check_sql_columns.py` | 0 findings; `character_housing.selected` is created and read |
 | `audit.py` | 0 findings across 10 checks |
+
+### 6.32 The thirty-eighth revision: three room catalogues, one list
+
+The room system was described in three places and they had never been compared. Doc 01 is the
+record, doc 04 sec.3 is the plan, `housing_room` is what ships - and the three disagreed about
+how many rooms there are, what they are called, and which level opens them.
+
+- **The shipped list was invented.** Eighteen shapes with names out of a house floor plan -
+  Kitchen, Bath, Study, Cellar, Armory, Workshop, Ballroom, Terrace - two of them at level 1 and
+  the last at level 11. Retail's Initial Room Collection is twelve *shapes* at level 1 (Square
+  Small and Tiny, Octagon Small and Medium, Cross, L, T, Hallway, Closet and the three
+  stairwells) and the level table adds five more. All seventeen are in the draft now, under the
+  record's own names and gates.
+- **The dead column that hid it.** `housing_house_level.rooms` said "2 rooms" at level 1 and
+  ramped to 18, describing a catalogue the module did not have, and no line of code read it.
+  The real room budget is `budget_room`, retail's room count of 19 rising to 134. The column,
+  `HouseLevelInfo::Rooms` and `RoomCount()` are removed, with an ALTER line for older installs.
+- **Slot accounting.** `BuyRoom` charged `count * (cost of the room being bought)`, which is
+  only arithmetic if every shape costs the same. `rooms_owned` now counts slots spent: one for
+  the small shapes, two for a medium, three for a large, and the Initial Room Collection costs
+  16 of the 19 slots a level-1 house has.
+- **Quest 4's reward row.** *Time to Decorate* promised a "*Square Room (Medium)* shell" that no
+  file shipped. It is row 13 of the catalogue now and the quest text says it is unlocked at
+  level 2, which is what the level table always said.
+
+| checker | result |
+| --- | --- |
+| `check_coverage.py` | 0 findings; 17 rooms, doc 04 sec.3 and both drafts agreeing row for row, 12 of them at level 1 |
+| `check_cpp.py` | 0 findings; `Rooms`/`RoomCount` gone, 33 constants all read |
+| `check_mariadb.py` | 0 findings; the level INSERT is five columns over twelve rows in both drafts |
+| `audit.py` | 0 findings across 10 checks |

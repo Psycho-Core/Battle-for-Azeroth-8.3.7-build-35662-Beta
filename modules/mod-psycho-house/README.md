@@ -92,7 +92,7 @@ publish entry ids for the interior quests.
 | `data/vendor_npc_ids.csv` | 39 vendors: npc id, catalogue item count and slug. All 39 npc ids are confirmed against a live NPC page, Hordranin included (250820). The item column sums to 1 155, the catalogue total the register works from. |
 | `tools/housing/merge_capture.py` | Merges one vendor capture file from `data/captures/` into both CSVs: replaces that vendor's stock rows, or adds to them with `--append` when a vendor stands as two npcs, adds the ids, keeps an empty price empty and preserves an existing gate note. Re-running it is safe. |
 | `tools/housing/build_drafts.py` | Builds both drafts from the CSVs: vendor rows, decor catalogue, stock rows, the progression file both drafts import, and the native catalogue's name refresh. Re-running rewrites every generated file. |
-| `tools/housing/build_progression.py` | The progression content both drafts share: the 12-level house ladder with its three decor budgets, 6 exterior shells, 18 rooms, 10 portal destinations, 4 Endeavors with 24 tasks and 16 reward rows. Imported by `build_drafts.py`, so the two drafts cannot disagree about what a level 8 house costs. |
+| `tools/housing/build_progression.py` | The progression content both drafts share: the 12-level house ladder with its three decor budgets, 6 exterior shells, the 17 rooms of retail's catalogue, 10 portal destinations, 4 Endeavors with 24 tasks and 16 reward rows. Imported by `build_drafts.py`, so the two drafts cannot disagree about what a level 8 house costs. |
 | `tools/sql/bind_night_variants.sql` | Pairs each catalogue piece with the realm's own lit twin - same name and type with `Lit ` in front - so the Armillary's dark presets respawn pieces as their lit form. Reports how many pieces got one. |
 | `tools/sql/bind_housing_content.sql` | Turns the search names the draft rows ship with into ids out of the realm's own `gameobject_template`, `creature_template`, `item_template`, `quest_template` and `game_tele`, then prints what stayed unbound. Every subquery is `COALESCE`d to 0 so one missing name cannot stop the file. |
 | `tools/housing/install.py` | Copies any of the three drafts into a source checkout, in either of the two script-module layouts, with backups instead of silent overwrites. The third draft has no game tree and no addon, so it lands as one flat script folder. |
@@ -211,6 +211,18 @@ than names - which is exactly where an unchecked answer goes wrong.
 | 171 | **Dyeing was free, so it was not a decision.** Retail's dyes are crafted by Alchemy and Inscription, tradeable and sold on the auction house; here a dye change cost nothing and doc 06 sec.2.4 described recipes that do not exist while sec.2.3 said no dye is consumed - the two halves of one document contradicted each other | `Housing.Dye.Cost` prices a change, defaults to 0, and re-applying the colour a piece already has stays free. Doc 06 sec.2.4 now says why there is no dye item: an item and a spell row per colour would have to be invented, and seventy-seven invented ids is a worse trade than a price the realm sets |
 | 172 | **The palette claim was quietly wrong.** Retail has 77 colours in nine groups; `housing_dye` seeds six words, and nothing said so - a reader comparing the two counts had to work out that a dye here is a recoloured game object rather than a client dye | Doc 06 sec.2.2 states the rule: a colour exists when the realm's own furniture names carry that word, the draft seeds six, and `bind_decor_variants.sql` fills the variants from whatever is in `housing_dye`, so a realm that adds a seventh word gets its variants |
 | 173 | **A documented gap that was never written down, and a stale line beside it.** Doc 09 sec.5.13 describes three vendor gates and doc 01 sec.7.5 lists them; only two are implemented. Doc 10 said "nothing is enforced yet - that is phase 3", which had been false since the milestone gate shipped | Doc 02 sec.3 has the ninth substitution: currency and milestone gates are enforced, the entitlement gate is not, because both named entitlements lack an id. Doc 10 now says which half is enforced and which half waits |
+## Audit pass, thirty-eighth revision
+
+The room catalogue was three different catalogues wearing the same name. This pass made them
+one, and made a checker hold them there.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 189 | **The shipped room list was not retail's, and doc 04 described a list that did not exist.** `housing_room` carried eighteen rooms whose names nobody had written down anywhere - Kitchen, Cellar, Ballroom, Barracks - with two of them at level 1 and the rest spread to level 11. Doc 04 sec.3 and doc 06 sec.1.4 described retail's twelve-shape Initial Room Collection plus its five level unlocks, and the level table still promised "2 rooms" at level 1, a figure nothing read | `build_progression.py` ships retail's catalogue: the twelve shapes of doc 01 sec.3.2 all at level 1, then Square (Medium) at 2, Daylight Circle at 3, Octagon (Large) at 4, Square (Large) and Evening Circle at 5. Seventeen rooms, retail's own names, retail's own gates |
+| 190 | **A dead column was the contradiction.** `housing_house_level.rooms` ramped 2 to 18 "rooms unlocked" while nothing in the module read it, and the number it held was the one that made the catalogue look deliberate. Meanwhile the room budget it was shadowing is retail's room count - 19 at level 1 to 134 - which the module already had in `budget_room` | The column, `HouseLevelInfo::Rooms` and `RoomCount()` are gone, with an ALTER note for an install that already has it. `budget_room` is documented as room slots, the room count retail publishes |
+| 191 | **A room with a varied cost was charged as if every room cost the same.** `BuyRoom` computed `spent = roomsOwned * room->BudgetCost` - the count times the price of the room *being bought* - so the arithmetic was only right while every shape cost the same, which is exactly what the invented list was | `rooms_owned` counts slots spent: buying adds the shape's own cost, and the check is that sum against the level's budget. A level-1 house can build the whole Initial Room Collection for 16 of its 19 slots |
+| 192 | **Nothing compared the room table to the documents.** Doc 01 prose, doc 04's table and the SQL were three sources, and the disagreement survived because no checker read them together | `check_coverage.py` gained a `rooms` rule: doc 04 sec.3's table is the contract, both drafts must match it row for row, every name in doc 01 sec.3.2 must be shipped at level 1, and there must be exactly twelve of those. Mutation-tested by renaming a shipped room |
+
 ## Audit pass, thirty-seventh revision
 
 This one went looking for numbers that a realm would want to change and could not, and for a
@@ -267,7 +279,9 @@ the eviction sweep, a street removal and a dissolved neighbourhood.
 tasks at `Housing.Xp.PerEndeavorTask` (50), and the Coffer's 250: `EndeavorMgr::CompleteTask`
 and `EndeavorMgr::Claim`. The twelve thresholds, the
 interior, room and outdoor budgets and the room unlocks are one table, `housing_house_level`,
-in `07_progression.sql`, populated with the retail numbers verbatim. Level-up at the General
+in `07_progression.sql`. XP and the exterior budget are retail's verbatim; the interior and room
+columns are retail's endpoints with the eleven steps between them interpolated, because the
+guide publishes the ends and not the middle. Level-up at the General
 Contractor, never automatically: `npc_housing_contractor`, `LevelUpWithGold` or the free claim
 once the XP is there. Medium exteriors at 8 and large at 12: `housing_shell.level_required`
 and `ApplyShell`. The level-10 weekly Arcanostorage Sphere: `OpenArcanostorage`, on
@@ -280,7 +294,7 @@ builds the quaternion and calls `SetObjectScale`. Customize mode is the Dyes tab
 bed picker. Exterior customization is the one barber-shop row that is not ported: model
 swapping per sub-part needs client work, so facade variants are separate shells (doc 02
 sec.3). Detached geometry: interiors sit on `InteriorPhase`, so the inside is not the outside.
-Floorplan: 18 room shells in `housing_room`, positioned by the server; no arbitrary tiling.
+Floorplan: the seventeen room shapes of retail's catalogue in `housing_room`, positioned by the server; no arbitrary tiling.
 Separate budgets and a placement bound: `PlaceDecor` picks the pool from the placement and
 refuses anything outside the plot.
 
@@ -566,7 +580,7 @@ feature that exists in one of them exists in both.
 The last four tables of the progression set - levels, shells, rooms, portals - plus the
 Endeavor ladder and its 16 reward rows come out of `tools/housing/build_progression.py`,
 which both builders import, so draft A and draft B ship the same 12 levels, the same 6
-shells, the same 18 rooms and the same 4 Endeavors over their own decor ids.
+shells, the same 17 rooms and the same 4 Endeavors over their own decor ids.
 
 ## Audit pass, seventeenth revision
 

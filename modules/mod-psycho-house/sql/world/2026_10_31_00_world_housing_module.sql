@@ -223,12 +223,21 @@ CREATE TABLE IF NOT EXISTS `housing_house_level` (
   `level`         TINYINT UNSIGNED NOT NULL,
   `xp`            INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'total XP needed to reach this level',
   `budget_indoor` INT UNSIGNED NOT NULL DEFAULT 0,
-  `budget_room`   INT UNSIGNED NOT NULL DEFAULT 0,
+  `budget_room`   INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'room slots: retail room count, 19 at level 1 to 134 at 12',
   `budget_outdoor` INT UNSIGNED NOT NULL DEFAULT 0,
-  `rooms`         TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'rooms unlocked',
   PRIMARY KEY (`level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='House level ladder';
 
+-- ---------------------------------------------------------------------------
+-- Note for an install created before this revision.
+--
+-- `housing_house_level` used to carry a `rooms` column, "rooms unlocked", ramping 2 to 18
+-- while the catalogue it was supposed to describe had twelve shapes at level 1. Nothing read
+-- it; the room budget is `budget_room`, which is retail's own room count. A fresh import does
+-- not create it, and an older one can drop it:
+--
+--   ALTER TABLE `housing_house_level` DROP COLUMN `rooms`;
+--
 -- ---------------------------------------------------------------------------
 -- Exterior shells and the rooms inside them. `gameobject_entry` stays 0 until
 -- tools/sql/bind_housing_content.sql fills it from the realm's own gameobject_template,
@@ -257,7 +266,7 @@ CREATE TABLE IF NOT EXISTS `housing_room` (
   `y`         FLOAT NOT NULL DEFAULT 0,
   `z`         FLOAT NOT NULL DEFAULT 0,
   `radius`    FLOAT NOT NULL DEFAULT 12 COMMENT 'the room the player must stand in to decorate it',
-  `budget_cost` TINYINT UNSIGNED NOT NULL DEFAULT 5 COMMENT 'rooms come out of the room budget',
+  `budget_cost` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'room slots this shape spends; 1 small, 2 medium, 3 large',
   `level_required` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   KEY `idx_housing_room_shell` (`shell_id`)

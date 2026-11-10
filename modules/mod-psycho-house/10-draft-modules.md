@@ -26,7 +26,7 @@ Both drafts copy the same trees out of the module:
 | `addon/HousingUI/` | 3 | `Core.lua` (transport, protocol, slash commands), `Menu.lua` (the fifteen-tab housing window), `Bindings.xml` (the key binding the window can be put on) |
 | `drafts/*/sql/world/01_schema.sql` | 1 | 18 housing tables, identical in both drafts |
 | `drafts/*/sql/world/02_world_content.sql` | 1 | Six biomes, 55 plot templates with an authored X/Y lay-out, 23 amenity pins with their object and NPC names, both name pools |
-| `drafts/*/sql/world/07_progression.sql` | 1 | 12 house levels, 6 shells, 18 rooms, 10 portals, 4 Endeavors with 24 tasks and 16 rewards, 3 pet beds - generated once, used by both drafts |
+| `drafts/*/sql/world/07_progression.sql` | 1 | 12 house levels, 6 shells, 17 rooms, 10 portals, 4 Endeavors with 24 tasks and 16 rewards, 3 pet beds - generated once, used by both drafts |
 | `drafts/*/sql/characters/01_characters_schema.sql` | 1 | Ownership, placement, collection, guests, membership, storage, Endeavor progress, blueprints, the archive - 12 tables |
 
 `tools/housing/build_drafts.py` copies the code and the two shared SQL files into a draft

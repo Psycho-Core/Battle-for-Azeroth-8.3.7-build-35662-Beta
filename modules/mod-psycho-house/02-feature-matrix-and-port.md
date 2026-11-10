@@ -68,7 +68,7 @@ written so the estimate can be compared with what it took.
 | Level 1-12 thresholds | 0, 10, 1 200, 2 400, 3 700, 5 700, 7 900, 10 300, 12 900, 15 750, 18 850, 22 200 | Data | `housing_house_level`, loaded by `LoadLevels`; the twelve rows are in `07_progression.sql` | S | P1 |
 | Interior / room / exterior budgets per level | 910->5975, 19->134, 200->350 | Data | Same table: `budget_indoor`, `budget_room`, `budget_outdoor` per level | S | P1 |
 | Apply level at the General Contractor | NPC interaction | Gossip | `npc_housing_contractor`: upgrade for gold (`LevelUpWithGold`), and the free claim once the XP threshold is met. XP is never applied automatically - the contract is signed in person, as in retail | S | P1 |
-| Room unlocks by level | 12 starter rooms, +6 later | GO shells | `housing_room` with `level_required` and `budget_cost`; `CanBuyRoom` / `BuyRoom` / `GetRoomsForPlot`, sold by the Contractor and by `C:ROOMS` | M | P2 |
+| Room unlocks by level | Retail's Initial Room Collection: 12 shapes at level 1, 5 more by level 5 | GO shells | `housing_room` with `level_required` and `budget_cost`, seventeen shapes under retail's own names - Square, Octagon, the two Circles, Cross, L, T, Hallway, Closet and the three stairwells; `CanBuyRoom` / `BuyRoom` / `GetRoomsForPlot`, sold by the Contractor and by `C:ROOMS` | M | P2 |
 | Weekly Arcanostorage Sphere at level 10 | Weekly quest | Weekly quest + item | `OpenArcanostorage`: house level `Housing.Arcanostorage.Level`, once per `Housing.Arcanostorage.CooldownDays` per account, rolls one faction-eligible non-hidden piece from the catalogue | M | P3 |
 | Medium exteriors at 8, Large at 12 | Shell sizes | GO shells | `housing_shell` with `size` and `level_required`; `ApplyShell` refuses what the house has not reached, and writes `character_housing.shell_id` | M | P2 |
 
@@ -173,8 +173,8 @@ the protocol. mod-psycho-house adds:
 
 | New table | Purpose |
 | --- | --- |
-| `housing_house_level` | Level 1-12: XP, interior/room/exterior budgets, unlocks (verbatim retail numbers) |
-| `housing_room` | Room shells: GO entry, footprint, placement cost, level required |
+| `housing_house_level` | Level 1-12: XP, interior/room/exterior budgets, unlocks. XP and the exterior budget are retail's verbatim; the interior and room columns are retail's endpoints with the eleven steps between them interpolated |
+| `housing_room` | Room shells: the retail shape list, its footprint, the room slots it spends (1 small, 2 medium, 3 large) and the level required |
 | `housing_shell` | Exterior shells: GO entry, size (small/medium/large), faction mask, level required |
 | `housing_dye` + `housing_decor_variant` | Six dye groups; the variant table carries one row per decor, group and colour with the game object entry that colour switches to |
 | `housing_decor_creature` | The creature a piece owns: pet bed, mount stand or mannequin, with the entry, the roaming flag and the roaming radius |

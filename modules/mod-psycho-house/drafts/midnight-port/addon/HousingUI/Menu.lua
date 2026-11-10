@@ -1961,7 +1961,7 @@ end)
 
 local roomsOwned = NewLabel(roomsPane, "GameFontHighlightSmall", "TOPLEFT", 92, -68)
 roomsOwned:SetWidth(400)
-roomsOwned:SetText(DIM .. "rooms owned: -" .. RESET)
+roomsOwned:SetText(DIM .. "room slots spent: -" .. RESET)
 
 local shellScroll = CreateFrame("ScrollFrame", "PsychoHouseShellScroll", roomsPane, "UIPanelScrollFrameTemplate")
 shellScroll:SetPoint("TOPLEFT", roomsPane, "TOPLEFT", 0, -92)
@@ -2063,7 +2063,7 @@ local function BuildRooms()
         -- backwards would hide every room a player can actually buy.
         local result = room.state or 0
         local state = result == 0 and GOOD .. "can add|r"
-            or string.format("%sbudget %d, level %d - not yet: result %d%s",
+            or string.format("%sslots %d, level %d - not yet: result %d%s",
                 DIM, room.cost or 0, room.level or 1, result, RESET)
 
         row.label:SetText(string.format("%s  %s", tostring(room.name), state))
@@ -2519,7 +2519,7 @@ H.handlers["ROOMS"] = function(fields)
     if previousRooms then
         previousRooms(fields)
     end
-    roomsOwned:SetText(string.format("%srooms owned: %s%s", DIM,
+    roomsOwned:SetText(string.format("%sroom slots spent: %s%s", DIM,
         tostring(H.roomsOwned or 0), RESET))
     if Menu.current == "rooms" then
         BuildRooms()

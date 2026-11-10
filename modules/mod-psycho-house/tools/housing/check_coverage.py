@@ -381,6 +381,64 @@ def check_script_bindings():
     return len(scripts)
 
 
+def check_room_catalogue():
+    """Doc 04 sec.3's room table, doc 01 sec.3.2's starter list, and the SQL, all one list.
+
+    The catalogue had drifted three ways at once: the draft shipped eighteen rooms with names
+    nobody had written down (Kitchen, Cellar, Ballroom), two of them at level 1, while doc 04
+    described retail's twelve-shape Initial Room Collection and the level table promised two
+    rooms. Nothing compared them because nothing could: the room list was data, and the doc was
+    prose. So the table is the contract now, row for row.
+    """
+    doc = read(os.path.join(HERE, "04-content-spec-quests-endeavors.md"))
+    section = doc.split("## 3. Rooms and shells")[1].split("\n## 4.")[0]
+
+    documented = []
+    for match in re.finditer(r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|",
+                             section, re.M):
+        documented.append((match.group(2), int(match.group(3)), int(match.group(4))))
+
+    if not documented:
+        fail("rooms", "doc 04 sec.3 has no room table to check")
+        return 0
+
+    for draft in sorted(os.listdir(DRAFTS)):
+        path = os.path.join(DRAFTS, draft, "sql", "world", "07_progression.sql")
+        if not os.path.isfile(path):
+            continue
+
+        sql = read(path)
+        block = sql.split("INSERT INTO `housing_room`")[1].split(";")[0]
+        shipped = [(m.group(1).replace("''", "'"), int(m.group(2)), int(m.group(3))) for m in
+                   re.finditer(r"\(\d+, \d+, '((?:[^']|'')*)', [-\d.]+, [-\d.]+, [-\d.]+, "
+                               r"[-\d.]+, (\d+), (\d+)\)", block)]
+
+        if shipped != documented:
+            fail("rooms", "{}: `housing_room` and doc 04 sec.3 disagree about the catalogue"
+                 .format(draft))
+
+    # Retail's Initial Room Collection is twelve shapes and every one of them is available at
+    # level 1. That is the row of doc 01 the whole catalogue is supposed to answer to.
+    reference = read(os.path.join(HERE, "01-retail-housing-reference.md"))
+    starters = reference.split("### 3.2 Initial Room Collection")[1].split("Later unlocks")[0]
+    starters = re.sub(r"\s+", " ", starters.split("\n", 1)[1]).replace("**[F]**", "")
+    wanted = [part.strip().rstrip(".").strip() for part in starters.split(",") if part.strip()]
+
+    level_one = {name for name, _slots, level in documented if level == 1}
+    for name in wanted:
+        if name not in level_one:
+            fail("rooms", "doc 01 sec.3.2 lists `{}` and the catalogue does not ship it at level 1"
+                 .format(name))
+
+    if len(level_one) != 12:
+        fail("rooms", "retail's Initial Room Collection is 12 shapes and the catalogue ships {} at "
+             "level 1".format(len(level_one)))
+
+    print("  {:>3} rooms, doc 04 sec.3 and both drafts agreeing, {} of them at level 1"
+          .format(len(documented), len(level_one)))
+    return len(documented)
+
+
 def check_documented_counts():
     """A number the drafts file states has to be a number the SQL has.
 
@@ -417,6 +475,7 @@ def main():
     b_decor, b_stock = check_native()
     b_hunts = check_hunts("bfa-native", "03_decor_native.sql")
     check_script_bindings()
+    check_room_catalogue()
     check_documented_counts()
 
     print("\n{} finding(s)".format(len(findings)))

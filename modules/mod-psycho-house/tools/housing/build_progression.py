@@ -20,20 +20,28 @@ Two rules run through it, both learned the hard way in this folder:
 # Retail's ladder. XP thresholds are retail's. The three budgets are retail's endpoints
 # (910 to 5975 indoor, 19 to 134 room, 200 to 350 exterior) with the eleven steps between
 # them filled in as a straight line - the guide publishes the ends, not the middle.
+# Retail's ladder. XP thresholds are retail's. The three budgets are retail's endpoints
+# (910 to 5975 indoor, 19 to 134 room, 200 to 350 exterior) with the eleven steps between
+# them filled in as a straight line - the guide publishes the ends, not the middle.
+#
+# The room column is a room COUNT in retail (19 rooms at level 1, 134 at 12) and
+# `budget_room` is that same number here: a shape spends one slot, or three if it is large.
+# A separate "rooms unlocked" column used to sit beside it, ramping 2 to 18 ways, and nothing
+# read it - which is why it said two rooms at level 1 while the catalogue had twelve.
 LEVELS = [
-    # level, xp, indoor, room, outdoor, rooms
-    (1, 0, 910, 19, 200, 2),
-    (2, 10, 1370, 29, 214, 3),
-    (3, 1200, 1831, 40, 227, 4),
-    (4, 2400, 2291, 50, 241, 5),
-    (5, 3700, 2752, 61, 255, 6),
-    (6, 5700, 3212, 71, 268, 7),
-    (7, 7900, 3672, 82, 282, 8),
-    (8, 10300, 4133, 92, 295, 9),
-    (9, 12900, 4593, 103, 309, 10),
-    (10, 15750, 5054, 113, 323, 12),
-    (11, 18850, 5514, 124, 336, 15),
-    (12, 22200, 5975, 134, 350, 18),
+    # level, xp, indoor, room slots, outdoor
+    (1, 0, 910, 19, 200),
+    (2, 10, 1370, 29, 214),
+    (3, 1200, 1831, 40, 227),
+    (4, 2400, 2291, 50, 241),
+    (5, 3700, 2752, 61, 255),
+    (6, 5700, 3212, 71, 268),
+    (7, 7900, 3672, 82, 282),
+    (8, 10300, 4133, 92, 295),
+    (9, 12900, 4593, 103, 309),
+    (10, 15750, 5054, 113, 323),
+    (11, 18850, 5514, 124, 336),
+    (12, 22200, 5975, 134, 350),
 ]
 
 # shell id, name, search stem, size class, faction mask, level, flags
@@ -49,25 +57,42 @@ SHELLS = [
 # Rooms are areas of the interior, not separate geometry: a room is a circle around an
 # offset from the interior anchor, it costs room budget, and it is the area a player has to
 # stand in to decorate. shell_id 0 = every shell has this room.
+# Retail's room catalogue, in retail's own two parts.
+#
+# The Initial Room Collection is twelve shapes, all of them available at level 1 (doc 01
+# sec.3.2), and the level table adds five more: Square (Medium) at 2, Daylight Circle at 3,
+# Octagon (Large) at 4, Square (Large) and Evening Circle at 5. Seventeen shapes, every one
+# of them named in the record - the list this replaces had eighteen shapes with invented
+# names (Kitchen, Cellar, Ballroom) and two rooms at level 1, which is not the retail
+# catalogue and matched neither doc 04 sec.3 nor the level table.
+#
+# `budget` is what a shape takes from the room budget. Retail publishes that the budget is a
+# COUNT of rooms - 19 at level 1 rising to 134 - and that bigger rooms cost more, but not the
+# per-shape numbers. These are mine, and they are set so the whole Initial Room Collection
+# fits the level-1 budget with three to spare: 16 of 19. A large room is three rooms' worth,
+# which is what "bigger rooms cost more" can mean without inventing a second currency.
+#
+# (id, name, x, y, z, radius, slots, level)
 ROOMS = [
-    ("Entry Hall", 0.0, 0.0, 0.0, 14.0, 1, 1),
-    ("Great Room", 0.0, 22.0, 0.0, 18.0, 3, 1),
-    ("Kitchen", -22.0, 0.0, 0.0, 12.0, 3, 2),
-    ("Bedroom", 22.0, 0.0, 0.0, 12.0, 3, 2),
-    ("Bath", 22.0, 22.0, 0.0, 9.0, 2, 3),
-    ("Study", -22.0, 22.0, 0.0, 11.0, 4, 3),
-    ("Cellar", 0.0, -22.0, -4.0, 12.0, 4, 4),
-    ("Armory", -44.0, 0.0, 0.0, 13.0, 6, 4),
-    ("Workshop", 44.0, 0.0, 0.0, 13.0, 6, 5),
-    ("Trophy Room", 0.0, 44.0, 0.0, 14.0, 7, 5),
-    ("Library", -44.0, 22.0, 0.0, 13.0, 6, 6),
-    ("Gallery", 44.0, 22.0, 0.0, 13.0, 6, 6),
-    ("Conservatory", -44.0, -22.0, 0.0, 15.0, 8, 7),
-    ("Barracks", 44.0, -22.0, 0.0, 15.0, 8, 8),
-    ("Vault", 0.0, -44.0, 0.0, 10.0, 8, 9),
-    ("Chapel", 22.0, 44.0, 0.0, 12.0, 7, 9),
-    ("Ballroom", -22.0, 44.0, 0.0, 20.0, 10, 10),
-    ("Terrace", 0.0, 66.0, 0.0, 24.0, 12, 11),
+    # --- the Initial Room Collection, twelve shapes at level 1 -------------------------
+    ("Square Room (Small)", 0.0, 0.0, 0.0, 11.0, 1, 1),
+    ("Square Room (Tiny)", 0.0, -24.0, 0.0, 8.0, 1, 1),
+    ("Hallway", 26.0, 0.0, 0.0, 6.0, 1, 1),
+    ("Closet", 26.0, -18.0, 0.0, 5.0, 1, 1),
+    ("Octagon Room (Medium)", -30.0, 0.0, 0.0, 13.0, 2, 1),
+    ("Octagon Room (Small)", -30.0, -24.0, 0.0, 10.0, 1, 1),
+    ("Cross-Shaped Room", 0.0, 26.0, 0.0, 14.0, 2, 1),
+    ("L-Shaped Room", 26.0, 22.0, 0.0, 12.0, 2, 1),
+    ("T-Shaped Room", -30.0, 26.0, 0.0, 12.0, 2, 1),
+    ("Stairwell Left", 52.0, 0.0, 0.0, 6.0, 1, 1),
+    ("Stairwell Right", 52.0, 22.0, 0.0, 6.0, 1, 1),
+    ("Stairwell Empty", 52.0, -22.0, 0.0, 6.0, 1, 1),
+    # --- the five the level table unlocks ----------------------------------------------
+    ("Square Room (Medium)", 0.0, 52.0, 0.0, 15.0, 2, 2),
+    ("Daylight Circle Room", 0.0, -52.0, 0.0, 15.0, 2, 3),
+    ("Octagon Room (Large)", -30.0, 54.0, 0.0, 18.0, 3, 4),
+    ("Square Room (Large)", 30.0, 52.0, 0.0, 19.0, 3, 5),
+    ("Evening Circle Room", -60.0, 0.0, 0.0, 15.0, 2, 5),
 ]
 
 # The portal amenity's destinations. Position comes from the realm's own `game_tele` table
@@ -177,10 +202,10 @@ def progression_sql(pet_pieces):
 
     add("DELETE FROM `housing_house_level`;")
     add("INSERT INTO `housing_house_level` (`level`, `xp`, `budget_indoor`, `budget_room`, "
-        "`budget_outdoor`, `rooms`) VALUES")
+        "`budget_outdoor`) VALUES")
     rows = []
-    for level, xp, indoor, room, outdoor, rooms in LEVELS:
-        rows.append("({}, {}, {}, {}, {}, {})".format(level, xp, indoor, room, outdoor, rooms))
+    for level, xp, indoor, room, outdoor in LEVELS:
+        rows.append("({}, {}, {}, {}, {})".format(level, xp, indoor, room, outdoor))
     add(",\n".join(rows) + ";")
     add("")
 

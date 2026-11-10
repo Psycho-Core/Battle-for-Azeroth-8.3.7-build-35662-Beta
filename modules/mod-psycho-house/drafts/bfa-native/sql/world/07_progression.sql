@@ -11,19 +11,19 @@
 -- ---------------------------------------------------------------------------
 
 DELETE FROM `housing_house_level`;
-INSERT INTO `housing_house_level` (`level`, `xp`, `budget_indoor`, `budget_room`, `budget_outdoor`, `rooms`) VALUES
-(1, 0, 910, 19, 200, 2),
-(2, 10, 1370, 29, 214, 3),
-(3, 1200, 1831, 40, 227, 4),
-(4, 2400, 2291, 50, 241, 5),
-(5, 3700, 2752, 61, 255, 6),
-(6, 5700, 3212, 71, 268, 7),
-(7, 7900, 3672, 82, 282, 8),
-(8, 10300, 4133, 92, 295, 9),
-(9, 12900, 4593, 103, 309, 10),
-(10, 15750, 5054, 113, 323, 12),
-(11, 18850, 5514, 124, 336, 15),
-(12, 22200, 5975, 134, 350, 18);
+INSERT INTO `housing_house_level` (`level`, `xp`, `budget_indoor`, `budget_room`, `budget_outdoor`) VALUES
+(1, 0, 910, 19, 200),
+(2, 10, 1370, 29, 214),
+(3, 1200, 1831, 40, 227),
+(4, 2400, 2291, 50, 241),
+(5, 3700, 2752, 61, 255),
+(6, 5700, 3212, 71, 268),
+(7, 7900, 3672, 82, 282),
+(8, 10300, 4133, 92, 295),
+(9, 12900, 4593, 103, 309),
+(10, 15750, 5054, 113, 323),
+(11, 18850, 5514, 124, 336),
+(12, 22200, 5975, 134, 350);
 
 DELETE FROM `housing_shell` WHERE `id` BETWEEN 1 AND 12;
 INSERT INTO `housing_shell` (`id`, `name`, `gameobject_entry`, `go_name`, `size_class`, `faction_mask`, `level_required`, `flags`) VALUES
@@ -36,24 +36,23 @@ INSERT INTO `housing_shell` (`id`, `name`, `gameobject_entry`, `go_name`, `size_
 
 DELETE FROM `housing_room` WHERE `id` BETWEEN 1 AND 32;
 INSERT INTO `housing_room` (`id`, `shell_id`, `name`, `x`, `y`, `z`, `radius`, `budget_cost`, `level_required`) VALUES
-(1, 0, 'Entry Hall', 0.0, 0.0, 0.0, 14.0, 1, 1),
-(2, 0, 'Great Room', 0.0, 22.0, 0.0, 18.0, 3, 1),
-(3, 0, 'Kitchen', -22.0, 0.0, 0.0, 12.0, 3, 2),
-(4, 0, 'Bedroom', 22.0, 0.0, 0.0, 12.0, 3, 2),
-(5, 0, 'Bath', 22.0, 22.0, 0.0, 9.0, 2, 3),
-(6, 0, 'Study', -22.0, 22.0, 0.0, 11.0, 4, 3),
-(7, 0, 'Cellar', 0.0, -22.0, -4.0, 12.0, 4, 4),
-(8, 0, 'Armory', -44.0, 0.0, 0.0, 13.0, 6, 4),
-(9, 0, 'Workshop', 44.0, 0.0, 0.0, 13.0, 6, 5),
-(10, 0, 'Trophy Room', 0.0, 44.0, 0.0, 14.0, 7, 5),
-(11, 0, 'Library', -44.0, 22.0, 0.0, 13.0, 6, 6),
-(12, 0, 'Gallery', 44.0, 22.0, 0.0, 13.0, 6, 6),
-(13, 0, 'Conservatory', -44.0, -22.0, 0.0, 15.0, 8, 7),
-(14, 0, 'Barracks', 44.0, -22.0, 0.0, 15.0, 8, 8),
-(15, 0, 'Vault', 0.0, -44.0, 0.0, 10.0, 8, 9),
-(16, 0, 'Chapel', 22.0, 44.0, 0.0, 12.0, 7, 9),
-(17, 0, 'Ballroom', -22.0, 44.0, 0.0, 20.0, 10, 10),
-(18, 0, 'Terrace', 0.0, 66.0, 0.0, 24.0, 12, 11);
+(1, 0, 'Square Room (Small)', 0.0, 0.0, 0.0, 11.0, 1, 1),
+(2, 0, 'Square Room (Tiny)', 0.0, -24.0, 0.0, 8.0, 1, 1),
+(3, 0, 'Hallway', 26.0, 0.0, 0.0, 6.0, 1, 1),
+(4, 0, 'Closet', 26.0, -18.0, 0.0, 5.0, 1, 1),
+(5, 0, 'Octagon Room (Medium)', -30.0, 0.0, 0.0, 13.0, 2, 1),
+(6, 0, 'Octagon Room (Small)', -30.0, -24.0, 0.0, 10.0, 1, 1),
+(7, 0, 'Cross-Shaped Room', 0.0, 26.0, 0.0, 14.0, 2, 1),
+(8, 0, 'L-Shaped Room', 26.0, 22.0, 0.0, 12.0, 2, 1),
+(9, 0, 'T-Shaped Room', -30.0, 26.0, 0.0, 12.0, 2, 1),
+(10, 0, 'Stairwell Left', 52.0, 0.0, 0.0, 6.0, 1, 1),
+(11, 0, 'Stairwell Right', 52.0, 22.0, 0.0, 6.0, 1, 1),
+(12, 0, 'Stairwell Empty', 52.0, -22.0, 0.0, 6.0, 1, 1),
+(13, 0, 'Square Room (Medium)', 0.0, 52.0, 0.0, 15.0, 2, 2),
+(14, 0, 'Daylight Circle Room', 0.0, -52.0, 0.0, 15.0, 2, 3),
+(15, 0, 'Octagon Room (Large)', -30.0, 54.0, 0.0, 18.0, 3, 4),
+(16, 0, 'Square Room (Large)', 30.0, 52.0, 0.0, 19.0, 3, 5),
+(17, 0, 'Evening Circle Room', -60.0, 0.0, 0.0, 15.0, 2, 5);
 
 -- shell_id 0 on a room means every shell has it. Rooms are areas of the interior,
 -- not separate geometry: the room a player stands in is the room they may decorate,
