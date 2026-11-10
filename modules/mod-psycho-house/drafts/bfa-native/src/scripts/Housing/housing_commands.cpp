@@ -564,6 +564,402 @@ namespace
         return true;
     }
 
+    // ---- the features that only the addon could reach ---------------------------
+    //
+    // Every `C:` op the client sends had a command except these: moving a house, joining a
+    // public street, the amenity list, the riddle hunts, the two-house selector, the duplicate
+    // purchase, the drop-in-front placement and the build-mode toggle. A player without the
+    // addon has to be able to do all of it, so these are the missing verbs - each one calling
+    // the same manager method the protocol handler calls, not a second copy of the logic.
+
+    static bool HandleHomesCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (args && *args)
+        {
+            uint32 housingId = 0;
+            if (!(housingId = ParseId(args)))
+            {
+                handler->SendSysMessage("Usage: .housing homes [housingId]");
+                return true;
+            }
+
+            handler->PSendSysMessage("Select home: {}",
+                ResultText(sHousingMgr->SelectHouse(player, housingId)));
+            return true;
+        }
+
+        uint32 const accountId = player->GetSession()->GetAccountId();
+        std::vector<Housing::HousingPlot*> const houses = sHousingMgr->GetOwnedPlots(accountId);
+
+        if (houses.empty())
+        {
+            handler->SendSysMessage("No houses on this account yet.");
+            return true;
+        }
+
+        // The same four facts C:HOMES answers with, plus the neighbourhood, because a chat
+        // line has room for it and a player with two houses needs to tell them apart.
+        Housing::HousingPlot* selected = sHousingMgr->GetHomePlot(accountId);
+
+        handler->SendSysMessage("Houses on this account - * is the one the homestone uses:");
+
+        for (Housing::HousingPlot* plot : houses)
+        {
+            if (!plot || !plot->GetHouse())
+                continue;
+
+            Housing::HousingNeighborhood* neighborhood = plot->GetNeighborhood();
+
+            handler->PSendSysMessage("{} {} - {} - {} - plot {}, level {}", plot == selected ? "*" : " ",
+                plot->GetHousingId(),
+                plot->GetHouse()->GetName().empty() ? std::string("(unnamed)")
+                                                    : plot->GetHouse()->GetName(),
+                neighborhood ? neighborhood->GetName() : std::string("(no street)"),
+                uint32(plot->GetIndex()), uint32(plot->GetHouse()->GetTier()));
+        }
+
+        handler->SendSysMessage(".housing selecthome <housingId> picks one; .housing home goes there.");
+        return true;
+    }
+
+    static bool HandleSelectHomeCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing selecthome <housingId>");
+            return true;
+        }
+
+        uint32 housingId = 0;
+        if (!(housingId = ParseId(args)))
+        {
+            handler->SendSysMessage("Usage: .housing selecthome <housingId>");
+            return true;
+        }
+
+        handler->PSendSysMessage("Selected home: {}",
+            ResultText(sHousingMgr->SelectHouse(player, housingId)));
+        return true;
+    }
+
+    static bool HandleJoinCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing join <neighbourhood> - see .housing finder");
+            return true;
+        }
+
+        uint32 neighborhoodId = 0;
+        if (!(neighborhoodId = ParseId(args)))
+        {
+            handler->SendSysMessage("Usage: .housing join <neighbourhood> - see .housing finder");
+            return true;
+        }
+
+        handler->PSendSysMessage("Join: {}",
+            ResultText(sHousingMgr->JoinNeighborhood(player, neighborhoodId)));
+        return true;
+    }
+
+    static bool HandleLeaveNeighborhoodCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Left the neighbourhood: {}",
+            ResultText(sHousingMgr->LeaveNeighborhood(player)));
+        return true;
+    }
+
+    static bool HandleFoundCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Founded: {}",
+            ResultText(sHousingMgr->FoundNeighborhood(player)));
+        return true;
+    }
+
+    static bool HandleMoveHouseCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing movehouse <plot> - .housing list shows which are free");
+            return true;
+        }
+
+        uint32 plotIndex = 0;
+        if (!(plotIndex = ParseId(args)))
+        {
+            handler->SendSysMessage("Usage: .housing movehouse <plot> - .housing list shows which are free");
+            return true;
+        }
+
+        handler->PSendSysMessage("Move: {}",
+            ResultText(sHousingMgr->MoveHouse(player, uint8(plotIndex))));
+        return true;
+    }
+
+    static bool HandleAmenitiesCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        auto const& amenities = sHousingMgr->GetAmenities();
+
+        if (amenities.empty())
+        {
+            handler->SendSysMessage("No amenities: `housing_amenity` is empty on this realm.");
+            return true;
+        }
+
+        // The same five fields the addon's Amenities tab prints from S:VAREA - type, name, x,
+        // y, biome - so a player reading the chat line gets what the window would have shown.
+        // The names are AmenityType, in its own order, including the Coffer.
+        static char const* const types[] = {
+            "bulletin board", "portal", "contractor", "flight point", "gathering",
+            "scenery", "vendor", "endeavor", "coffer" };
+
+        handler->SendSysMessage("Amenities in this module's town centre:");
+
+        for (Housing::AmenityInfo const& amenity : amenities)
+            handler->PSendSysMessage("  {} - {} at {:.1f} {:.1f} (biome {})",
+                amenity.Type < 9 ? types[amenity.Type] : "unknown type", amenity.Name,
+                amenity.Pos.m_positionX, amenity.Pos.m_positionY, uint32(amenity.BiomeId));
+
+        return true;
+    }
+
+    static bool HandleHuntCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (args && *args)
+        {
+            uint32 huntId = 0;
+            if (!(huntId = ParseId(args)))
+            {
+                handler->SendSysMessage("Usage: .housing hunt [id]");
+                return true;
+            }
+
+            handler->PSendSysMessage("Hunt {}: {}", huntId,
+                ResultText(sHousingMgr->AcceptHunt(player, huntId)));
+            return true;
+        }
+
+        auto const& hunts = sHousingMgr->GetHunts();
+
+        if (hunts.empty())
+        {
+            handler->SendSysMessage("No riddle hunts: `housing_hunt` is empty on this realm.");
+            return true;
+        }
+
+        handler->SendSysMessage("Riddle hunts - 0 not taken, 1 looking, 2 found:");
+
+        for (Housing::HuntInfo const& hunt : hunts)
+        {
+            Housing::DecorInfo const* reward = hunt.RewardDecor
+                ? sHousingMgr->GetDecor(hunt.RewardDecor) : nullptr;
+
+            handler->PSendSysMessage("  {} [{}] {} - {} - {}{}", hunt.Id,
+                uint32(sHousingMgr->GetHuntState(player, hunt.Id)), hunt.Name, hunt.Riddle,
+                reward ? reward->Name : "no reward on this realm",
+                hunt.CacheEntry ? "" : " (no cache yet)");
+        }
+
+        handler->SendSysMessage(".housing hunt <id> takes one.");
+        return true;
+    }
+
+    static bool HandleBuyCopyCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing buycopy <decor> [count]");
+            return true;
+        }
+
+        std::istringstream stream(args);
+        std::string decorText;
+        std::string countText;
+
+        if (!(stream >> decorText))
+        {
+            handler->SendSysMessage("Usage: .housing buycopy <decor> [count]");
+            return true;
+        }
+
+        uint32 const decorId = ParseId(decorText);
+        uint32 const count = (stream >> countText) ? ParseId(countText) : 1;
+
+        if (!decorId)
+        {
+            handler->SendSysMessage("Usage: .housing buycopy <decor> [count]");
+            return true;
+        }
+
+        handler->PSendSysMessage("Copy: {}",
+            ResultText(sHousingMgr->BuyDecorCopy(player, decorId, count)));
+        return true;
+    }
+
+    static bool HandlePlaceAtCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing placeat <decor> [metres] [indoor]");
+            return true;
+        }
+
+        std::istringstream stream(args);
+        std::string decorText;
+        std::string metresText;
+        std::string indoorText;
+
+        if (!(stream >> decorText))
+        {
+            handler->SendSysMessage("Usage: .housing placeat <decor> [metres] [indoor]");
+            return true;
+        }
+
+        uint32 const decorId = ParseId(decorText);
+        float const metres = (stream >> metresText) ? float(ParseId(metresText)) : 2.0f;
+        uint32 const indoor = (stream >> indoorText) ? ParseId(indoorText) : 0;
+
+        uint64 placementId = 0;
+        Housing::HousingResult const result =
+            sHousingMgr->PlaceDecorInFront(player, decorId, metres, indoor != 0, placementId);
+
+        if (result == Housing::Ok)
+            handler->PSendSysMessage("Placed as {}.", placementId);
+        else
+            handler->PSendSysMessage("Not placed: {}.", ResultText(result));
+
+        return true;
+    }
+
+    static bool HandleBuildModeCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player || !args)
+        {
+            handler->SendSysMessage("Usage: .housing buildmode <0|1> [decor]");
+            return true;
+        }
+
+        std::istringstream stream(args);
+        std::string onText;
+        std::string decorText;
+
+        if (!(stream >> onText))
+        {
+            handler->SendSysMessage("Usage: .housing buildmode <0|1> [decor]");
+            return true;
+        }
+
+        uint32 const on = ParseId(onText);
+        uint32 const decorId = (stream >> decorText) ? ParseId(decorText) : 0;
+
+        handler->PSendSysMessage("Build mode {}.",
+            ResultText(sHousingMgr->SetBuildMode(player, on != 0, decorId)));
+        return true;
+    }
+
+    static bool HandleGryphonCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Gryphon: {}", ResultText(sHousingMgr->CallGryphon(player)));
+        return true;
+    }
+
+    static bool HandleArcanostorageCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        handler->PSendSysMessage("Arcanostorage: {}",
+            ResultText(sHousingMgr->OpenArcanostorage(player)));
+        return true;
+    }
+
+    static bool HandleFavorCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        Housing::HousingNeighborhood* neighborhood = sHousingMgr->FindNeighborhoodFor(player);
+        if (!neighborhood)
+        {
+            handler->SendSysMessage("You are not in a neighbourhood.");
+            return true;
+        }
+
+        handler->PSendSysMessage("Neighbourhood Favor in '{}': {}",
+            neighborhood->GetName(), sHousingMgr->GetFavor(neighborhood->GetId()));
+
+        return true;
+    }
+
+    static bool HandleRoomsCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = GetSessionPlayer(handler);
+        if (!player)
+            return false;
+
+        if (args && *args)
+        {
+            uint32 roomId = 0;
+            if (!(roomId = ParseId(args)))
+            {
+                handler->SendSysMessage("Usage: .housing rooms [id] - id buys");
+                return true;
+            }
+
+            handler->PSendSysMessage("Room {}: {}", roomId,
+                ResultText(sHousingMgr->BuyRoom(player, roomId)));
+            return true;
+        }
+
+        Housing::HousingPlot* plot = sHousingMgr->GetOwnedPlot(player);
+        if (!plot || !plot->GetHouse())
+        {
+            handler->SendSysMessage("You do not have a house.");
+            return true;
+        }
+
+        // Listed with the level gate and the slot cost, because both decide whether the row
+        // can be bought today and both come out of the same budget.
+        for (Housing::RoomInfo const& room : sHousingMgr->GetRoomsForPlot(plot))
+            handler->PSendSysMessage("  {} {} - {} slot(s), level {}", room.Id, room.Name,
+                uint32(room.BudgetCost), uint32(room.LevelRequired));
+
+        handler->SendSysMessage(".housing rooms <id> buys one.");
+        return true;
+    }
+
     static bool HandleNeighborListCommand(ChatHandler* handler, char const* /*args*/)
     {
         Player* player = GetSessionPlayer(handler);
@@ -700,6 +1096,21 @@ public:
             { "levelup",  0, false, &HandleLevelUpCommand,    "Pay the contractor to skip a level" },
             { "shell",    0, false, &HandleShellCommand,      "Choose or list exterior shells" },
             { "bindshell", rbac::RBAC_PERM_COMMAND_GM, false, &HandleBindShellCommand, "Point a shell at a game object" },
+            { "homes",    0, false, &HandleHomesCommand,      "The houses on this account, and which one the homestone uses" },
+            { "selecthome", 0, false, &HandleSelectHomeCommand, "Choose the house the homestone goes to" },
+            { "join",     0, false, &HandleJoinCommand,       "Join a public or charter neighbourhood" },
+            { "leavenb",  0, false, &HandleLeaveNeighborhoodCommand, "Leave the neighbourhood you live in" },
+            { "found",    0, false, &HandleFoundCommand,      "Found your own neighbourhood" },
+            { "movehouse", 0, false, &HandleMoveHouseCommand, "Move your house to another free plot" },
+            { "amenities", 0, false, &HandleAmenitiesCommand, "The amenities in the town centre" },
+            { "hunt",     0, false, &HandleHuntCommand,       "List the riddle hunts, or take one by id" },
+            { "rooms",    0, false, &HandleRoomsCommand,      "List the room shapes, or buy one by id" },
+            { "buycopy",  0, false, &HandleBuyCopyCommand,    "Buy another copy of a piece you own" },
+            { "placeat",  0, false, &HandlePlaceAtCommand,    "Place a piece in front of you" },
+            { "buildmode", 0, false, &HandleBuildModeCommand, "The placement gizmo on or off" },
+            { "gryphon",  0, false, &HandleGryphonCommand,    "Call the travel gryphon" },
+            { "arcanostorage", 0, false, &HandleArcanostorageCommand, "Open the weekly Arcanostorage Sphere" },
+            { "favor",    0, false, &HandleFavorCommand,      "Neighbourhood Favor here" },
             { "dye",      0, false, &HandleDyeCommand,        "Dye a placed piece" },
             { "bp",       0, false, &HandleBlueprintCommand,  "Export a build code" },
             { "bpimport", 0, false, &HandleBlueprintImportCommand, "Import a build code" },

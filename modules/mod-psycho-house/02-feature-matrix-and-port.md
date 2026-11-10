@@ -148,7 +148,7 @@ written so the estimate can be compared with what it took.
 | Comms fallback | n/a | Gossip + commands | Every addon action has a `.housing` equivalent (forty-eight commands), and every one of those is reachable from the five NPCs and the four game objects. `.housing` with no argument prints the whole table, read out of the table itself | M | P1 |
 | Server settings | Conf file | Conf file | 40 keys, all read by `HousingMgr::LoadConfig`, each recorded with the value it kept after clamping and printable with `.housing config [filter]`. Doc 14 lists every one with its default, clamp and reload behaviour, and `check_reference.py` fails if the conf, the loader and the document disagree | S | P1 |
 | Client settings | SavedVariables | SavedVariables | Six preferences in `HousingUIDB.settings` - snapping, grid, rotation step, scale step, window scale, window position - editable on the Settings tab and written the moment they change. The single table is the only copy: `H.SnapValue` and friends read it directly | S | P2 |
-| Settings reference | n/a | Doc + checker | Doc 14 collects the 40 server settings, the 49 commands, the six client settings and the five tables that hold numbers instead of the conf file. `check_reference.py` compares all four lists against the code and runs as the audit's ninth check | S | P1 |
+| Settings reference | n/a | Doc + checker | Doc 14 collects the 40 server settings, the 64 commands, the six client settings and the five tables that hold numbers instead of the conf file. `check_reference.py` compares all four lists against the code and runs as the audit's ninth check | S | P1 |
 
 ## 3. What I am explicitly not porting
 

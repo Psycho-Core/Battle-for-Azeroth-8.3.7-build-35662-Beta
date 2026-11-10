@@ -110,6 +110,9 @@ def handlers():
     return set(re.findall(r'H\.handlers\[\s*"([A-Z]+)"', ADDON))
 
 
+DOC14 = ""
+
+
 def commands():
     text = read(os.path.join(HERE, "src", "scripts", "Housing", "housing_commands.cpp"))
     return set(re.findall(r'\{\s*"([a-z]+)"', text))
@@ -251,7 +254,90 @@ def scan(where, text):
         check_token(where, token)
 
 
+def guide_pairs():
+    """The Guide tab's op -> verb table, as the addon writes it."""
+    text = read(os.path.join(HERE, "addon", "HousingUI", "Menu.lua"))
+    block = text.split("local GUIDE_ROWS = {")[1].split("\n}\n")[0]
+    return re.findall(r'\{\s*"(C:[A-Z]+)"\s*,\s*"([a-z]+)"\s*\}', block)
+
+
+def sent_ops():
+    """Ops the addon actually sends, with the Guide tab's own list cut out first.
+
+    check_protocol.addon_ops() reads every quoted C: string in the addon, which would make the
+    Guide tab satisfy itself: an op named only in the table would count as sent. The block is
+    removed here so the comparison is against the rest of the client.
+    """
+    sends = set()
+
+    for name in sorted(os.listdir(os.path.join(HERE, "addon", "HousingUI"))):
+        if not name.endswith(".lua"):
+            continue
+
+        text = read(os.path.join(HERE, "addon", "HousingUI", name))
+
+        if "local GUIDE_ROWS = {" in text:
+            before, rest = text.split("local GUIDE_ROWS = {", 1)
+            text = before + rest.split("\n}\n", 1)[-1]
+
+        sends.update(re.findall(r'"(C:[A-Z]+)', text))
+        sends.update("C:" + op for op in re.findall(r'"C:([A-Z]+)\|', text))
+
+    return sends
+
+
+def check_guide():
+    """The Guide tab lists every op the addon sends, and every op has a command.
+
+    The tab said "Every one of these has a /housing equivalent" while three features had no
+    command at all, and it listed twenty-four lines while the addon sent sixty-one ops. A
+    sentence about completeness is the kind of claim that is true on the day it is written and
+    wrong by the next pass, so the table is data and this reads it.
+    """
+    pairs = guide_pairs()
+
+    if not pairs:
+        fail("Menu.lua", "the Guide tab has no op table to check")
+        return 0
+
+    listed = [op for op, _verb in pairs]
+
+    duplicates = {op for op in listed if listed.count(op) > 1}
+    for op in sorted(duplicates):
+        fail("Menu.lua", "the Guide tab lists `{}` more than once".format(op))
+
+    sent = {op for op in sent_ops() if op not in ("C:HELLO", "C:PING")}
+    missing = sorted(sent - set(listed))
+    extra = sorted(set(listed) - sent)
+
+    for op in missing:
+        fail("Menu.lua", "the addon sends `{}` and the Guide tab does not list it".format(op))
+
+    for op in extra:
+        fail("Menu.lua", "the Guide tab lists `{}`, which the addon never sends".format(op))
+
+    for op, verb in pairs:
+        if verb not in COMMANDS:
+            fail("Menu.lua", "`{}` is paired with `.housing {}`, which the command table has no "
+                 "entry for".format(op, verb))
+
+    # And the mapping has to be one to one in the other direction: a verb the tab claims for an
+    # op but the server does not dispatch is a command a player cannot run.
+    for op, verb in pairs:
+        if ".housing " + verb not in DOC14:
+            fail("Menu.lua", "`{}` is paired with `.housing {}`, which doc 14 does not list"
+                 .format(op, verb))
+
+    print("guide: {} ops mapped to {} verbs, every one dispatched and documented"
+          .format(len(pairs), len({verb for _op, verb in pairs})))
+    return len(pairs)
+
+
 def main():
+    global DOC14
+    DOC14 = read(os.path.join(HERE, "14-settings-and-commands.md"))
+    check_guide()
+
     inventory = section_of("README.md", "## Everything doc 01 lists")
     scan("README.md", inventory)
 

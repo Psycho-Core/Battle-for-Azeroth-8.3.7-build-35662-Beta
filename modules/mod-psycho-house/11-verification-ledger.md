@@ -1360,3 +1360,39 @@ document describing an intention that the file never carried, with no rule betwe
 | `check_cpp.py` | 0 findings; `BindShell` and `GetStarterShell` present, constants all read |
 | `check_mariadb.py` | 0 findings; the shell INSERT is eight columns over twelve rows in both drafts |
 | `audit.py` | 0 findings across 10 checks |
+
+### 6.34 The fortieth revision: a claim about completeness, and what it cost to make true
+
+The Guide tab ended with "Every one of these has a /housing equivalent. The menu exists so
+nobody has to type them, not so the transport is hidden." Two things were wrong with it: the
+list above the sentence was missing seven ops the window sends, and three of the features it
+did list had no command at all. A player without the addon could not move a house, join a
+public street, or read the town centre's amenities.
+
+- **The tab.** It is a scrolling list now, built from `GUIDE_ROWS`, where every op is paired
+  with its verb. The old version was twenty-four hand-written strings; this one is 59 ops and
+  52 verbs, printed from the data, so the tab cannot describe a mapping that does not exist.
+- **The verbs.** Fifteen were missing and are not missing now: `homes` and `selecthome` for the
+  two-house selector, `join`, `leavenb`, `found` and `movehouse` for neighbourhood membership,
+  `amenities` for the town centre, `hunt` for the ten riddles, `rooms` for the room shapes,
+  `buycopy`, `placeat` and `buildmode` for the three placement paths, `gryphon`,
+  `arcanostorage` and `favor` for the devices and the currency. 49 commands became 64,
+  56 of them player commands.
+- **The shared logic.** `C:BUYCOPY`, `C:PLACEAT` and `C:BUILDMODE` lived inside
+  `HandleExtendedOp`, so a command would have had to copy them. They are `BuyDecorCopy`,
+  `PlaceDecorInFront` and `SetBuildMode` on the manager now, and both doors call those.
+- **The sentence.** Replaced with one that says what the tab is, and backed by a rule:
+  `check_claims.py` parses `GUIDE_ROWS`, cuts the table out of the corpus it reads as "ops the
+  addon sends" so the list cannot satisfy itself, and requires every sent op to be listed,
+  every listed op to be real, every paired verb to be in the command table, and every verb to
+  be in doc 14. Mutation-tested by deleting one pair.
+- **The amenities list** names the nine `AmenityType` values, including the Coffer at 8, rather
+  than the makeshift words the first draft had.
+
+| checker | result |
+| --- | --- |
+| `check_claims.py` | 0 findings; 59 ops mapped to 52 verbs, every one dispatched and documented |
+| `check_reference.py` | 0 findings; 40 settings, 64 commands, 6 client settings |
+| `check_lua.py` | 0 findings; fifteen tabs, the Guide on a scroll frame |
+| `check_cpp.py` | 0 findings; the three lifted methods and the fourteen new handlers |
+| `audit.py` | 0 findings across 10 checks |
