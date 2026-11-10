@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS `housing_amenity` (
   `id`       INT UNSIGNED NOT NULL,
   `biome_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = town center',
   `name`     VARCHAR(64) NOT NULL,
-  `type`     TINYINT UNSIGNED NOT NULL DEFAULT 5 COMMENT '0 bulletin, 1 portal, 2 contractor, 3 flight point, 4 gathering, 5 scenery, 6 vendor, 7 endeavor',
+  `type`     TINYINT UNSIGNED NOT NULL DEFAULT 5 COMMENT 'AmenityType: 0 bulletin board, 1 portal, 2 contractor, 3 flight point, 4 gathering, 5 scenery, 6 vendor, 7 endeavor, 8 coffer',
   `x`        FLOAT NOT NULL DEFAULT 0,
   `y`        FLOAT NOT NULL DEFAULT 0,
   `z`        FLOAT NOT NULL DEFAULT 0,

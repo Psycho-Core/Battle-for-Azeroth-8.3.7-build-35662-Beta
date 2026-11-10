@@ -122,6 +122,38 @@ def window_ops():
     return ops
 
 
+def documented_ops():
+    """The op tables in 15-addon-protocol.md: the C: ops and the S: ops it lists."""
+    text = read(os.path.join(HERE, "15-addon-protocol.md"))
+    return (set(re.findall(r"^\| `C:([A-Z]+)`", text, re.M)),
+            set(re.findall(r"^\| `S:([A-Z]+)`", text, re.M)))
+
+
+def check_documented(documented_c, documented_s, dispatched, replies):
+    """The protocol document has a row for every op, and no row for an op that is gone.
+
+    The module cited `docs/player-housing/04-addon-protocol.md` in four source comments for
+    three revisions. That path never existed in this repository: the wire format was only ever
+    the code. A reader reimplementing either half had 61 client ops and 39 server ops to
+    discover by reading two C++ files and 3 400 lines of Lua.
+
+    So the document is the third description and this holds it to the other two. A table row
+    is the unit: an op with no row is undocumented, and a row with no op is a promise the
+    server does not keep.
+    """
+    for op in sorted(dispatched - documented_c):
+        fail("C:{} is dispatched and 15-addon-protocol.md has no row for it".format(op))
+
+    for op in sorted(documented_c - dispatched):
+        fail("15-addon-protocol.md documents C:{} which no code dispatches".format(op))
+
+    for op in sorted(set(replies) - documented_s):
+        fail("S:{} is sent and 15-addon-protocol.md has no row for it".format(op))
+
+    for op in sorted(documented_s - set(replies)):
+        fail("15-addon-protocol.md documents S:{} which the server never sends".format(op))
+
+
 def main():
     sends, handlers = addon_ops()
     dispatched, replies = server_ops()
@@ -156,12 +188,15 @@ def main():
             fail("S:{} carries {} fields but the addon reads fields[{}]".format(
                 op, sent, highest))
 
-    print("{} C: opcodes sent by the addon, {} dispatched by the server".format(
-        len(sends_ops), len(dispatched)))
+    documented_c, documented_s = documented_ops()
+    check_documented(documented_c, documented_s, dispatched, replies)
+
+    print("{} C: opcodes sent by the addon, {} dispatched by the server, {} documented".format(
+        len(sends_ops), len(dispatched), len(documented_c & dispatched)))
     print("{} of {} dispatched opcodes reachable from the window".format(
         len(dispatched & (reachable | WINDOW_EXEMPT)), len(dispatched)))
-    print("{} S: opcodes sent by the server, {} handled in the addon".format(
-        len(replies), len(set(replies) & set(handlers))))
+    print("{} S: opcodes sent by the server, {} handled in the addon, {} documented".format(
+        len(replies), len(set(replies) & set(handlers)), len(documented_s & set(replies))))
     for op in sorted(replies):
         used = handlers.get("_max_" + op)
         print("  S:{:<14} {:>2} fields{}".format(

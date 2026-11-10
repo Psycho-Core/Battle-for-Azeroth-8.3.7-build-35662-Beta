@@ -1396,3 +1396,37 @@ public street, or read the town centre's amenities.
 | `check_lua.py` | 0 findings; fifteen tabs, the Guide on a scroll frame |
 | `check_cpp.py` | 0 findings; the three lifted methods and the fourteen new handlers |
 | `audit.py` | 0 findings across 10 checks |
+
+### 6.35 The forty-first revision: the protocol nobody could read
+
+Four comments in this module pointed at docs/player-housing/04-addon-protocol.md for the
+wire format, and `HousingDefines.h` pointed at `02-module-architecture.md` for the phase layout.
+There is no `docs/` directory: those paths came from a tree that is not this one, and the links
+check only read markdown, so nothing ever looked.
+
+- **The document.** `15-addon-protocol.md` is the contract now: the `BFAH` prefix and why the
+  channel is a self-whisper, the `|` and `;` grammar, the 200-byte chunk frame and how the
+  client reassembles it, protocol version 3 with what 1 and 2 were, the twenty-per-ten-seconds
+  rate limit, a row for each of the 61 client ops with its arguments and the reply it gets, a
+  row for each of the 39 server ops with its field list, and the six enums that travel - result
+  codes, plot state, Armillary presets, amenity types, size classes, access bits, currency and
+  blueprint kinds.
+- **The two warts are documented as warts.** `S:PLOT` has no terminator and the client redraws
+  from its own table; `S:HELLO`'s fourth field is a literal 1 because a disabled module answers
+  before the handshake. A document that only described the tidy parts would be a worse
+  document.
+- **The citations.** All four point at the new document, and `Core.lua` no longer sends readers
+  to the prototype's own protocol file without saying that it describes the prototype.
+- **The rule.** `check_protocol.py` parses the two tables and requires every dispatched `C:` op
+  and every sent `S:` op to be in them, in both directions.
+- **The other rule.** `audit.py` grew `docrefs`: a `.md` named in a `.cpp`, `.h` or `.lua` has
+  to exist. The lookarounds keep `hashlib.md5` out of it.
+- **The amenity type.** The `housing_amenity.type` comment stopped at 7 and the Coffer is 8.
+  It names all nine values now, which is also what `.housing amenities` prints.
+
+| checker | result |
+| --- | --- |
+| `check_protocol.py` | 0 findings; 61 C: documented of 61 dispatched, 39 S: documented of 39 sent |
+| `audit.py` | 0 findings across 11 checks; the new `docrefs` check is the eleventh |
+| `check_mariadb.py` | 0 findings; the amenity COMMENT change is inside the statement length rule |
+| `check_claims.py` | 0 findings; the README's new rows cite nothing that is not there |

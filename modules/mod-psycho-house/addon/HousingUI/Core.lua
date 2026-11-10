@@ -5,7 +5,8 @@
     commands I use to prove the server half of the BFAH protocol before anyone spends time
     on frames. Everything here talks to the server; nothing here decides anything.
 
-    Protocol reference: legacy-prototype/04-addon-protocol.md
+    Protocol reference: 15-addon-protocol.md - that is the shipped contract, and the
+    prototype's own document in legacy-prototype/ describes what it used to be.
 --]]
 
 local ADDON_NAME = ...

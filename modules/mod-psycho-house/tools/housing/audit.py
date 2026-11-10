@@ -6,11 +6,12 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Ten checks, in the order a reviewer would want them:
+Eleven checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
   links    every relative markdown link and every `file` reference resolves
+  docrefs  every document named in a .cpp, .h or .lua comment exists
   counts   the numbers in the docs match the CSVs and the generated SQL
   csv      item ids are unique per vendor, stock ids exist in the item CSV,
            every stock vendor is in the vendor list
@@ -69,6 +70,10 @@ QUOTED = re.compile(r"`[^`]*`|\*[^*]*\*|\"[^\"]*\"|'[^']*'")
 TARGET_PATHS = ("src/game/PsychoHouse", "src/scripts/PsychoHouse", "src/server/game/PsychoHouse", "src/server/scripts/PsychoHouse")
 
 MD_LINK = re.compile(r"\[[^\]]*\]\(([^)#][^)]*)\)")
+
+# A document named in a source comment. The lookarounds matter: `hashlib.md5` is not a
+# reference to a markdown file, and neither is `foo.md5`.
+DOC_REF = re.compile(r"(?<![\w./-])([A-Za-z0-9_][A-Za-z0-9_./-]*\.md)(?![\w.])")
 FILE_REF = re.compile(r"`((?:data|docs|sql|src|addon|tools|drafts|generated|conf|legacy-prototype)/[^`\s]+)`")
 
 
@@ -173,6 +178,40 @@ def check_source_voice(findings):
                     findings.append(("voice", rel(path), "line %d: %s '%s' in a comment"
                                      % (line, label, match.group(0))))
                     break
+
+
+def check_doc_refs(findings):
+    """Every document named in a source or addon comment exists.
+
+    Four comments in this module pointed at `docs/player-housing/04-addon-protocol.md` and
+    `docs/player-housing/02-module-architecture.md` for three revisions. There is no `docs/`
+    directory: the paths had been carried over from a tree that is not this one, and the
+    links check only ever read `.md` files, so nothing noticed. A reader following the
+    comment found nothing at the other end.
+    """
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS | {"legacy-prototype", "drafts"}]
+
+        for name in sorted(files):
+            if not name.endswith((".cpp", ".h", ".lua")):
+                continue
+
+            path = os.path.join(base, name)
+
+            try:
+                text = read(path).decode("utf-8", "replace")
+            except OSError:
+                continue
+
+            for target in DOC_REF.findall(text):
+                cleaned = target.split(":")[0]
+                candidates = [os.path.join(ROOT, cleaned),
+                              os.path.join(os.path.dirname(path), cleaned)]
+
+                if any(os.path.exists(candidate) for candidate in candidates):
+                    continue
+
+                findings.append(("docrefs", rel(path), "names %s, which does not exist" % cleaned))
 
 
 def check_links(findings):
@@ -350,6 +389,7 @@ CHECKS = {
     "voice": check_voice,
     "source-voice": check_source_voice,
     "links": check_links,
+    "docrefs": check_doc_refs,
     "counts": check_counts,
     "csv": check_csv,
     "sql": check_sql,
