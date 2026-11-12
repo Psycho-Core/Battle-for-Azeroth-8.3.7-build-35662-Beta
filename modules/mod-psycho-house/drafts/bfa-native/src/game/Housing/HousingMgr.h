@@ -588,6 +588,14 @@ namespace Housing
         /// The plot's front door, with the ground height filled in when the row asked for it.
         Position PlotSpawn(HousingPlot* plot, Player* player);
         Position AnchorForAmenity(uint32 index) const;
+
+        /// Where a biome's own amenity stands: its authored centre, else the first plot of
+        /// that biome, in a ring so two amenities in one biome do not share a position.
+        Position AnchorForBiome(uint32 biomeId, uint32 ordinal) const;
+
+        /// Where a player arriving from a plot is put down: that plot's biome flight point
+        /// when the realm has authored one, otherwise the town centre.
+        Position ArrivalPosition(uint32 biomeId) const;
         Position AnchorForHunt(uint32 index) const;
         void SpawnPlotShell(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);
         void SpawnCornerstone(HousingPlot* plot, HousingNeighborhood* neighborhood, Map* map);

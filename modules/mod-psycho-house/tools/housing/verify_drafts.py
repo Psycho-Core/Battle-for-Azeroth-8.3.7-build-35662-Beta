@@ -496,6 +496,185 @@ def check_stock_side(base, draft, findings_before=0):
     return checks
 
 
+def draft_tables(draft):
+    """Every row of every table the draft's own SQL inserts, keyed by table."""
+    base = os.path.join(DRAFTS, draft, "sql", "world")
+    tables = {}
+
+    for name in sorted(os.listdir(base)):
+        if not name.endswith(".sql"):
+            continue
+
+        for table, columns, tuples in statements(read(os.path.join(base, name))):
+            # The hunt file carries the ten reward pieces, which the READMEs count on their
+            # own line. Counting them in the catalogue would make it look ten pieces larger,
+            # but the hunts themselves are the eleven-line entry above it.
+            if name == "08_hunts.sql" and table == "housing_decor":
+                continue
+
+            for tuple_row in tuples:
+                tables.setdefault(table, []).append(
+                    {c: value(f) for c, f in zip(columns, tuple_row)})
+
+    return tables
+
+
+def script_names():
+    """The ScriptName strings the module's own source registers, whatever is bound to them."""
+    root = os.path.join(HERE, "src")
+    found = set()
+    pattern = re.compile(r"[\"']((?:npc|go)_housing[a-z_]*)[\"']")
+
+    for base, dirs, files in os.walk(root):
+        for name in files:
+            if name.endswith((".cpp", ".h")):
+                found.update(pattern.findall(read(os.path.join(base, name))))
+
+    return found
+
+
+def check_draft_readmes(findings_before=0):
+    """Each draft's README against that draft's SQL.
+
+    The README in a draft is the only description of it that ships inside it, and both had
+    drifted: draft A promised six shells and eighteen rooms, three pet beds, twenty-two
+    amenities, a five-rung level ladder in one row and twelve in the next, and 397/174 for a
+    faction split that is 240/99; draft B promised 350 decor rows and its own 350 stock lines
+    long after the filter took the catalogue to 332 plus four beds. Every count below is read
+    out of the SQL and compared with the sentence that states it, so the two cannot drift
+    again without this failing.
+    """
+    facts = {}
+    checks = 0
+
+    for draft, band in (("midnight-port", "571"), ("bfa-native", "336")):
+        tables = draft_tables(draft)
+        # Prose is wrapped at eighty columns, so a sentence can straddle a newline. Matching
+        # against a whitespace-collapsed copy is the difference between checking the claim and
+        # checking where the author happened to break the line.
+        readme = re.sub(r"\s+", " ", read(os.path.join(DRAFTS, draft, "README.md")))
+        decor = tables.get("housing_decor", [])
+        stock = tables.get("housing_vendor_stock", [])
+        beds = tables.get("housing_decor_creature", [])
+
+        facts[draft] = {
+            "decor": len(decor),
+            "stock": len(stock),
+            "vendors": len(tables.get("housing_vendor", [])),
+            "shells": len(tables.get("housing_shell", [])),
+            "rooms": len(tables.get("housing_room", [])),
+            "portals": len(tables.get("housing_portal", [])),
+            "levels": len(tables.get("housing_house_level", [])),
+            "beds": len(beds),
+            "amenities": len(tables.get("housing_amenity", [])),
+            "hub": sum(1 for a in tables.get("housing_amenity", []) if not a.get("biome_id")),
+            "dyes": len(tables.get("housing_dye", [])),
+            "hunts": len(tables.get("housing_hunt", [])),
+            "item_rows": sum(1 for d in decor if d.get("item_entry")),
+            "item_ids": len({d["item_entry"] for d in decor if d.get("item_entry")}),
+            "gated": sum(1 for r in stock if r.get("milestone")),
+            "both": sum(1 for d in decor if d.get("faction_mask") == 3),
+            "horde": sum(1 for d in decor if d.get("faction_mask") == 2),
+            "alliance": sum(1 for d in decor if d.get("faction_mask") == 1),
+            "all_both": all(d.get("faction_mask") == 3 for d in decor),
+            "no_milestones": not any(r.get("milestone") for r in stock),
+        }
+
+        def states(pattern, what, flags=0):
+            nonlocal checks
+            checks += 1
+            match = re.search(pattern, readme, flags)
+            if not match:
+                fail(draft + "/README.md", "no longer states {}".format(what))
+            return match
+
+        def equal(pattern, what, actual, flags=0, group=1):
+            match = states(pattern, what, flags)
+            if match and int(match.group(group)) != actual:
+                fail(draft + "/README.md", "says {} is {}, the SQL has {}".format(
+                    what, match.group(group), actual))
+
+        if draft == "midnight-port":
+            equal(r"\| Vendors \| (\d+), each with its retail name", "the vendor count",
+                  facts[draft]["vendors"])
+            equal(r"\| Decor rows \| (\d+), every one with a real", "the decor count",
+                  facts[draft]["decor"])
+            equal(r"\| Vendor stock rows \| (\d+) \|", "the stock count",
+                  facts[draft]["stock"])
+            equal(r"(\d+) rows carry one; between them they cover all (\d+) ids",
+                  "the rows carrying a retail item id", facts[draft]["item_rows"])
+            equal(r"rows carry one; between them they cover all (\d+) ids",
+                  "the distinct retail item ids", facts[draft]["item_ids"], group=1)
+            split = (r"(\d+) Horde only,\s+(\d+) Alliance only, and (\d+) are stocked by "
+                     r"both")
+            equal(split, "the Horde-only count", facts[draft]["horde"])
+            equal(split, "the Alliance-only count", facts[draft]["alliance"], group=2)
+            equal(split, "the both-sides count", facts[draft]["both"], group=3)
+            equal(r"\| Exteriors \| (\d+) shells", "the shell count",
+                  facts[draft]["shells"])
+            equal(r"\| Rooms \| (\d+), each with its budget cost", "the room count",
+                  facts[draft]["rooms"])
+            equal(r"\| Portals \| (\d+) destinations", "the portal count",
+                  facts[draft]["portals"])
+            equal(r"\| Amenities \| (\d+): (\d+) in the town centre", "the amenity count",
+                  facts[draft]["amenities"])
+            equal(r"\| Amenities \| (\d+): (\d+) in the town centre",
+                  "the hub amenity count", facts[draft]["hub"], group=2)
+            equal(r"\| Pet beds \| (\d+), `housing_decor_creature`", "the pet bed count",
+                  facts[draft]["beds"])
+            equal(r"\| Dyes \| (\d+) colour rows", "the dye count", facts[draft]["dyes"])
+            equal(r"\| Riddle hunts \| (\d+) hunts", "the hunt count",
+                  facts[draft]["hunts"])
+            equal(r"(\d+) stock lines ship gated behind their milestones",
+                  "the gated stock count", facts[draft]["gated"])
+        else:
+            equal(r"\| Decor rows \| (\d+): (\d+) game objects the source tree declares",
+                  "the decor count", facts[draft]["decor"])
+            equal(r"\| Decor rows \| (\d+): (\d+) game objects the source tree declares",
+                  "the harvested decor count", facts[draft]["decor"] - facts[draft]["beds"],
+                  group=2)
+            equal(r"\| Vendor stock rows \| (\d+), every native decor piece", "the stock count",
+                  facts[draft]["stock"])
+            equal(r"\| Vendors \| (\d+) stalls of my own", "the vendor count",
+                  facts[draft]["vendors"])
+            equal(r"\| Exteriors \| (\d+) shells", "the shell count", facts[draft]["shells"])
+            equal(r"\| Rooms \| (\d+), each with its budget cost", "the room count",
+                  facts[draft]["rooms"])
+            equal(r"\| Portals \| (\d+) destinations", "the portal count",
+                  facts[draft]["portals"])
+            equal(r"\| Pet beds \| (\d+), ids 2950-2953", "the pet bed count",
+                  facts[draft]["beds"])
+            checks += 1
+            if not facts[draft]["all_both"]:
+                fail(draft + "/README.md", "says every native piece is on both sides and the "
+                                           "SQL has a row that is not")
+            checks += 1
+            if not facts[draft]["no_milestones"]:
+                fail(draft + "/README.md", "says no native stock row is gated and the SQL has "
+                                           "one that is")
+
+    # Both READMEs list the scripts that answer when a player clicks. The list was four plus
+    # five and called eight, and it left out the dye crafter that the world content binds.
+    checks += 1
+    names = script_names()
+    for draft in ("midnight-port", "bfa-native"):
+        readme = read(os.path.join(DRAFTS, draft, "README.md"))
+        named = set(re.findall(r"`((?:npc|go)_housing[a-z_]*)`", readme))
+        for missing in sorted(names - named):
+            fail(draft + "/README.md", "does not list the {} script".format(missing))
+        match = re.search(r"(\w+) scripts are selected by `ScriptName`", readme)
+        if not match:
+            fail(draft + "/README.md", "no longer says how many scripts answer a click")
+        else:
+            words = {"eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
+            stated = words.get(match.group(1).lower())
+            if stated != len(names):
+                fail(draft + "/README.md", "says {} scripts answer a click, the source "
+                     "registers {}".format(stated, len(names)))
+
+    return checks
+
+
 def check_documented_counts():
     """Doc 10's numbers against the two drafts.
 
@@ -726,6 +905,9 @@ def main():
     if a != b:
         fail("drafts", "the two src/game/Housing trees differ: {}".format(
             set(a) ^ set(b)))
+
+    checks = check_draft_readmes()
+    print("{:<52} {:>2} checks".format("both draft READMEs against their own SQL", checks))
 
     check_documented_counts()
 

@@ -589,7 +589,19 @@ written, correct, and called by nothing.
 | 120 | A guild village could never grow: `GetOrCreateGuildWing` existed and nothing called it, so a guild of two hundred queued behind fifty-five plots | `FindNeighborhoodFor` routes a guild member to their guild's village and opens a wing when it is full. A guild with no village still gets none - that stays the guild master's decision |
 | 121 | Four manager methods were dead code (`GetNeighborhoodBySlot`, `IsGuest`, `HasVariants`, `SendLine`, plus `GetPlotTemplate` and five accessors nothing read), and no checker could see the class of defect behind findings 113 to 115 | All removed, and `check_cpp.py` gained a `reachable` rule: every `HousingMgr::` method must be called from somewhere, with the core's own `Handlers/` as a second call corpus for the one entry point the core calls. Mutation-tested by deleting the single call site of `InviteToNeighborhood`, which it named |
 
-## Audit pass, twenty-first revision
+## Audit pass, forty-fifth revision
+
+The same question again, and this time it was the drafts' own READMEs and the biome layer that
+had nothing behind them. A draft's README is the only description of it that ships inside it,
+and both had drifted badly enough that an operator following one would look for rooms that do
+not exist and set counts that do not match the file next to them.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 217 | **Both draft READMEs described a draft that no longer exists.** Draft A promised six shells and eighteen rooms, three pet beds with a creature bound to each, twenty-two amenities, and a faction split of 397/174; it also carried two `House levels` rows in one table, one of them the five-rung ladder the core stopped using. Draft B promised 350 decor rows and 350 stock lines, six shells, eighteen rooms, and "with 350 pieces" in the paragraph explaining the split. Both listed eight `ScriptName` scripts and named nine, while the source registers ten - the dye crafter was in neither list. Both numbers and the script count were typed by hand and nothing read them | Rewritten from the SQL: 962 numbers checked in both READMEs, including the ten scripts, and `verify_drafts.py` gained `check_draft_readmes`, which reads every count out of the draft's own SQL and fails when the sentence stating it disagrees - plus a rule that a script in `src/` must be named in the README that lists them |
+| 218 | **The biome layer was data with nothing behind it.** `housing_biome` carries `center_x`, `center_y` and `flight_x/y/z/o`; `LoadBiomes` reads all six into `BiomeInfo` and no code read them afterwards. Worse, every one of the 23 amenities was placed on one 26-yard ring around the town centre whatever biome its row names, so the Brumewood Graveyard, the Nightwell, the Mushroom Ring, the Windmills, the Lighthouse, the Vineyard, the Orchards and the Gryphon Aerie all stood in the hub - while the addon drew their pins in the right biome from the same row. Fifteen of the twenty-three amenities belong to a biome | `AnchorForBiome`: a biome's amenities ring the biome's authored centre when the map has one, otherwise the first plot of that biome, which is a position the plot table already carries. `AnchorForAmenity` stays for the eight hub amenities. `BuildAnchorLayout` now anchors amenities in native mode too, where it used to return before reaching them. `ArrivalPosition` gives `flight_x/y/z/o` its reader: a player put down outside a plot lands on the biome's flight point when it is authored and at the town centre when it is not, so an ejection is a walk back to the plot rather than across the neighbourhood |
+
+## Audit pass, forty-fourth revision
 
 The question was "anything missing in the ported and native versions", so the two drafts were
 read against each other and against doc 10, which is the document that states what each of
