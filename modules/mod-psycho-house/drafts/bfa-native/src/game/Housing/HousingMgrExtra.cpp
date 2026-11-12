@@ -457,6 +457,60 @@ namespace Housing
             _townCenter.m_positionZ, angle + 3.1415927f);
     }
 
+    Position HousingMgr::AnchorForBiome(uint32 biomeId, uint32 ordinal) const
+    {
+        Position base = _townCenter;
+        bool found = false;
+
+        // The authored centre wins: on the finished map each biome has one, and it is the only
+        // answer that puts the graveyard in the graveyard rather than near the first plot.
+        if (BiomeInfo const* biome = GetBiome(biomeId))
+        {
+            if (biome->CenterX != 0.0f || biome->CenterY != 0.0f)
+            {
+                base = Position(biome->CenterX, biome->CenterY, _townCenter.m_positionZ, 0.0f);
+                found = true;
+            }
+        }
+
+        // Otherwise the first plot of that biome, which is a surveyed position the plot table
+        // already carries. A biome with no plots and no centre falls back to the town centre.
+        if (!found)
+        {
+            for (auto const& entry : _plotTemplates)
+            {
+                if (entry.second.BiomeId != biomeId || !entry.second.HasSpawn)
+                    continue;
+
+                base = entry.second.Spawn;
+                found = true;
+                break;
+            }
+        }
+
+        uint32 count = 0;
+        for (AmenityInfo const& amenity : _amenityList)
+            if (amenity.BiomeId == biomeId)
+                ++count;
+
+        count = std::max<uint32>(1, count);
+
+        float const angle = 6.2831853f * float(ordinal % count) / float(count);
+
+        return Position(base.m_positionX + std::cos(angle) * kAnchorBiomeRadius,
+            base.m_positionY + std::sin(angle) * kAnchorBiomeRadius,
+            base.m_positionZ, angle + 3.1415927f);
+    }
+
+    Position HousingMgr::ArrivalPosition(uint32 biomeId) const
+    {
+        if (BiomeInfo const* biome = GetBiome(biomeId))
+            if (biome->FlightPoint.m_positionX != 0.0f || biome->FlightPoint.m_positionY != 0.0f)
+                return biome->FlightPoint;
+
+        return _townCenter;
+    }
+
     void HousingMgr::BuildAnchorLayout()
     {
         // Every template without a spawn gets one, in either mode. A native map with a plot
@@ -479,21 +533,29 @@ namespace Housing
             TC_LOG_ERROR("housing", "{} plot template(s) have no authored spawn and were placed on "
                 "the anchor layout instead - author them in housing_plot before going live", filled);
 
-        if (_nativeMap)
-            return;
-
+        // Amenities are anchored in either mode, and before the native return: on a borrowed
+        // map the hub ring is the only place they can go, and a biome's own amenity still
+        // belongs to its biome. A native map that has authored positions skips all of this.
         uint32 amenityIndex = 0;
+        uint32 biomeOrdinal = 0;
         for (AmenityInfo& amenity : _amenityList)
         {
             if (amenity.Pos.m_positionX == 0.0f && amenity.Pos.m_positionY == 0.0f)
-                amenity.Pos = AnchorForAmenity(amenityIndex);
+                amenity.Pos = amenity.BiomeId
+                    ? AnchorForBiome(amenity.BiomeId, biomeOrdinal++)
+                    : AnchorForAmenity(amenityIndex);
 
             ++amenityIndex;
         }
 
         for (auto& pair : _amenities)
             if (pair.second.Pos.m_positionX == 0.0f && pair.second.Pos.m_positionY == 0.0f)
-                pair.second.Pos = AnchorForAmenity(pair.second.Id);
+                pair.second.Pos = pair.second.BiomeId
+                    ? AnchorForBiome(pair.second.BiomeId, pair.second.Id)
+                    : AnchorForAmenity(pair.second.Id);
+
+        if (_nativeMap)
+            return;
 
         if (filled || !_amenityList.empty())
             TC_LOG_INFO("housing", "anchor mode: {} plot spawn(s) and {} amenity position(s) derived "
@@ -2998,11 +3060,14 @@ namespace Housing
         // Amenities: a pin is data, an object is furniture. Only the ones the realm bound
         // are spawned; an amenity with entry 0 stays a pin on the addon map.
         uint32 index = 0;
+        uint32 biomeOrdinal = 0;
         for (AmenityInfo const& amenity : _amenityList)
         {
             Position pos = amenity.Pos;
             if (pos.m_positionX == 0.0f && pos.m_positionY == 0.0f)
-                pos = AnchorForAmenity(index);
+                pos = amenity.BiomeId
+                    ? AnchorForBiome(amenity.BiomeId, biomeOrdinal++)
+                    : AnchorForAmenity(index);
 
             if (amenity.GameObjectEntry)
             {

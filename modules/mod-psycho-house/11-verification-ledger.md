@@ -1607,3 +1607,55 @@ against each other and both against doc 10, the document whose job is to say wha
 | `check_mariadb.py` | 0 findings; the new four-column stock insert and both drafts' progression files parsed |
 | `check_cpp.py` | 0 findings; the new `IsStockAvailableAt` and the third parameter of `BuyDecor` declared, defined and used |
 | `audit.py` | 0 findings across 13 checks |
+
+### 6.39 The forty-fifth revision: two READMEs that described another draft, and a biome layer with no reader
+
+The question was the same as the last one - what is missing from the ported and the native
+draft - and the answer was the two documents that ship inside them plus one whole layer of
+the data.
+
+- **The READMEs.** A draft's README is the only description of it that travels with it. Draft A
+  said six shells, eighteen rooms, three pet beds each with a creature bound to it, twenty-two
+  amenities and a faction split of 397/174; it carried two `House levels` rows in one table,
+  one of them the five-rung ladder the core stopped using two revisions ago, and it said the
+  Endeavor milestones were "not enforced yet - phase 3" under a build that enforces them in
+  `IsStockAvailableAt`. Draft B said 350 decor rows and 350 stock lines, six shells, eighteen
+  rooms, and "with 350 pieces" in the paragraph explaining its vendor split. Both said eight
+  `ScriptName` scripts and named nine; the source registers ten, and the dye crafter was in
+  neither list.
+- **What the fix is.** Both READMEs are rewritten from the SQL that sits beside them, and
+  `verify_drafts.py` gained `check_draft_readmes`: twenty-eight checks that read the counts out
+  of the draft's own tables - decor, stock, vendors, item ids and the rows carrying them, the
+  faction split three ways, shells, rooms, portals, amenities and how many of them are hub
+  ones, beds, dyes, hunts, the gated rows - and compare each with the sentence that states it.
+  It also collects the `npc_housing_*` and `go_housing_*` names out of `src/`, fails when the
+  README does not name one, and fails when the word in front of "scripts are selected by
+  `ScriptName`" is not the number of them.
+- **The biome layer.** `housing_biome` has `center_x`, `center_y` and `flight_x/y/z/o`;
+  `LoadBiomes` reads all six and nothing read the struct afterwards. Both drafts ship all six
+  as 0, so even a reader would have found nothing. The visible half of the same defect: every
+  one of the 23 amenities was placed on one 26-yard ring around the town centre whatever biome
+  its row names, so the Brumewood Graveyard, the Nightwell, the Mushroom Ring, the Windmills,
+  the Lighthouse, the Vineyard, the Orchards, the Dock and the Gryphon Aerie all stood in the
+  hub, while `C:VAREA` drew their pins in the right biome from the same row. Fifteen of the
+  twenty-three belong to a biome.
+- **What the fix is.** `AnchorForBiome` rings a biome's amenities around the biome's authored
+  centre when the map has one and around the first plot of that biome when it does not, which
+  is a surveyed position the plot table already carries; `AnchorForAmenity` keeps the eight hub
+  amenities on the hub ring; `BuildAnchorLayout` now anchors amenities in native mode too,
+  where it used to return before reaching them. `ArrivalPosition` is the reader for
+  `flight_x/y/z/o`: a player put down outside a plot - the ejection path, which used to drop
+  them at the hub from a plot across the neighbourhood - lands on the biome's flight point when
+  it is authored, and on the town centre when it is not. Doc 02's two rows say so.
+- **What is still not authored.** Both drafts ship `center_x`, `center_y` and the four
+  `flight_*` columns at 0, because both are positions on the custom map that does not exist
+  yet. The fallbacks above are what makes that harmless: the biome anchor lands on a real
+  plot, and the flight point falls back to the town centre. Authoring them is a row edit and
+  nothing else.
+
+| checker | result |
+| --- | --- |
+| `verify_drafts.py` | 0 findings; 28 new README checks, 4 creature checks, 3 stock-side checks, 3 id checks, 11 doc-10 counts |
+| `check_cpp.py` | 0 findings; `AnchorForBiome` and `ArrivalPosition` declared, defined and called |
+| `links` | 0 findings; both rewritten READMEs, every path still resolves |
+| `audit.py` | 0 findings across 13 checks |

@@ -1131,8 +1131,12 @@ void HousingMgr::EnforceAccess(Player* player, PlayerState& state)
     state.InsideInterior = false;
     state.InsideHousingId = 0;
 
+    // Out of somebody's yard, onto the ground the plot belongs to: the biome's flight point
+    // when the realm has authored one, the town centre otherwise. An ejection that drops the
+    // player at the hub is a long walk back to the plot they were standing on.
     if (state.NeighborhoodId && _townCenter.m_positionX != 0.0f)
-        player->TeleportTo(neighborhood->GetMapId(), _townCenter);
+        player->TeleportTo(neighborhood->GetMapId(),
+            ArrivalPosition(plot ? plot->GetTemplate().BiomeId : 0));
 }
 
 void HousingMgr::ClearPlotPhases(Player* player, PlayerState& state)

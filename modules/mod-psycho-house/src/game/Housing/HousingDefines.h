@@ -76,6 +76,12 @@ namespace Housing
     constexpr uint8 kAnchorPerRing = 10;
     constexpr uint8 kAnchorRingGrowth = 2;
     constexpr float kAnchorAmenityRadius = 26.0f;
+    // A biome's own amenities - the graveyard, the nightwell, the windmills, the vineyard, the
+    // aerie - are not hub furniture. They ring the ground they belong to: the biome's authored
+    // centre when the custom map has one, otherwise the first plot of that biome, which is a
+    // position the plot table already carries. Twenty-three amenities on one 26-yard ring was
+    // both wrong and crowded.
+    constexpr float kAnchorBiomeRadius = 34.0f;
     // Riddle-hunt caches sit between the hub ring and the first plot ring, so a hunt is a walk
     // and not a teleport, and never inside somebody's wall. A cache is not consumed when one
     // player opens it - the quest is per character - so there is no respawn timer to configure.
