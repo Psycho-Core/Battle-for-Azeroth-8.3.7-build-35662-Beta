@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Fourteen checks, one line each, exit code 1 on a finding:
+Fifteen checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -27,6 +27,7 @@ Fourteen checks, one line each, exit code 1 on a finding:
 | `claims` | Every code span in the completeness entry and in doc 02's matrix is checked against an oracle - opcode against the protocol tables, `Housing.*` against the conf, `table.column` against the schema, `Class::Member` against the source |
 | `floorplan` | The room placement rules restated in Python and run over the seventeen shapes the drafts ship: the Initial Room Collection fits a level-1 budget, nothing is placed above a floor with no stairwell under it, one room per cell, and the plan stays one piece |
 | `install` | Each draft's install order, executed as one in-memory transaction: no statement before its table exists, no two files inserting the same key, no row lost, and - the rule that found this revision's defect - every file re-run on its own leaving the row counts where the full install left them |
+| `addon` | The addon executed rather than read: `tools/housing/wow_env.lua` builds a model of the 8.3.7 client - frames and their methods, `bit` in 5.1 arithmetic, a controllable clock, a global read that records a name instead of inventing one - `Menu.lua` and `Core.lua` load into it, one line per server opcode from doc 15 is delivered, every slash command is typed and every button and edit box on all fifteen tabs is clicked with data and with none. 83 assertions, and both directions of the protocol compared with doc 15. A machine with no Lua 5.1 is reported as `not run`, not as a pass |
 | `drafts` | The two generated drafts read as SQL rather than as documents: every `housing_decor_creature` row names a piece the draft ships and every flagged piece has one, every stock line sits on a piece its own vendor's faction can buy, both factions can buy a pet bed, and the eleven counts doc 10 states equal the rows the SQL inserts |
 
 Current result:
@@ -46,8 +47,9 @@ claims       ok
 floorplan    ok
 drafts       ok
 install      ok
+addon        ok
 
-0 finding(s) across 14 check(s)
+0 finding(s) across 15 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -93,7 +95,7 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 | MariaDB executes it | No server binary here, and no way to install one | The SQL *parses*: every one of the 33 files is read by sqlglot's MySQL grammar, and `simulate_install.py` runs each draft's install order as a transaction in memory and re-runs every file on its own. What an import would still catch and this cannot - collation and charset defaults, `sql_mode` strictness on a real column, the exact error text of a bad row - is listed in doc 11 sec.3 and is the first thing to run on a real realm |
 | The CMake patch actually configures | No `cmake` binary in the sandbox | The patch only adds a `file(GLOB)` and one early return, both standard CMake; the script prints exactly what it changes and keeps a backup |
 | Retail values behind `[?]` | Not published by any source I could reach | Left as `[?]` on purpose. Nothing in the drafts depends on those numbers |
-| Client behaviour of the addon | The addon is a transport harness, not a UI; the patched client is not present here | The protocol, the message prefix and the SavedVariables names are in doc 07 with the exact frames to log |
+| Client behaviour of the addon | No client is present and none can be started here. What can be done is done: `check_addon.py` loads the addon into Lua 5.1 - the language 8.3.7 uses - inside `wow_env.lua`, a model of the parts of the client API the addon touches, then delivers every server opcode from doc 15, types every slash command and clicks every button on all fifteen tabs, with data and with none. That found five defects, including one that would have broken the Endeavors tab on a live client | What a model cannot answer: how the frames look, where they overlap, whether a font string fits, and whether the client's own `C_ChatInfo` accepts a 200-byte chunk in practice. The protocol, the message prefix and the SavedVariables names are in doc 07 with the exact frames to log |
 
 ## 4. Per-document status
 
@@ -1703,3 +1705,40 @@ was true of a fourth that a new checker then found.
 | `check_mariadb.py` | 0 findings; 33 files parsed with sqlglot 30.31 (MySQL dialect), where it used to skip |
 | `verify_drafts.py` | 0 findings; unchanged rules, both drafts regenerated after the delete-range fix |
 | `audit.py` | 0 findings across 14 checks |
+
+### 6.41 The forty-seventh revision: the addon run, and the five defects that running it found
+
+Every claim in this ledger about the addon until now was a claim about its *text*: `check_lua.py`
+balanced its blocks and matched its patterns, `check_protocol.py` compared its opcodes with doc 15
+as strings, and doc 11 sec.3 said plainly that its client behaviour was not verified. This round
+removed that last hedge as far as it can be removed here.
+
+- **What runs.** `tools/housing/wow_env.lua` builds a fresh global table with the client API the
+  addon touches: `CreateFrame` with frames, buttons, edit boxes, scroll frames, status bars, font
+  strings and textures; `C_ChatInfo` for the prefix and the send; `bit`, because 5.1 has no
+  operators for it; `GetTime`, `GetServerTime`, `UnitName`, `SlashCmdList`, the font objects. A read
+  of a global that does not exist is recorded rather than invented, so a misspelled API call fails
+  the way it fails in a client. A missing *method* is a recorded no-op; a missing *field* is nil,
+  which is why the Rooms tab's half-built row crashed the run instead of quietly succeeding.
+- **What is driven.** `test_addon.lua` loads `Core.lua` then `Menu.lua` through `setfenv`, fires
+  `ADDON_LOADED` and `PLAYER_ENTERING_WORLD`, delivers one line per server opcode generated from
+  doc 15's own field lists, types 84 slash command invocations including every command the usage
+  text lists, then opens each of the fifteen tabs, waits for the data burst the tab asks for, types
+  into every edit box and clicks every button on it - with data, and again with none.
+- **What is compared.** The opcodes the addon actually sends (63 of 63 documented) and actually
+  dispatches (40 of 40 documented) are compared with doc 15 in both directions, so the document and
+  the shipped transport cannot drift without a finding. A command whose first field doc 15 does not
+  bracket as optional must answer a bare call with its usage line rather than an empty field.
+
+| Check | Result |
+| --- | --- |
+| `check_addon.py` | 83 checks, 0 findings; 63/63 client opcodes sent, 40/40 server opcodes dispatched |
+| `audit.py` | 0 findings across 15 checks |
+| first run, before the fixes | 7 findings: 5 in the addon, 2 in the test's own assumptions |
+
+The five defects, in the order they surfaced: the Endeavors countdown indexed `os`, which does not
+exist in a client; `S:ROOMPLACED` appended rooms into the decor placement map, so a room could take
+placement 1's key; the Rooms tab reused its empty-plan row without a Remove button and raised on the
+second draw; `SnapAngle` rounded up to a full turn at the seam; and fourteen commands sent an empty
+field when called bare while five others printed a usage line. All fixed in the addon, each with a
+README row, and the test asserts the property rather than the patch.

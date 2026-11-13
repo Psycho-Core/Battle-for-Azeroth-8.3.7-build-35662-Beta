@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# tools/housing/build_lua.sh puts a Lua 5.1 interpreter here for the addon tests.
+tools/housing/bin/

@@ -6,7 +6,7 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Fourteen checks, in the order a reviewer would want them:
+Fifteen checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
@@ -21,6 +21,7 @@ Fourteen checks, in the order a reviewer would want them:
   floorplan the room placement rules, run over the shapes the drafts ship
   drafts   the two generated drafts against each other's invariants and doc 10's counts
   install  each draft's install order executed as one transaction, then every file re-run
+  addon    the addon itself, loaded and driven inside a model of the 8.3.7 client
 
 The script never edits anything. It prints one line per finding so a bad number
 can be fixed in place instead of hunted for.
@@ -441,6 +442,25 @@ def check_install(findings):
                 findings.append(("install", rel(script), line.strip()))
 
 
+def check_addon(findings):
+    """Run the addon: load it in a 5.1 client model, feed it the protocol, click the window.
+
+    The Lua is syntax and pattern checks in check_lua.py; this is the addon executed. A
+    machine without a Lua 5.1 interpreter is reported and not counted as a pass, because a
+    skipped test that reads as "ok" is how a suite stops meaning anything.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "check_addon.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    if result.returncode == 2:
+        findings.append(("addon", rel(script), "not run: " + result.stdout.strip().splitlines()[0]))
+    elif result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith("finding: "):
+                findings.append(("addon", rel(script), line[len("finding: "):]))
+
+
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
@@ -456,6 +476,7 @@ CHECKS = {
     "floorplan": check_floorplan,
     "drafts": check_drafts,
     "install": check_install,
+    "addon": check_addon,
 }
 
 
