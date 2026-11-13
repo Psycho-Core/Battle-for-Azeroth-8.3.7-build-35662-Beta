@@ -21,6 +21,11 @@ H.log = H.log or {}
 H.plots = H.plots or {}
 H.neighbourhood = nil
 H.placed = H.placed or {}
+-- Rooms standing on the plan are kept apart from decor placements. They are different
+-- things - a placement is a piece with an id, a room is a shape on a cell - and sharing one
+-- table meant a room could take the key of a placement, which is how the Placed tab came to
+-- list a room and lose the chair it landed on.
+H.roomPlacements = H.roomPlacements or {}
 H.catalogue = H.catalogue or {}
 H.lastResult = nil
 
@@ -303,6 +308,7 @@ H.rooms = {}
 H.dyesReady = false
 H.roomsOwned = 0
 H.placed = {}
+H.roomPlacements = {}
 H.nightMode = false
 H.gryphon = 0
 H.storage = {}
@@ -500,7 +506,9 @@ function H.SnapAngle(value)
     end
     local turn = math.pi * 2
     local wrapped = value % turn
-    return math.floor(wrapped / H.settings.angle + 0.5) * H.settings.angle
+    -- The rounding can land on the turn itself - 358 degrees snaps to 360 - and a piece
+    -- facing 360 degrees is a piece facing 0 with an orientation the server did not ask for.
+    return (math.floor(wrapped / H.settings.angle + 0.5) * H.settings.angle) % turn
 end
 
 function H.SnapScale(value)
@@ -546,7 +554,7 @@ end
 -- A room standing on the plan. The list is rebuilt from the server's answer rather than
 -- patched locally, because a placement the server refused must not appear here.
 H.handlers["ROOMPLACED"] = function(fields)
-    H.placed[#H.placed + 1] = {
+    H.roomPlacements[#H.roomPlacements + 1] = {
         id = tonumber(fields[2]), cellX = tonumber(fields[3]),
         cellY = tonumber(fields[4]), floor = tonumber(fields[5]),
     }
@@ -660,6 +668,17 @@ local function Usage()
     Print("          /housing bp <code>|crc <text>|raw <payload>|log|clear")
 end
 
+-- Commands whose first argument is required. The server would answer an empty field with a
+-- result code, and the player would read a rejection instead of the usage line that explains
+-- the command. The document marks the optional arguments with brackets; these are the others.
+local function NeedsArgument(rest, usage)
+    if rest == nil or rest == "" then
+        Print("usage: " .. usage)
+        return false
+    end
+    return true
+end
+
 SLASH_HOUSING1 = "/housing"
 SlashCmdList["HOUSING"] = function(input)
     local command, rest = string.match(input or "", "^(%S*)%s*(.*)$")
@@ -677,9 +696,13 @@ SlashCmdList["HOUSING"] = function(input)
         H.plots = {}
         Send("C:PLOTS")
     elseif command == "plot" then
-        Send("C:PLOT|" .. rest)
+        if NeedsArgument(rest, "/housing plot <n>") then
+            Send("C:PLOT|" .. rest)
+        end
     elseif command == "buy" then
-        Send("C:BUY|" .. rest)
+        if NeedsArgument(rest, "/housing buy <n>") then
+            Send("C:BUY|" .. rest)
+        end
     elseif command == "sell" then
         Send("C:SELL")
     elseif command == "home" then
@@ -694,7 +717,9 @@ SlashCmdList["HOUSING"] = function(input)
         H.catalogue = {}
         Send("C:DECOR|" .. rest)
     elseif command == "buydecor" then
-        Send("C:BUYDECOR|" .. rest)
+        if NeedsArgument(rest, "/housing buydecor <id>") then
+            Send("C:BUYDECOR|" .. rest)
+        end
     elseif command == "placed" then
         H.placed = {}
         Send("C:PLACED")
@@ -738,7 +763,9 @@ SlashCmdList["HOUSING"] = function(input)
                 H.SnapScale(tonumber(scale)), TiltSuffix(pitch, roll)))
         end
     elseif command == "remove" then
-        Send("C:REMOVE|" .. rest)
+        if NeedsArgument(rest, "/housing remove <placement>") then
+            Send("C:REMOVE|" .. rest)
+        end
     elseif command == "amenities" then
         Send("C:VAREA")
     elseif command == "guests" then
@@ -774,19 +801,27 @@ SlashCmdList["HOUSING"] = function(input)
     elseif command == "leavehood" then
         Send("C:LEAVENB")
     elseif command == "movehouse" then
-        Send("C:MOVEHOUSE|" .. rest)
+        if NeedsArgument(rest, "/housing movehouse <plot>") then
+            Send("C:MOVEHOUSE|" .. rest)
+        end
     elseif command == "gryphon" then
         Send("C:GRYPHON")
     elseif command == "room" then
-        Send("C:ROOM|" .. rest)
+        if NeedsArgument(rest, "/housing room <id>") then
+            Send("C:ROOM|" .. rest)
+        end
     elseif command == "rooms" then
         H.rooms = {}
-        H.placed = {}
+        H.roomPlacements = {}
         Send("C:ROOMS")
     elseif command == "roomat" then
-        Send("C:ROOMAT|" .. rest)
+        if NeedsArgument(rest, "/housing roomat <id> <cellX> <cellY> <floor>") then
+            Send("C:ROOMAT|" .. rest)
+        end
     elseif command == "roomremove" then
-        Send("C:ROOMREMOVE|" .. rest)
+        if NeedsArgument(rest, "/housing roomremove <id> <cellX> <cellY> <floor>") then
+            Send("C:ROOMREMOVE|" .. rest)
+        end
     elseif command == "arcane" then
         Send("C:ARCANE")
     elseif command == "armillary" then
@@ -802,9 +837,13 @@ SlashCmdList["HOUSING"] = function(input)
                 "|" .. (indoor ~= "" and indoor or "0"))
         end
     elseif command == "join" then
-        Send("C:JOIN|" .. rest)
+        if NeedsArgument(rest, "/housing join <neighbourhood>") then
+            Send("C:JOIN|" .. rest)
+        end
     elseif command == "reserve" then
-        Send("C:RESERVE|" .. rest)
+        if NeedsArgument(rest, "/housing reserve <plot>") then
+            Send("C:RESERVE|" .. rest)
+        end
     elseif command == "storage" then
         Send("C:STORAGE")
     elseif command == "buycopy" then
@@ -820,7 +859,9 @@ SlashCmdList["HOUSING"] = function(input)
         H.shells = {}
         Send("C:SHELLS")
     elseif command == "shell" then
-        Send("C:SHELL|" .. rest)
+        if NeedsArgument(rest, "/housing shell <id>") then
+            Send("C:SHELL|" .. rest)
+        end
     elseif command == "dye" then
         local placementId, group, colour = string.match(rest, "^(%d+)%s+(%d+)%s+(%d+)$")
         if not placementId then
@@ -832,19 +873,25 @@ SlashCmdList["HOUSING"] = function(input)
         H.portals = {}
         Send("C:PORTALS")
     elseif command == "portal" then
-        Send("C:GOPORTAL|" .. rest)
+        if NeedsArgument(rest, "/housing portal <id>") then
+            Send("C:GOPORTAL|" .. rest)
+        end
     elseif command == "endeavor" then
         H.tasks = {}
         Send("C:ENDEAVOR")
     elseif command == "deliver" then
         Send("C:DELIVER")
     elseif command == "claim" then
-        Send("C:CLAIM|" .. rest)
+        if NeedsArgument(rest, "/housing claim <milestone>") then
+            Send("C:CLAIM|" .. rest)
+        end
     elseif command == "export" then
         local kind, name = string.match(rest, "^(%d*)%s*(%S*)$")
         Send("C:BPEXP|" .. (kind ~= "" and kind or "0") .. "|" .. (name ~= "" and name or "build"))
     elseif command == "import" then
-        Send("C:BPIMP|" .. rest)
+        if NeedsArgument(rest, "/housing import <code>") then
+            Send("C:BPIMP|" .. rest)
+        end
     elseif command == "restore" then
         Send("C:RESTORE")
     elseif command == "build" then

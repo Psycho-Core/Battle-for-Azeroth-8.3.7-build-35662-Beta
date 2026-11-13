@@ -365,3 +365,21 @@ The order that works, because each step is what the next one needs:
 A client that only reads what it knows stays compatible: every reply either keeps its field
 order or adds fields at the end, and the two places that could not do that on their own -
 `C:PLACE` and `C:MOVE`'s tilt - made the new fields optional and default them to upright.
+
+## 11. How these tables are checked
+
+Two checkers read this document, and one of them runs the addon against it.
+
+`check_protocol.py` compares the tables here with `Core.lua`, `Menu.lua` and the server's switch
+in `HousingMgrProtocol.cpp` as text, in both directions. `check_addon.py` goes further: it loads
+the addon into Lua 5.1 - the language 8.3.7 uses - inside a model of the client API the addon
+touches, generates one line per server opcode **from the field lists in section 7**, delivers
+them, types every slash command and clicks every button on all fifteen tabs. The opcodes it
+observes the addon sending and dispatching are then compared with section 6 and section 7. At the
+time of writing every client opcode in section 6 was emitted by that run and every server opcode
+in section 7 was dispatched by it.
+
+Where a field is bracketed in the tables, it is optional, and the addon's commands follow the
+same rule: a command whose first field is required answers a bare call with its usage line rather
+than sending an empty field. `C:DECOR|` is the one documented exception that looks wrong and is
+not - an empty category is how the wire says every category, and the server reads it that way.
