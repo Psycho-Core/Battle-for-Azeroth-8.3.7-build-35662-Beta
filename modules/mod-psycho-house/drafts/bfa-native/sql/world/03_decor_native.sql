@@ -2,7 +2,7 @@
 -- Source data: data/town-center-stock.csv, data/town-center-items.csv,
 --              data/vendor_npc_ids.csv, generated/source-asset-index.csv
 
-DELETE FROM `housing_decor` WHERE `id` BETWEEN 2000 AND 2999;
+DELETE FROM `housing_decor` WHERE `id` BETWEEN 2000 AND 2899;
 INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES
 (2016, 'Mr Smite Chest', 144111, 1, 0, 2, 'Storage', 0, 208, 10, 0, 3, 0.5, 3, 0),
 (2018, 'Atalai Statue 1', 148830, 1, 3, 2, 'Accents', 0, 207, 10, 0, 3, 0.5, 3, 0),
@@ -351,4 +351,4 @@ INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `budget_cost`, `s
 UPDATE `housing_decor` hd JOIN `gameobject_template` gt
   ON gt.`entry` = hd.`gameobject_entry`
 SET hd.`name` = gt.`name`
-WHERE hd.`id` BETWEEN 2000 AND 2999 AND gt.`name` <> '';
+WHERE hd.`id` BETWEEN 2000 AND 2959 AND gt.`name` <> '';

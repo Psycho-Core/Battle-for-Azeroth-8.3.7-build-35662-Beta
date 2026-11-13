@@ -6,7 +6,7 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Thirteen checks, in the order a reviewer would want them:
+Fourteen checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
@@ -20,6 +20,7 @@ Thirteen checks, in the order a reviewer would want them:
   claims   every protocol, command, table and column the docs claim exists
   floorplan the room placement rules, run over the shapes the drafts ship
   drafts   the two generated drafts against each other's invariants and doc 10's counts
+  install  each draft's install order executed as one transaction, then every file re-run
 
 The script never edits anything. It prints one line per finding so a bad number
 can be fixed in place instead of hunted for.
@@ -421,6 +422,25 @@ def check_drafts(findings):
                 findings.append(("drafts", rel(script), line.strip()))
 
 
+def check_install(findings):
+    """Run each draft's install order as one transaction and re-run every file on its own.
+
+    This is the only check in this file that executes the drafts rather than reading them:
+    the files are applied to an in-memory model of the schema in the order the README prints,
+    then each file is re-imported on its own, which is what an operator does to repair a row.
+    The six checks above read a file at a time and cannot see a DELETE in one file eating
+    rows another file inserted.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "simulate_install.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith("  "):
+                findings.append(("install", rel(script), line.strip()))
+
+
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
@@ -435,6 +455,7 @@ CHECKS = {
     "claims": check_claims,
     "floorplan": check_floorplan,
     "drafts": check_drafts,
+    "install": check_install,
 }
 
 
