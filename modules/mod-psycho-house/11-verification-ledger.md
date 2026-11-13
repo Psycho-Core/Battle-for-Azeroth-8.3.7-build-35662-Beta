@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Thirteen checks, one line each, exit code 1 on a finding:
+Fourteen checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -26,6 +26,7 @@ Thirteen checks, one line each, exit code 1 on a finding:
 | `reference` | The conf keys, the loader's reads and doc 14 are the same set in both directions, and the counts in the prose agree with them: 41 settings in two drafts, 41 recorded, 41 documented |
 | `claims` | Every code span in the completeness entry and in doc 02's matrix is checked against an oracle - opcode against the protocol tables, `Housing.*` against the conf, `table.column` against the schema, `Class::Member` against the source |
 | `floorplan` | The room placement rules restated in Python and run over the seventeen shapes the drafts ship: the Initial Room Collection fits a level-1 budget, nothing is placed above a floor with no stairwell under it, one room per cell, and the plan stays one piece |
+| `install` | Each draft's install order, executed as one in-memory transaction: no statement before its table exists, no two files inserting the same key, no row lost, and - the rule that found this revision's defect - every file re-run on its own leaving the row counts where the full install left them |
 | `drafts` | The two generated drafts read as SQL rather than as documents: every `housing_decor_creature` row names a piece the draft ships and every flagged piece has one, every stock line sits on a piece its own vendor's faction can buy, both factions can buy a pet bed, and the eleven counts doc 10 states equal the rows the SQL inserts |
 
 Current result:
@@ -44,8 +45,9 @@ reference    ok
 claims       ok
 floorplan    ok
 drafts       ok
+install      ok
 
-0 finding(s) across 13 check(s)
+0 finding(s) across 14 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -63,7 +65,7 @@ This is the first pass where I have nothing open in the mechanical checks. What 
 | 618 mapped decor names | Draft A's decor count, one mapping row per name | `data/town-center-go-map.csv` |
 | 906 candidate game objects | Rows of `generated/source-asset-index.csv` where `kind = gameobject`, enum constants rejected | `tools/housing/map_decor_go.py --stats` |
 | 571 decor rows with an entry | Generated SQL, one tuple per mapped name | `tools/housing/audit.py` mapping check |
-| 350 native decor rows | Index rows whose constant and category look like housing decor | `drafts/bfa-native/sql/world/03_decor_native.sql` |
+| 336 native decor rows | Index rows whose constant and category look like housing decor - 332 of them - plus the four cage entries the builder names for the pet beds | `drafts/bfa-native/sql/world/03_decor_native.sql` |
 
 ## 2. What was checked by reading, not by script
 
@@ -87,8 +89,8 @@ The mechanical checks catch format and arithmetic. They cannot catch a wrong cla
 
 | Not verified | Why | What it means for the drafts |
 | --- | --- | --- |
-| The C++ compiles | The sandbox has no boost, MySQL or OpenSSL headers, so not even the core headers parse | Every file is written against the signatures in this tree, and `check_cpp.py` checks what a compiler check would catch first: blocks balance, every definition matches a declaration, every table and column in a query string exists in the module schema, no `fields[N]` runs past the end of its SELECT, every include resolves |
-| The SQL parses | No MySQL server or grammar library available | Field counts per tuple are checked mechanically; the schema itself is ordinary `CREATE TABLE` and is reviewed by eye |
+| The C++ compiles | `g++` is here and the server's own sources are here, but the three vendor dependencies are not: `dep/boost`, `dep/mysql` and `dep/openssl` are empty submodules in this checkout and boost is not installed, so the first `#include <boost/any.hpp>` in `Common.h` stops it. The include path was reconstructed far enough to prove that, and no further | Every file is written against the signatures in this tree, and `check_cpp.py` checks what a compiler would catch first: blocks balance, every definition matches a declaration, every table and column in a query string exists in the module schema, no `fields[N]` runs past the end of its SELECT, every include resolves, and every member `LoadConfig` fills is read somewhere |
+| MariaDB executes it | No server binary here, and no way to install one | The SQL *parses*: every one of the 33 files is read by sqlglot's MySQL grammar, and `simulate_install.py` runs each draft's install order as a transaction in memory and re-runs every file on its own. What an import would still catch and this cannot - collation and charset defaults, `sql_mode` strictness on a real column, the exact error text of a bad row - is listed in doc 11 sec.3 and is the first thing to run on a real realm |
 | The CMake patch actually configures | No `cmake` binary in the sandbox | The patch only adds a `file(GLOB)` and one early return, both standard CMake; the script prints exactly what it changes and keeps a backup |
 | Retail values behind `[?]` | Not published by any source I could reach | Left as `[?]` on purpose. Nothing in the drafts depends on those numbers |
 | Client behaviour of the addon | The addon is a transport harness, not a UI; the patched client is not present here | The protocol, the message prefix and the SavedVariables names are in doc 07 with the exact frames to log |
@@ -1659,3 +1661,45 @@ the data.
 | `check_cpp.py` | 0 findings; `AnchorForBiome` and `ArrivalPosition` declared, defined and called |
 | `links` | 0 findings; both rewritten READMEs, every path still resolves |
 | `audit.py` | 0 findings across 13 checks |
+
+### 6.40 The forty-sixth revision: what "tested" can mean without a compiler or a server
+
+The question was whether the drafts are complete but untested, and the honest answer had two
+halves. Complete against the documents is a measured claim and holds: doc 01 row by row, doc 02's
+matrix, thirteen checkers, every number read out of the SQL. Untested is true of three things and
+was true of a fourth that a new checker then found.
+
+- **What cannot be run here, and why.** The C++ cannot be compiled: `g++` is present and so is the
+  server's tree, but `dep/boost`, `dep/mysql` and `dep/openssl` are empty submodules in this
+  checkout and boost is not installed, so the first `#include <boost/any.hpp>` in `Common.h` ends
+  it. A MariaDB server cannot be started and there is no package for one. No client is present, so
+  the addon has never been loaded. Those three are unchanged by anything this folder can do, and
+  doc 11 sec.3 now says so in those words instead of listing "the SQL parses" as unverifiable.
+- **What could be run, and now is.** Two things that were only ever *read* are now *executed*:
+  every one of the 33 SQL files is parsed with sqlglot's MySQL grammar, and the drafts' own
+  install orders are run as transactions against an in-memory model of the schema. The model
+  understands `CREATE TABLE`, `INSERT ... VALUES` and `DELETE` with the predicates the drafts use
+  (`BETWEEN`, `=`, `>=`, `<=`, `IN`, joined by `AND`), models `AUTO_INCREMENT`, and treats a table
+  the build creates as existing rather than as missing. Every statement it does not understand -
+  the bind statements' `UPDATE`, `INSERT ... SELECT`, the report queries - is counted by kind and
+  printed, so the simulation never claims more than it did.
+- **What the simulation found.** Applying draft A's order and then re-running
+  `04_decor_retail.sql` on its own removed the ten riddle-hunt reward pieces: the catalogue's
+  `DELETE ... WHERE id BETWEEN 1000 AND 1999` covered the hunt band, and only the order hid it.
+  Draft B had the same shape over 2000-2999 against hunts at 2900-2909. Re-importing one file is
+  the ordinary repair for a bad row, so this was a trap rather than a theory. Both generators now
+  stop their delete at their own band - 1000-1899 and 2000-2899 - and `simulate_install.py`
+  checks the property in two ways: the ordered simulation with a per-file re-run, and a regex
+  rule that fails when two files delete overlapping ranges of one table, which holds on a machine
+  without sqlglot.
+- **What is still only read.** The addon's Lua is syntax-checked and its protocol tables are
+  compared with the server both ways, but no client has run it; the C++ is checked structurally;
+  and a real import will still be the first thing that proves collations, strict-mode column
+  limits and the loader's own queries.
+
+| checker | result |
+| --- | --- |
+| `simulate_install.py` | 0 findings; 23 files simulated in two orders, 2 728 rows, every file re-run |
+| `check_mariadb.py` | 0 findings; 33 files parsed with sqlglot 30.31 (MySQL dialect), where it used to skip |
+| `verify_drafts.py` | 0 findings; unchanged rules, both drafts regenerated after the delete-range fix |
+| `audit.py` | 0 findings across 14 checks |

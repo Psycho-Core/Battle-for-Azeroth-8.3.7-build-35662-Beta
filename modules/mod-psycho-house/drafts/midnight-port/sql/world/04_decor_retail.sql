@@ -2,7 +2,7 @@
 -- Source data: data/town-center-stock.csv, data/town-center-items.csv,
 --              data/vendor_npc_ids.csv, generated/source-asset-index.csv
 
-DELETE FROM `housing_decor` WHERE `id` BETWEEN 1000 AND 1999;
+DELETE FROM `housing_decor` WHERE `id` BETWEEN 1000 AND 1899;
 INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES
 (1000, 'Complete Guide to K''areshi Wrappings, Vol. 11', 152097, 262664, 1, 3, 2, 'Accents', 0, 110, 5, 3363, 2, 0.5, 3, 0),
 (1001, 'Consortium Energy Banner', 195154, 263048, 1, 1, 2, 'Wall Art', 0, 110, 15, 3363, 2, 0.5, 3, 0),

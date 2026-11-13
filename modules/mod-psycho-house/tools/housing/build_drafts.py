@@ -350,7 +350,13 @@ def build_midnight():
             sql_escape(comment)))
     vendors_sql.append(",\n".join(vlines) + ";")
 
-    decor_sql = ["DELETE FROM `housing_decor` WHERE `id` BETWEEN 1000 AND 1999;",
+    # The catalogue's own band is 1000-1899. 1900-1999 belongs to the ten riddle-hunt reward
+    # pieces, which `08_hunts.sql` writes: a delete that covered them would make re-importing
+    # this one file - the ordinary repair for a bad row - silently remove every hunt reward,
+    # and nothing would put them back until the hunts ran again. `tools/housing/'
+    # simulate_install.py` runs each file on its own after a full install and fails when a
+    # second run of it changes the row count.
+    decor_sql = ["DELETE FROM `housing_decor` WHERE `id` BETWEEN 1000 AND 1899;",
                  "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `item_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
     dlines = []
     both = 0
@@ -530,7 +536,10 @@ def build_native():
             201 + i, name, biome, role))
     vsql.append(",\n".join(vlines) + ";")
 
-    dsql = ["DELETE FROM `housing_decor` WHERE `id` BETWEEN 2000 AND 2999;",
+    # 2000-2899 is the harvest's band; 2900-2959 belongs to the reward pieces and the four
+    # beds, which this file and `08_hunts.sql` write separately. See the note in
+    # build_midnight(): a delete range that overlaps another file's rows breaks its re-run.
+    dsql = ["DELETE FROM `housing_decor` WHERE `id` BETWEEN 2000 AND 2899;",
             "INSERT INTO `housing_decor` (`id`, `name`, `gameobject_entry`, `budget_cost`, `surface`, `placement`, `category`, `source_type`, `source_id`, `price`, `currency`, `faction_mask`, `scale_min`, `scale_max`, `flags`) VALUES"]
     dlines = []
     ssql_lines = []
@@ -580,7 +589,7 @@ def build_native():
     dsql.append("UPDATE `housing_decor` hd JOIN `gameobject_template` gt")
     dsql.append("  ON gt.`entry` = hd.`gameobject_entry`")
     dsql.append("SET hd.`name` = gt.`name`")
-    dsql.append("WHERE hd.`id` BETWEEN 2000 AND 2999 AND gt.`name` <> '';")
+    dsql.append("WHERE hd.`id` BETWEEN 2000 AND 2959 AND gt.`name` <> '';")
 
     ssql = ["DELETE FROM `housing_vendor_stock` WHERE `vendor_id` BETWEEN 201 AND 208;",
             "INSERT INTO `housing_vendor_stock` (`vendor_id`, `decor_id`, `price`) VALUES"]
