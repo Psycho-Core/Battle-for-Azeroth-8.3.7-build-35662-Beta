@@ -5,6 +5,20 @@ Retail decor has an item id and no game object. 8.3.7 has game objects and no de
 table. This tool closes that gap with real entries only: every candidate is a named
 `gameobject` constant that exists in the tree, so nothing here is an invented id.
 
+The candidate pool is two filters deep, and both are deliberate:
+
+* `generated/source-asset-index.csv` must call the row `decor=yes`, which is the set
+  `tools/housing/index_source_assets.py` classified as furniture-shaped.
+* the constant must contain a word from `SHAPES`, the vocabulary of things a house is
+  furnished with (chair, bench, throne, crate, chest, keg, brazier, tree, statue, banner,
+  column, bookcase...). The index classifies by word too, and it calls a raid encounter
+  object, a fortress tower and a `*_COLLISION_WALL` furniture-shaped, so its verdict alone
+  is not enough.
+
+Without either filter the keyword pass wins on city and room words - 34 pieces ended up on
+`GO_GOLEM_ROOM_S` and fifteen on `GO_ORGRIMMAR_ELEVATOR` - which is the one failure nobody
+notices until the furniture is a dungeon door.
+
 Matching runs in three passes:
 
 1. **family** - the item's head noun is looked up in FAMILIES, which maps a word to the
@@ -40,12 +54,35 @@ GEN = os.path.join(ROOT, "generated")
 REJECT = ("DOOR", "GATE", "TRAP", "TRIGGER", "PORTAL", "INSTANCE", "CORPSE", "SPAWN",
           "SOUND", "SPELL", "AURA", "DUMMY", "BOSS", "GOSSIP", "MARKER", "EXPLOSION",
           "MISSILE", "PROJECTILE", "GRAVEYARD", "ZONE", "BARRIER", "INVISIBLE", "ARENA",
-          "QUEST", "WAYPOINT", "SMOKE", "FOG", "LIGHT_BEAM", "VEHICLE", "CAMERA")
+          "QUEST", "WAYPOINT", "SMOKE", "FOG", "LIGHT_BEAM", "VEHICLE", "CAMERA",
+          "RAID", "ENCOUNTER", "PRISON", "TRIBUTE", "COLLISION", "SKYWALL", "WALL_OF",
+          "ELEVATOR", "PLATFORM", "CAPTURE_POINT", "TENTACLE", "SPINE", "DYNAMITE",
+          "EXPLOSIVES", "ROCKET", "SIEGE", "CANNON", "BALLISTA", "CATAPULT")
+
+# The vocabulary of things a house is furnished with. A stand-in has to be one of these:
+# the pool of "named game object" in a 8.3.7 tree is mostly dungeon and raid scenery, and a
+# name that matches it is not a match, it is a room number.
+SHAPES = ("CHAIR", "BENCH", "THRONE", "TABLE", "DESK", "CRATE", "CHEST", "BARREL", "KEG",
+          "BRAZIER", "BONFIRE", "TORCH", "LANTERN", "CANDLE", "LAMP", "TREE", "FOLIAGE",
+          "BUSH", "FLOWER", "PLANT", "STATUE", "BANNER", "ANVIL", "FORGE", "OVEN", "WELL",
+          "FOUNTAIN", "COLUMN", "PILLAR", "BOOKCASE", "SHELF", "RACK", "RUG", "CARPET",
+          "BED", "BEDROLL", "FENCE", "POST", "SIGN", "BASKET", "SACK", "TENT", "CART",
+          "BOOK", "FIRE", "ALTAR", "SHRINE", "CAULDRON", "POT", "STOOL")
+
+# A shared word only counts as a keyword hit if it is this rare in the pool. `S` is not a
+# word ("Artisan's Scales" was landing on GO_WINTERGRASP_WINTER_S_EDGE through it) and a
+# word that 115 shelves share ("CRATE") says nothing about which crate.
+RARE_SHARE = 0.04
 
 STOP = {"GO", "THE", "OF", "A", "AN", "AND", "WITH", "SMALL", "LARGE", "LONG", "SHORT",
         "OLD", "NEW", "OPEN", "CLOSED", "TALL", "WIDE", "BIG", "LITTLE", "SINGLE",
         "DOUBLE", "PAIR", "TRIO", "SET", "PILE", "STACK", "EMPTY", "FULL", "BROKEN",
-        "DAMAGED", "BURNT", "DARK", "LIGHT", "WOODEN", "STONE", "METAL", "IRON"}
+        "DAMAGED", "BURNT", "DARK", "LIGHT", "WOODEN", "STONE", "METAL", "IRON",
+        # Position words are not evidence: "Bound-Left Drapes" and GO_KAEL_STATUE_LEFT
+        # share nothing but which side of a room they belong on.
+        "LEFT", "RIGHT", "TOP", "BOTTOM", "INNER", "OUTER", "NORTH", "SOUTH", "EAST",
+        "WEST", "FRONT", "BACK", "MAIN", "SIDE", "UPPER", "LOWER", "CENTER", "MIDDLE",
+        "HALF", "PART", "END", "BASE", "HEAD"}
 
 # head noun in the retail item -> words that identify the same thing in a constant
 FAMILIES = {
@@ -114,27 +151,32 @@ CATEGORY_HINT = {
     "Accents": "Ornamental",
 }
 
-# category -> the constant words that at least look like that category
+# retail category -> the shapes that at least look like that category, best first. These
+# are proxies, not equivalents: a 8.3.7 tree has no rug, no bed and no table constant at
+# all, so a rug stands in as a banner and a table as a keg. What the order avoids is the
+# thing the hash used to do, which was hand a rug a raid chest because the chest happened to
+# sit in the same coarse category.
 CATEGORY_FAMILY = {
-    "Tables": ("TABLE", "DESK", "COUNTER"),
-    "Seating": ("CHAIR", "BENCH", "THRONE"),
-    "Beds": ("BED", "BEDROLL"),
-    "Rugs": ("RUG", "CARPET"),
-    "Lighting": ("BRAZIER", "TORCH", "CANDLE", "LANTERN", "LAMP"),
-    "Nature": ("TREE", "BUSH", "FOLIAGE", "FLOWER", "GRASS", "PLANT"),
-    "Storage": ("CRATE", "CHEST", "KEG", "BARREL", "SACK"),
-    "Structural": ("COLUMN", "WALL", "FENCE", "POST", "STATUE"),
-    "Wall Art": ("BANNER", "STATUE", "IDOL"),
-    "Books": ("SHELF", "TABLE"),
-    "Pets": ("STATUE", "IDOL", "CRATE"),
-    "Holiday": ("BRAZIER", "BANNER", "STATUE"),
-    "Accents": ("STATUE", "IDOL", "BRAZIER"),
+    "Tables": ("KEG", "CRATE", "CHEST"),
+    "Seating": ("CHAIR", "BENCH", "THRONE", "STOOL"),
+    "Beds": ("BENCH", "CHAIR", "CRATE"),
+    "Rugs": ("BANNER", "BEDROLL"),
+    "Lighting": ("BRAZIER", "BONFIRE", "TORCH", "FIRE"),
+    "Nature": ("TREE", "FOLIAGE", "BUSH", "PLANT"),
+    "Storage": ("CRATE", "CHEST", "BOOKCASE", "KEG"),
+    "Structural": ("COLUMN", "PILLAR", "WALL", "FENCE"),
+    "Wall Art": ("BANNER", "STATUE"),
+    "Books": ("BOOKCASE", "BOOK"),
+    "Pets": ("STATUE", "BENCH"),
+    "Holiday": ("BANNER", "BRAZIER", "BONFIRE"),
+    "Accents": ("STATUE", "BRAZIER", "KEG"),
 }
 
 
 def tokens(text):
     words = re.split(r"[^A-Za-z0-9]+", text.upper())
-    return [w for w in words if w and w not in STOP and not w.isdigit()]
+    # One-letter tokens are pronouns and possessives ('Artisan''s' -> S), never a noun.
+    return [w for w in words if len(w) > 1 and w not in STOP and not w.isdigit()]
 
 
 def head_nouns(item):
@@ -149,9 +191,13 @@ def head_nouns(item):
 
 
 def load_source_gos():
+    # `decor == yes` is the index's own verdict on whether the constant is furniture-shaped.
+    # Without this filter a keyword hit on a city or a room word ('ORGRIMMAR', 'ROOM',
+    # 'PLATFORM') wins over a real chair, and the catalogue fills with dungeon doors and
+    # raid elevators. The filter is the point of the index; it is not a nicety.
     rows = [r for r in csv.DictReader(open(os.path.join(GEN, "source-asset-index.csv"),
                                            newline="", encoding="utf-8"))
-            if r["kind"] == "gameobject"]
+            if r["kind"] == "gameobject" and r["decor"] == "yes"]
     seen = {}
     enum_prefix = ("GAMEOBJECT_TYPE", "GAMEOBJECT_FLAGS", "GAMEOBJECT_STATE", "GO_FLAG", "GO_STATE")
     for row in rows:
@@ -159,6 +205,8 @@ def load_source_gos():
         if not label or label.upper().startswith(enum_prefix):
             continue
         if any(bad in label.upper() for bad in REJECT):
+            continue
+        if not any(shape in label.upper() for shape in SHAPES):
             continue
         seen.setdefault(row["entry"], {
             "entry": row["entry"], "constant": label, "category": row["category"],
@@ -193,6 +241,15 @@ def build_idf(gos):
     return {w: math.log(1 + len(gos) / (1 + n)) for w, n in freq.items()}
 
 
+def rare_words(gos):
+    """Words specific enough to be evidence: shared by under RARE_SHARE of the pool."""
+    freq = Counter()
+    for go in gos:
+        freq.update(go["words"])
+    limit = max(2, int(len(gos) * RARE_SHARE))
+    return {w for w, n in freq.items() if n <= limit}
+
+
 def match(item, category, gos, idf):
     words = set(tokens(item))
 
@@ -204,8 +261,9 @@ def match(item, category, gos, idf):
             return chosen, "family:" + noun, "high"
 
     scored = []
+    evidence = rare_words(gos)
     for go in gos:
-        shared = words & go["words"]
+        shared = (words & go["words"]) & evidence
         if shared:
             scored.append((sum(idf.get(w, 1.0) for w in shared), len(shared), go))
     if scored:
@@ -213,10 +271,10 @@ def match(item, category, gos, idf):
         score, shared, go = scored[0]
         return go, "keyword", ("high" if shared >= 2 else "medium")
 
-    keys = CATEGORY_FAMILY.get(category, ())
-    members = [go for go in gos if go["words"] & set(keys)]
-    if members:
-        return stable_pick(item, members), "category", "medium"
+    for key in CATEGORY_FAMILY.get(category, ()):
+        members = [go for go in gos if key in go["words"]]
+        if members:
+            return stable_pick(item, members), "category", "medium"
 
     hint = CATEGORY_HINT.get(category)
     same = [go for go in gos if go["subcategory"] == hint] or \

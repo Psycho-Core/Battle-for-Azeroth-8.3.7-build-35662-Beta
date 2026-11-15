@@ -1762,7 +1762,7 @@ halves, and only one of them was written down.
 - **Complete meant the system, not the art.** 571 catalogue pieces, 972 stock rows, 39 vendors,
   every feature in doc 02 with code behind it - and not one Midnight M2, BLP, ADT or DB2 file,
   because none may ship from here. What the drafts do instead is place every piece as a real
-  8.3.7 game object (177 distinct ones), so a house works and looks like furniture with 8.3.7
+  8.3.7 game object (112 distinct ones), so a house works and looks like furniture with 8.3.7
   furniture in retail's slots. Doc 12 sec.0 now says that in those words rather than leaving
   "complete" to be read as "ported".
 - **Which pieces, and what is still empty.** `tools/housing/port_worklist.py` generates
@@ -1890,3 +1890,65 @@ Mutation-tested this half: the four channel-page faults above, and the regenerat
 checked by four tools - `verify_drafts.py` for ids and counts, `simulate_install.py` for order
 and rows, `check_drafts.py` for the catalogue read as data, `check_mariadb.py` for the server
 rules. The suite is at 0 findings across 20 checks, and every checker in `tools/housing` is at 0.
+
+### 6.45 The fifty-second revision: the furniture was not furniture
+
+The audit of the port came back clean on everything the folder measures - 0 findings across 20
+gates, 571 decor rows, 972 stock rows, 39 vendors, every price replayed against the capture
+with 0 mismatches, every stock line on a row its own vendor's side can buy, and a rebuild from
+the CSVs that touches nothing. Then the catalogue was read against the index's own verdict on
+each game object, and a third of it was wrong.
+
+**What was wrong.** `map_decor_go.py` drew its candidates from every named object in the tree.
+Its `REJECT` tuple dropped doors, gates, triggers and markers by name, which is a filter that
+rewards a word nobody rejected: a shed became `GO_GOLEM_ROOM_S` (a dungeon door) via `SHED` ->
+nothing and `GOLEM`? no - via the word `ROOM`; fifteen Orgrimmar pieces became
+`GO_ORGRIMMAR_ELEVATOR`; five gravestones, a lamppost and a signpost became
+`GO_CAPTURE_POINT_NORTH_A_DEFENDING`. 46 distinct objects, 176 of 571 rows, all of them
+`decor=no` in `generated/source-asset-index.csv`, which is the file that exists to answer that
+question. The bucket that produced 143 of the 176 was `keyword`, the one the documents called
+the reliable one, and `category` - the bucket they told the reader to distrust - produced 23.
+
+**The fix, and why it is three changes rather than one.** Filtering on `decor=yes` alone
+leaves 748 entries whose biggest families are 328 doors, 156 storage crates and 108 large
+structures: better than a raid elevator, still not a house. So the pool is `decor=yes` *and* a
+shape word from a vocabulary of things a house is furnished with, keyword evidence must be a
+rare word, and the category pass now walks an order of shapes per category - a rug reaches a
+banner, a bed a bench, a table a keg - instead of taking the hash's pick. 256 candidates, 618
+names on 117 objects, 571 rows on 112, none of them non-decor. The fallback branch survives
+with nothing reaching it.
+
+**Why the documents changed too.** "Every one with a real 8.3.7 game object" and "unmapped
+pieces: none" were both true and both read as "correctly mapped". The honest statement is
+narrower and more useful: 8.3.7's named constants contain no `TABLE`, `DESK`, `SHELF`, `RUG`,
+`CARPET`, `BED`, `LANTERN`, `CANDLE`, `LAMP`, `FLOWER`, `BUSH`, `BASKET`, `SACK`, `STOOL`,
+`FENCE` or `WELL` at all, so the ceiling is a chair-shaped chair, a crate-shaped chest and a
+keg-shaped table, and the pool is what it is rather than what a name search wishes it were.
+Draft A's README, doc 10, doc 09, the tools table in `README.md` and the numbers inside the
+ledger's own earlier entry now say that, with the new counts.
+
+**The guard.** `verify_drafts.py` gained a twenty-ninth check, `check_standins`: every
+catalogue row's `gameobject_entry` must be listed in the index and must be `decor=yes`. It was
+mutation-tested by pointing row 1000 at `GO_GOLEM_ROOM_S`, which reported
+`1 decor rows stand on an object the index calls non-decor`, and reverted. Without it the
+regression is invisible: the SQL is valid, the checker that validates entries against the
+index passes, and the piece places - it is just a door.
+
+**The page the folder was missing.** `drafts/midnight-port/GETTING-THE-DATA.md` is the answer
+to "how do I get the Midnight data", written for somebody who has not read doc 12: the five
+CSVs and their columns, a capture step by step with the 50-row page cap and the single-count
+gates spelled out, item-id resolution and what an empty id means, the rebuild order with its
+expected output, how to change a stand-in by hand, where a client's CASC storage is and which
+five DB2 tables carry an item, the three routes from catalogue-only to a full model port, and
+a symptom-to-cause table. It states plainly that no game asset ships here and none will.
+
+Also fixed: five stale statements in doc 10 (12 character tables that are 13, "87 unpriced
+lines" that are 84 listed and 3 shipped, six biomes and 55 plots attributed to the wrong file,
+19 source files that are 21, 3 addon files that are 4); `copy_binds` is per draft, so the port
+no longer ships the native stall binder, both drafts ship the night-variant bind, and a bind a
+draft stops shipping is deleted instead of lingering; draft B's
+conf header said 350 catalogue pieces against 717.
+
+Suite after the pass: `audit.py` 0 findings across 20 checks, `verify_drafts.py` 0 with the new
+check, `simulate_install.py` 13 files / 31 tables / 1 815 rows for the port, and every other
+checker in `tools/housing` at 0.

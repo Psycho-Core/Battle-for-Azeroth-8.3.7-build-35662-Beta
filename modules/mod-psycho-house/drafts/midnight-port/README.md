@@ -6,12 +6,16 @@ retail vendor pages, and the numbers are the retail numbers. I would rather ship
 numbers on a stand-in model than my own numbers on perfect art - the numbers are what the
 system is actually about.
 
+`GETTING-THE-DATA.md` is the page for rebuilding that content: the five CSVs, how to capture
+a vendor again, the four commands that regenerate the draft, and where the Midnight files
+themselves come from if the point is the art rather than the numbers.
+
 ## What is in it
 
 | Piece | Count | Where |
 | --- | --- | --- |
 | Vendors | 39, each with its retail name, npc id, faction and captured stock count in a row comment | `sql/world/03_vendors_retail.sql` |
-| Decor rows | 571, every one with a real 8.3.7 game object, on 177 distinct objects | `sql/world/04_decor_retail.sql` |
+| Decor rows | 571, every one with a real 8.3.7 game object, on 112 distinct objects | `sql/world/04_decor_retail.sql` |
 | Vendor stock rows | 972 | `sql/world/05_stock_retail.sql` |
 | Retail decor item ids carried on those rows | 450 rows carry one; between them they cover all 439 ids the capture has | `04_decor_retail.sql`, `item_entry` column |
 | Faction split | 240 Horde only, 99 Alliance only, and 232 are stocked by both neighbourhoods at the same price | `faction_mask` column |
@@ -39,24 +43,34 @@ row carries two ids: `item_entry` is the retail item id, and `gameobject_entry` 
 8.3.7 game object I chose to stand in for it.
 
 All 571 rows already carry one, so the file imports cleanly and every row is placeable the
-moment it loads. The 571 pieces land on 177 distinct game objects, which is the honest part
-of the substitution: a lamp, a lantern and a chandelier often share the nearest thing 8.3.7
-has. The 187 in `data/town-center-go-map.csv` is the same question asked of all 618 mapped
-names, including the ones whose price never resolved and that therefore ship no row.
-`tools/housing/map_decor_go.py` produced those choices and records its reason in the
-`match` column of `data/town-center-go-map.csv`:
+moment it loads. The 571 pieces land on 112 distinct game objects, and the map that produced
+them covers 618 names on 117. Those numbers are lower than they were, on purpose: the
+candidate pool used to be every named object in the tree, and it is now only the objects
+`generated/source-asset-index.csv` calls decor *and* that name a shape a house is furnished
+with. `tools/housing/verify_drafts.py` fails the build if a catalogue row ever stands on an
+object the index calls non-decor.
+
+That filter is the difference between a rough stand-in and a wrong one. 8.3.7's tree has no
+named constant containing `TABLE`, `DESK`, `SHELF`, `RUG`, `CARPET`, `BED`, `LANTERN`,
+`CANDLE`, `LAMP`, `FLOWER`, `BUSH`, `BASKET`, `SACK`, `STOOL`, `FENCE` or `WELL` at all, so
+the furniture vocabulary that does exist is chairs, benches, thrones, crates, chests, kegs,
+braziers, bonfires, anvils, forges, bookcases, statues, banners, columns and trees. A rug
+therefore stands in as a banner and a table as a keg, and those are the closest things the
+8.3.7 tree actually has rather than the closest thing a name search turned up.
+`tools/housing/map_decor_go.py` records how each one was chosen in the `match` column of
+`data/town-center-go-map.csv`:
 
 | Reason | Names | What it means |
 | --- | --- | --- |
-| category | 223 | no name match, so the piece took the default stand-in for its category |
-| keyword | 189 | the decor name and the game object name share a distinctive word |
-| family | 171 | the names share a family stem, such as `WALL` (18) or `CRATE` (15) |
-| fallback | 35 | nothing matched, not even a family stem; last resort default |
+| category | 440 | no name match, so the piece took the nearest shape its own category allows: rugs to a banner, tables to a keg, beds to a bench |
+| family | 160 | the name and the constant share a family stem, such as `WALL` (18) or `CRATE` (15) |
+| keyword | 18 | the name and the constant share a rare word, and it is not a position word |
+| fallback | 0 | nothing matched at all; the branch is still there and nothing reaches it now |
 
-`category` and `fallback` are the two buckets I would revisit first, and both are cheap to
-fix: change `gameobject_entry` on that row, or give the map tool another keyword. A row
-whose entry is not in `gameobject_template` fails cleanly at placement instead of spawning
-nothing, which is why I would rather ship a rough stand-in than a zero.
+`category` is the bucket I would revisit first, and it is cheap to fix: change
+`gameobject_entry` on that row, or give the map tool another shape. A row whose entry is not
+in `gameobject_template` fails cleanly at placement instead of spawning nothing, which is why
+I would rather ship a rough stand-in than a zero.
 
 The retail item id is still there in `item_entry`, so when a piece is later given a proper
 8.3.7 model nothing else in the row has to change.
@@ -70,11 +84,11 @@ draft actually implements rather than what it stores.
 | --- | --- |
 | House levels | 1-12 on retail's XP curve. XP comes from a piece learned for the first time, from Endeavor tasks and from Endeavor milestones; the level raises the three decor budgets and the room budget. `Housing.Level.GoldSkip` lets a player pay to skip a level instead |
 | Decor storage | A purchase is a copy in storage, not a permanent unlock: placing consumes the copy and removing returns it. Four chairs are four purchases, which is retail's rule and the reason a catalogue entry is not the same thing as an owned piece |
-| Endeavors | Per neighbourhood, on a clock. Every player in the neighbourhood contributes to the same 24 tasks, the milestone (1-4) is the fraction of tasks completed, and a stock row whose `milestone` the neighbourhood has not reached is not on the shelf - the vendor window, the price it quotes and `BuyDecor` all ask the stall's own row |
+| Endeavors | Per neighbourhood, on a clock. Every player in the neighbourhood contributes to the same 24 tasks, the milestone (1-4) is the fraction of tasks completed, and a stock row whose `milestone` the neighbourhood has not reached is not on the shelf. The vendor window, the addon protocol's catalogue listing and `BuyDecor` all ask the stall's own row; the price is quoted only after one of those three has admitted the row, so a gated line cannot be priced by a path that never checked it |
 | Blueprints | `/housing export` turns the house into `PHP1:` plus a base62 payload (kind, faction, piece count, then a varint id and five packed bytes per piece) with a checksum; `/housing import` validates the checksum before it touches anything, and refuses a code from the other faction |
 | Dyes | A dye is a game object swap, stored on the placement as `dye_group`, `dye_color` and `variant_entry`. `sql/bind/bind_decor_variants.sql` fills the variant table from colour pairs in `gameobject_template`; a piece with no variant row is not dyable and says so |
 | Pet beds | A bed is a `housing_decor_creature` row of kind 0 with no creature of its own: the player assigns the companion they have out, the species is checked against the journal, and the creature spawns and despawns with the placement |
-| Town centre | 23 amenities and 39 vendor stalls spawn in the neighbourhood's own phase (`60000 + slot`), so two neighbourhoods on the same map share the coordinates and see none of each other's objects. Amenities stand where their row says; a row with no position takes the biome anchor, not the hub ring, so the Brumewood graveyard is in Brumewood |
+| Town centre | 23 amenities and 39 vendor stalls spawn in the neighbourhood's own phase (`60000 + slot`), so two neighbourhoods on the same map share the coordinates and see none of each other's objects. No amenity row carries a position: the eight hub rows are laid on the hub ring, and a biome row takes that biome's anchor rather than the hub ring, so the Brumewood graveyard is in Brumewood and the aerie is at the aerie |
 | House Finder | `/housing finder` lists public neighbourhoods with their resident count, `/housing visit` and `/housing reserve` move to one and hold a plot while the player buys it |
 | Regret window | A sold house is packed into `character_housing_archive` for seven days and can be restored for 10 % of its price, with its decor, its level and its XP |
 | Inactivity | Off by default. `Housing.Evict.Days` plus `Housing.Evict.GraceDays` gives a house back to the market after a letter and a grace period, archiving the contents first |
@@ -148,8 +162,10 @@ each path twice, at two prices, and buys the cheaper one.
   fill. Until that runs, the vendors are data the addon lists, and nothing stands in the
   town centre.
 - The same applies to everything else the realm owns: the 23 amenity objects and NPCs, the
-  12 shell exteriors, the 10 portal destinations, the 24 Endeavor targets and the dye
-  variants all ship with a name in the row and a 0 in the id.
+  12 shell exteriors, the 10 portal destinations, the 18 named Endeavor targets and the dye
+  variants all ship with a name in the row and a 0 in the id. The other six tasks are events
+  the module counts itself - three pet battles and three deliveries at the Coffer - so they
+  carry no target name and stay unbound because there is nothing to bind.
   `sql/bind/bind_housing_content.sql` fills them from `gameobject_template`,
   `creature_template`, `item_template`, `quest_template` and `game_tele`, then prints a count
   of what stayed at 0. A name the realm does not have stays unbound rather than being
@@ -210,8 +226,17 @@ sql/world/08_hunts.sql               (the ten riddle hunts)
 sql/bind/bind_town_center_vendors.sql    (binds the 39 stall models)
 sql/bind/bind_housing_content.sql        (binds amenities, shells, beds, portals, Endeavor targets)
 sql/bind/bind_decor_variants.sql         (optional, fills the dye variant table)
+sql/bind/bind_night_variants.sql         (optional, pairs each piece with its lit twin)
 ```
 
 Then `Housing.Enable = 1`, `.house`, and the addon: copy `addon/HousingUI` into the client's
 `Interface/AddOns/PsychoHouse` (the installer stages it in the source tree and prints the
 path). `/house` opens the housing window; the House button sits next to the minimap.
+
+## The pages in this folder
+
+| File | What it is |
+| --- | --- |
+| `README.md` | this page: what the draft contains, what is incomplete and why, the install order |
+| `GETTING-THE-DATA.md` | where every number comes from, how to capture and rebuild it, and where the Midnight files are |
+| `CHANNELS.md` | the integration surface the port never had: 0 of 34 chat channels, the agent record, OAuth and webhooks |

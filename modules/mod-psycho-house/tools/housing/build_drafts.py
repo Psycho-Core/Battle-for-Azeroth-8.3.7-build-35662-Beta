@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the two draft modules from the captured data.
 
-  drafts/midnight-port   - retail content: 38 vendors, 675 stock lines, 201 item ids
+  drafts/midnight-port   - retail content: 39 vendors, 571 decor rows, 972 stock lines
   drafts/bfa-native      - only ids that already exist in the 8.3.7 tree
 
 Both drafts share the same C++ core and the same schema. They differ in the content
@@ -177,13 +177,24 @@ def copy_core(draft):
 # The bind statements are part of the draft, not part of my working folder: an operator who
 # receives one draft has to be able to resolve its names, and a path into tools/sql/ is not
 # something the draft can promise exists.
-BIND_SQL = (
-    "bind_town_center_vendors.sql",
-    "bind_native_vendors.sql",
+# Each draft gets the binds its own content needs, and no others: a stall binder that walks
+# creature_template looking for "general goods" is right for eight name-less native stalls
+# and wrong for the port, where every stall already has a retail name to match on and a
+# second binder would fight the first one.
+BIND_SQL_SHARED = (
     "bind_housing_content.sql",
     "bind_decor_variants.sql",
     "bind_night_variants.sql",
 )
+
+BIND_SQL = {
+    "midnight-port": BIND_SQL_SHARED + ("bind_town_center_vendors.sql",),
+    # Draft B keeps the town-centre binder as well: doc 16 lists it in the native install
+    # order for the stalls the captured stock still applies to, and the install order is the
+    # document an operator follows.
+    "bfa-native": BIND_SQL_SHARED + ("bind_native_vendors.sql",
+                                     "bind_town_center_vendors.sql"),
+}
 
 
 def copy_binds(draft):
@@ -191,7 +202,15 @@ def copy_binds(draft):
     dst_dir = os.path.join(DRAFTS, draft, "sql", "bind")
     os.makedirs(dst_dir, exist_ok=True)
 
-    for name in BIND_SQL:
+    wanted = set(BIND_SQL[draft])
+
+    # A bind the draft no longer ships is removed rather than left behind: a stale UPDATE
+    # against this draft's tables is the one kind of leftover that still runs when pasted.
+    for name in sorted(os.listdir(dst_dir)):
+        if name.endswith(".sql") and name not in wanted:
+            os.remove(os.path.join(dst_dir, name))
+
+    for name in BIND_SQL[draft]:
         src = os.path.join(src_dir, name)
         if os.path.exists(src):
             shutil.copyfile(src, os.path.join(dst_dir, name))

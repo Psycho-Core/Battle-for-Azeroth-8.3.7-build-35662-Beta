@@ -3,7 +3,7 @@
 #
 #   Copy the keys that matter into worldserver.conf. Every key is optional.
 #
-#   This draft carries no retail ids at all. The decor catalogue is 350 game objects that
+#   This draft carries no retail ids at all. The decor catalogue is 717 game objects that
 #   already exist in my source tree as named constants, the vendors are my own eight
 #   stalls, and every price is gold. It is the version that runs on a clean 8.3.7 client
 #   with no imported art and no retail item ids.
