@@ -1,0 +1,38 @@
+# Housing.Anchor.File - plot positions for a borrowed map.
+#
+# One line per plot:   index  x  y  z  o
+#
+#   index   plot index, 0..54 (the module's kPlotCount)
+#   x, y, z world coordinates on Housing.Map.Id
+#   o       facing in radians; 0 faces north, and the piece or lot that stands there
+#           takes its own orientation from this
+#
+# `#` starts a comment and blank lines are ignored. A plot index that is not listed keeps
+# the computed ring position, so this file can be filled in a few plots at a time: a plot
+# left out is a plot still on the ring, not a hole in the neighbourhood.
+#
+# This file is an example of the format, not a layout to ship. The coordinates are a
+# synthetic valley - 12 plots on two rows - chosen so the file can be checked by reading it,
+# and every one of them is somewhere an operator has to replace with a surveyed position.
+#
+# Point the server at a copy of this file with:
+#     Housing.Anchor.File = "anchors_founders_point.txt"
+# The path is read by the worldserver process, so it is relative to where that process runs.
+
+#  index      x          y          z          o
+   0        -120.00     -80.00      12.50      0.0000
+   1         -60.00     -80.00      12.50      0.0000
+   2           0.00     -80.00      12.50      0.0000
+   3          60.00     -80.00      12.50      0.0000
+   4         120.00     -80.00      12.50      0.0000
+   5        -120.00      40.00      13.75      3.1416
+   6         -60.00      40.00      13.75      3.1416
+   7           0.00      40.00      13.75      3.1416
+   8          60.00      40.00      13.75      3.1416
+   9         120.00      40.00      13.75      3.1416
+  10           0.00     140.00      15.00      3.1416
+  11         -60.00     140.00      15.00      3.1416
+
+# The town centre is not in this file: it is Housing.TownCenter.X/Y/Z, because every other
+# anchor - the hub ring, the biome rings, the hunt caches and the ring plots - is measured
+# from it.

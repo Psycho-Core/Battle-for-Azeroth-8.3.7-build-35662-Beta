@@ -30,6 +30,16 @@ Housing.Map.Mode = "anchor"
 
 Housing.Map.Id = 0
 
+#   Housing.Anchor.File
+#       Description: A text file of hand-placed plot anchors, for a borrowed map. One line per
+#                    plot - index x y z o - with # starting a comment. Indices not listed fall
+#                    back to the computed ring layout, so a half-filled file is a half-placed
+#                    neighbourhood rather than a broken one. The path is read by the worldserver
+#                    process, so it is relative to wherever worldserver runs, not to the module.
+#       Default:     "" (the computed rings)
+
+Housing.Anchor.File = ""
+
 #   Housing.Interior.Map
 #       Description: Map id used for house interiors. In "anchor" mode leave this at 0 so
 #                    interiors reuse the same map.

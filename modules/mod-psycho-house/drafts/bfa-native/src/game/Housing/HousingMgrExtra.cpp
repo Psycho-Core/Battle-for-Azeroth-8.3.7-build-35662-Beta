@@ -518,20 +518,38 @@ namespace Housing
         // difference between "the map is finished" and "nobody filled this row in" is not
         // something the row itself can show, so the log line says which one it was.
         uint32 filled = 0;
+        uint32 authored = 0;
         for (auto& entry : _plotTemplates)
         {
             PlotTemplate& tmpl = entry.second;
             if (tmpl.HasSpawn)
                 continue;
 
-            tmpl.Spawn = AnchorForPlot(tmpl.Index);
+            // An authored anchor from Housing.Anchor.File wins over the computed ring: the file
+            // is how a hand-placed layout on a borrowed map is expressed without a rebuild.
+            auto const anchor = _plotAnchors.find(tmpl.Index);
+            if (anchor != _plotAnchors.end())
+            {
+                tmpl.Spawn = anchor->second;
+                ++authored;
+            }
+            else
+            {
+                tmpl.Spawn = AnchorForPlot(tmpl.Index);
+            }
+
             tmpl.HasSpawn = true;
             ++filled;
         }
 
-        if (_nativeMap && filled)
-            TC_LOG_ERROR("housing", "{} plot template(s) have no authored spawn and were placed on "
-                "the anchor layout instead - author them in housing_plot before going live", filled);
+        if (filled)
+            TC_LOG_INFO("housing", "{} plot(s) without an authored spawn: {} from Housing.Anchor.File, "
+                "{} from the ring layout", filled, authored, filled - authored);
+
+        if (_nativeMap && filled > authored)
+            TC_LOG_ERROR("housing", "{} plot template(s) have no authored spawn and no anchor-file "
+                "entry and were placed on the ring layout - author them in housing_plot or in "
+                "Housing.Anchor.File before going live", filled - authored);
 
         // Amenities are anchored in either mode, and before the native return: on a borrowed
         // map the hub ring is the only place they can go, and a biome's own amenity still

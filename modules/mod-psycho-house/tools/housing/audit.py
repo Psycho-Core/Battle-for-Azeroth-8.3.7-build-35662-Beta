@@ -6,7 +6,7 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Sixteen checks, in the order a reviewer would want them:
+Seventeen checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
@@ -23,6 +23,7 @@ Sixteen checks, in the order a reviewer would want them:
   install  each draft's install order executed as one transaction, then every file re-run
   addon    the addon itself, loaded and driven inside a model of the 8.3.7 client
   copies   each draft ships the module's own src/ and addon/, byte for byte
+  worklist the generated port worklist still matches the catalogue it is generated from
 
 The script never edits anything. It prints one line per finding so a bad number
 can be fixed in place instead of hunted for.
@@ -477,6 +478,23 @@ def check_copies(findings):
                                          "differs from the module's own copy"))
 
 
+def check_worklist(findings):
+    """The port worklist is generated from the catalogue, so it must not be edited by hand.
+
+    A worklist that has drifted is worse than no worklist: it names pieces that no longer
+    exist and misses the ones that were added, and the six columns beside each row are what
+    the port is filled in from.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "port_worklist.py")
+    result = subprocess.run([sys.executable, script, "--check"], capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in result.stdout.splitlines():
+            if line.startswith(("stale:", "missing:")):
+                findings.append(("worklist", rel(script), line))
+
+
 def check_addon(findings):
     """Run the addon: load it in a 5.1 client model, feed it the protocol, click the window.
 
@@ -513,6 +531,7 @@ CHECKS = {
     "install": check_install,
     "addon": check_addon,
     "copies": check_copies,
+    "worklist": check_worklist,
 }
 
 

@@ -17,6 +17,9 @@
 
 #include "HousingMgr.h"
 
+#include <fstream>
+#include <sstream>
+
 #include "HousingBlueprint.h"
 #include "HousingEndeavor.h"
 
@@ -222,6 +225,12 @@ void HousingMgr::LoadConfig()
     _nativeMap = mode != "anchor";
     noteText("Housing.Map.Mode", mode);
 
+    // Plot positions for a borrowed map. Empty means the computed ring layout, which is what
+    // a test map wants; a realm that has picked its valley points this at a text file and
+    // hand-places the plots instead of editing C++ and rebuilding.
+    _anchorFile = sConfigMgr->GetStringDefault("Housing.Anchor.File", "");
+    noteText("Housing.Anchor.File", _anchorFile);
+
     _interiorAnchor = Position(
         sConfigMgr->GetFloatDefault("Housing.Interior.X", 0.0f),
         sConfigMgr->GetFloatDefault("Housing.Interior.Y", 0.0f),
@@ -267,11 +276,67 @@ void HousingMgr::LoadConfig()
         _housingMapId, _interiorMapId, _nativeMap ? "native" : "anchor");
 }
 
+void HousingMgr::LoadAnchorFile()
+{
+    _plotAnchors.clear();
+
+    if (_anchorFile.empty())
+        return;
+
+    std::ifstream file(_anchorFile);
+    if (!file.is_open())
+    {
+        // Not fatal: the ring layout is still valid, and a server that cannot read a file it
+        // was told to read should say so once rather than refuse to start.
+        TC_LOG_ERROR("housing", "Housing.Anchor.File '%s' could not be opened - using the computed anchors",
+            _anchorFile.c_str());
+        return;
+    }
+
+    std::string line;
+    uint32 lineNumber = 0;
+    uint32 accepted = 0;
+
+    while (std::getline(file, line))
+    {
+        ++lineNumber;
+
+        // `#` starts a comment, blank lines are skipped, and everything else is
+        //     index  x  y  z  o
+        std::string::size_type hash = line.find('#');
+        if (hash != std::string::npos)
+            line.erase(hash);
+
+        std::istringstream fields(line);
+        uint32 index = 0;
+        float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f;
+
+        if (!(fields >> index >> x >> y >> z))
+            continue;
+
+        if (!(fields >> o))
+            o = 0.0f;
+
+        if (index >= kPlotCount)
+        {
+            TC_LOG_ERROR("housing", "Housing.Anchor.File line %u: plot %u is outside 0..%u - ignored",
+                lineNumber, index, uint32(kPlotCount - 1));
+            continue;
+        }
+
+        _plotAnchors[uint8(index)] = Position(x, y, z, o);
+        ++accepted;
+    }
+
+    TC_LOG_INFO("housing", "Housing.Anchor.File '%s': %u plot anchor(s) read", _anchorFile.c_str(), accepted);
+}
+
 void HousingMgr::LoadHousingData()
 {
     if (!_enabled)
         return;
 
+    LoadAnchorFile();
     LoadBiomes();
     LoadPlotTemplates();
     LoadDecor();

@@ -470,6 +470,7 @@ namespace Housing
         uint32 _refundPercent;
         bool _plotScopedPhasing;
         bool _nativeMap;
+        std::string _anchorFile;    // plot positions for a borrowed map, empty = computed rings
         uint32 _evictDays;          // 0 = eviction off
         uint32 _graceDays;          // days a house sits in the archive before it is sold
         uint32 _populationCap;      // residents per neighbourhood, 0 = no cap
@@ -497,6 +498,7 @@ namespace Housing
         uint32 _petBedOutdoorCap;   // beds per plot, retail 25
 
         // world data
+        std::map<uint8, Position> _plotAnchors;   // authored plot positions, by plot index
         std::map<uint32, BiomeInfo> _biomes;
         std::map<uint64, PlotTemplate> _plotTemplates;                 // key: (mapId << 8) | index
         std::map<uint32, std::vector<PlotTemplate>> _plotTemplatesByMap;
@@ -562,6 +564,7 @@ namespace Housing
 
         // helpers
         static uint64 PlotKey(uint32 mapId, uint8 index);
+        void LoadAnchorFile();
         void LoadBiomes();
         void LoadPlotTemplates();
         void LoadDecor();
