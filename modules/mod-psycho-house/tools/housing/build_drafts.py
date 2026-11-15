@@ -92,9 +92,10 @@ CATEGORY_RULES = [
                 "fountain", "rock", "boulder", "log", "stump", "petal")),
     ("Storage", ("crate", "barrel", "chest", "box", "basket", "sack", "jar", "bag",
                  "coffer", "bucket", "canoe", "wheelbarrow", "cart")),
-    ("Structural", ("wall", "pillar", "column", "door", "window", "roof", "floor",
-                    "stair", "arch", "fence", "gate", "beam", "post", "platform",
-                    "shingle", "beam", "lattice")),
+    ("Structural", ("wall", "pillar", "column", "door", "doorway", "window", "roof",
+                    "floor", "stair", "stairs", "arch", "fence", "gate", "beam",
+                    "post", "platform", "shingle", "lattice", "bridge", "tower",
+                    "portcullis", "ramp", "balcony")),
     ("Wall Art", ("banner", "flag", "sign", "painting", "picture", "map", "tapestry",
                   "wreath", "marking", "effigy", "shrine", "scale")),
     ("Books", ("book", "scroll", "tome", "ledger")),
@@ -113,12 +114,53 @@ NATIVE_PRICE = {"Structural": 50, "Tables": 75, "Seating": 25, "Beds": 50, "Rugs
                 "Books": 10, "Pets": 50, "Holiday": 25, "Accents": 10}
 
 
+# Words a keyword is a substring of without being part of it. This list is the whole reason
+# it exists: matching keywords against the raw lowercase name put 111 of the 721 native pieces
+# in the wrong category, and price, budget and surface are all keyed on the category. The
+# worst of them, with what the raw match did:
+#
+#   Lightweight Crate of Mantid 1   "light"   in "lightweight"   72 rows -> Lighting, 10g
+#   Sivara Encounter                "counter" in "encounter"      9 rows -> Tables, 75g
+#   Wintergrasp Fortress Tower 1    "winter"  in "wintergrasp"    8 rows -> Holiday, 25g
+#   Zuramat Door                    "mat"     in "zuramat"        6 rows -> Rugs, 25g
+#   Kologarn Bridge                 "log"     in "kologarn"       4 rows -> Nature, 25g
+#   Bjarngrim Door                  "jar"     in "bjarngrim"      2 rows -> Storage, 10g
+#   Roostportcullis                 "roost"   in "roostportcullis" 4 rows -> Pets, 50g
+#   Hellfire Archimonde Door        "fire"    in "hellfire"       3 rows -> Lighting, 10g
+#   Founder's Point Street Sign     "reed"    in "street"         1 row  -> Nature, 25g
+#   Counterspiral Wooden Stairs     "counter" in "counterspiral"  1 row  -> Tables, 75g
+#
+# A word here is skipped by the substring pass. It is not deleted from the name: "Kologarn
+# Bridge" still finds Structural through the whole word "bridge".
+CATEGORY_DENY = {
+    "lightweight", "encounter", "counterspiral", "street",
+    "zuramat", "ozumat", "bjarngrim", "nazjar", "kologarn", "roostportcullis",
+    "wintergrasp", "firewall", "hellfire", "jadefire",
+}
+
+
 def category(name):
-    low = name.lower()
+    """The category a name belongs to: whole words first, then a guarded substring pass.
+
+    Whole words win because they are the only unambiguous evidence a name carries. The
+    substring pass is what keeps the compounds - Fencepost, Lamppost, Bookcase, Bedroll,
+    Footstool, Glowpost, Bellflower - and it is scoped to words that are not in
+    CATEGORY_DENY, so a keyword buried inside a proper noun cannot decide a piece's tab.
+    """
+    words = [w for w in re.split(r"[^a-z0-9]+", name.lower()) if w]
+    whole = set(words)
+
     for cat, keys in CATEGORY_RULES:
         for k in keys:
-            if k in low:
+            if k in whole or k + "s" in whole:
                 return cat
+
+    scoped = [w for w in words if w not in CATEGORY_DENY]
+    for cat, keys in CATEGORY_RULES:
+        for k in keys:
+            if any(k in w for w in scoped):
+                return cat
+
     return "Accents"
 
 
@@ -534,7 +576,13 @@ def build_native():
               "SPAWN", "SOUND", "SPELL", "AURA", "DUMMY", "BOSS", "GOSSIP",
               "MARKER", "EXPLOSION", "MISSILE", "PROJECTILE", "GRAVEYARD", "ZONE",
               "BARRIER", "INVISIBLE", "ARENA", "CORPSE", "QUEST", "WAYPOINT",
-              "FLIGHT", "TEMPLE_DOOR", "SMOKE", "FOG", "LIGHT_BEAM")
+              "FLIGHT", "TEMPLE_DOOR", "SMOKE", "FOG", "LIGHT_BEAM",
+              # Three more that are not furniture and, in the collision case, cannot be:
+              # a COLLISION_* object exists to block movement and has no model, a SKYWALL is
+              # a zone ceiling, and an ENCOUNTER_* object is a raid door or an invisible
+              # trigger that opens when a boss dies. The report at the end of
+              # 03_decor_native.sql is what proves the rest of the catalogue resolves.
+              "COLLISION", "SKYWALL", "ENCOUNTER")
     seen = {}
     for row in gos:
         entry = row["entry"]

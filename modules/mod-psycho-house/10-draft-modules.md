@@ -71,18 +71,18 @@ The from-scratch build. No retail ids at all.
 
 | Piece | Value |
 | --- | --- |
-| Decor rows | 721: 717 game objects that already exist in my tree, plus the four pet beds below |
+| Decor rows | 706: 702 game objects that already exist in my tree, plus the four pet beds below |
 | Vendors | 8 stalls of my own design |
-| Stock lines | 721, every piece sold somewhere |
+| Stock lines | 706, every piece sold somewhere |
 | Quest rows | the same four ids and the same beats, so a character can switch drafts without losing the chain |
 | Currency | gold only |
 | Names | the constant in the SQL, replaced at load from `gameobject_template.name` |
 | Vendor models | bound from `creature_template` by subname, never by a guessed npc id |
 
-The 717 are what is left of the 748 decor-shaped game object constants after dropping traps,
-triggers, spawn markers, spell visuals, sound emitters, boss markers and instance props.
-Doors, gates and portcullises are no longer dropped: they are 402 of the constants, the largest
-group in the index, and a house with no door in its catalogue is a house with a hole in it. The
+The 702 are what is left of the 748 decor-shaped game object constants after dropping traps,
+triggers, spawn markers, spell visuals, sound emitters, boss markers, instance props, collision
+objects, sky walls and raid encounter objects. Doors, gates and portcullises are not dropped:
+they are 393 distinct entries, the largest group in the index, and a house with no door in its catalogue is a house with a hole in it. The
 four pet beds are added rather than harvested, because all four cages in the index are
 scenery for a quest cage rather than a bed, and a bed is a decor row with a
 `housing_decor_creature` row behind it - so the native draft takes the four cage models and
@@ -103,7 +103,7 @@ decision I can change and re-generate in seconds.
 | Needs retail data | yes, by definition | no |
 | Needs client patches | for art, yes | no |
 | Runs on a clean 8.3.7 install | yes, every row already has an 8.3.7 stand-in game object | yes, immediately |
-| Number of decor pieces | 571, split 395 Horde / 176 Alliance | 721, both factions |
+| Number of decor pieces | 571, split 395 Horde / 176 Alliance | 706, both factions |
 | Number of vendors | 39 | 8 |
 | Item ids referenced | 439 distinct retail ids on 450 rows | 0 |
 | Currency | gold + 3363 + item 33226 | gold |
@@ -203,7 +203,7 @@ the core it runs on and the phase range it deliberately avoids. Doc 13 is the de
 | Interface | addon, 24 opcodes | same | two gossip menus, eight commands, and a window of its own on the PHSH channel (12 client records, 8 server records) |
 | Content | retail item ids and prices | 8.3.7 ids only | 13 facility rows, entries resolved from the realm |
 | Phases | 10000-46374 | same | 50000-64999 |
-| Furniture | yes, a catalogue of pieces | yes, 721 pieces | yes, any object the realm has, up to a configured limit (20 by default) |
+| Furniture | yes, a catalogue of pieces | yes, 706 pieces | yes, any object the realm has, up to a configured limit (20 by default) |
 | Install | `install.py --draft midnight-port` | `install.py --draft bfa-native` | `install.py --draft mod-psychohouse` |
 
 `install.py` covers all three since the seventeenth audit pass; until then it refused C, which

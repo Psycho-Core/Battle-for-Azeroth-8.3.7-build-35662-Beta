@@ -278,7 +278,8 @@ Doors are the largest family: 337 of the 767 are door and gateway constants. The
 rejected by name at first and are not any more. A door is a real object with a real model, and
 the interactivity that made it look like machinery is a script the realm attaches, not a
 property of the piece; a house with no door in its catalogue is a house with a hole in it. The
-native draft places them as Structural, which brings it from 332 pieces to 717.
+native draft places them as Structural, which is what carries it past 630 of its 702 harvested pieces
+(393 of those are doors and gates).
 
 Two files carry the full list:
 

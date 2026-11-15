@@ -29,15 +29,15 @@ riddles - so there is no retail item behind them and no model to port.
 | Beds | 4 | 4 | 3 |
 | Books | 7 | 6 | 2 |
 | Holiday | 7 | 7 | 6 |
-| Lighting | 50 | 35 | 13 |
-| Nature | 79 | 78 | 8 |
+| Lighting | 49 | 34 | 12 |
+| Nature | 79 | 78 | 7 |
 | Pets | 7 | 2 | 6 |
-| Rugs | 15 | 9 | 11 |
+| Rugs | 13 | 8 | 9 |
 | Seating | 30 | 29 | 16 |
 | Storage | 44 | 34 | 35 |
-| Structural | 73 | 59 | 10 |
+| Structural | 74 | 60 | 10 |
 | Tables | 33 | 29 | 3 |
-| Wall Art | 23 | 18 | 17 |
+| Wall Art | 25 | 19 | 17 |
 
 ## The worklist
 
@@ -270,7 +270,6 @@ stand-in was picked by category rather than by likeness.
 | 1464 | Heartsbane Doom Catcher | Holiday | any | both | 100 g | 282100 | 190487 GO_WINTERGRASP_FACTORY_BANNER_NW | category |  |  |  |  |  | yes |
 | 1558 | Gift of Gilneas | Holiday | any | both | 75 g | 245369 | 195341 GO_HORDE_BANNER_REFINERY | category |  |  |  |  |  | yes |
 | 1005 | Consortium Glowpost | Lighting | any | both | 10 Community Coupons | 262884 | 195402 GO_BRAZIER_1 | category |  |  |  |  |  | yes |
-| 1018 | Old Moonbrook Daylight Window | Lighting | any | both | 20 Community Coupons | 280654 | 195402 GO_BRAZIER_1 | category |  |  |  |  |  | yes |
 | 1026 | Westfall Harvest Lamp | Lighting | any | both | 10 Community Coupons | 280633 | 176093 GO_BEACON_TORCH | family:LAMP |  |  |  |  |  | yes |
 | 1041 | Iron Chain Chandelier | Lighting | any | both | 50 g | 244533 | 178247 GO_NAGA_BRAZIER | category |  |  |  |  |  | yes |
 | 1100 | Sturdy Fireplace | Lighting | any | both | 100 g | 244531 | 195424 GO_BRAZIER_4 | category |  |  |  |  |  | yes |
@@ -283,8 +282,8 @@ stand-in was picked by category rather than by likeness.
 | 1133 | Founder's Point Lamppost | Lighting | any | both | 100 g | 246876 | 195425 GO_BRAZIER_3 | category |  |  |  |  |  | yes |
 | 1136 | Founder's Point Street Light | Lighting | any | both | 100 g | 246875 | 195424 GO_BRAZIER_4 | family:LIGHT |  |  |  |  |  | yes |
 | 1162 | Razorwind Campfire Grill | Lighting | any | both | 50 g | 267083 | 195402 GO_BRAZIER_1 | category |  |  |  |  |  | yes |
+| 1178 | Rugged Brazier | Lighting | any | both | 50 g | 245533 | 207408 GO_MAGIC_BRAZIER | family:BRAZIER |  |  |  |  |  | yes |
 | 1193 | Sturdy Brazier | Lighting | any | both | 50 g | 246874 | 209066 GO_FIRE_WALL_BALEROC | family:BRAZIER |  |  |  |  |  | yes |
-| 1222 | Azsharan Firespear Tree | Lighting | any | both | 100 g | 248631 | 203035 GO_BURNING_TREE_2 | family:TREE |  |  |  |  |  | yes |
 | 1290 | Cozy Lightbloom Lilypad | Lighting | any | both | 50 g | - | 175564 GO_BRAZIER_OF_THE_HERALD | category |  |  |  |  |  | catalogue only |
 | 1327 | Elegant Elven Chandelier | Lighting | any | both | 50 g | 251981 | 175564 GO_BRAZIER_OF_THE_HERALD | category |  |  |  |  |  | yes |
 | 1347 | Ornate Stonework Fireplace | Lighting | any | both | 100 g | 235994 | 195425 GO_BRAZIER_3 | category |  |  |  |  |  | yes |
@@ -320,7 +319,6 @@ stand-in was picked by category rather than by likeness.
 | 1551 | Warrens Candlecooker | Lighting | any | both | 30 Community Coupons | - | 195424 GO_BRAZIER_4 | category |  |  |  |  |  | catalogue only |
 | 1562 | Griftah's Torch of Rotation | Lighting | any | both | 10 Community Coupons | - | 195425 GO_BRAZIER_3 | family:TORCH |  |  |  |  |  | catalogue only |
 | 1017 | Old Moonbrook Creeping Ivy | Nature | floor | both | 10 Community Coupons | - | 203034 GO_BURNING_TREE_1 | category |  |  |  |  |  | catalogue only |
-| 1137 | Founder's Point Street Sign | Nature | floor | both | 10 g | 249822 | 195144 GO_ALLIANCE_BANNER_HANGAR_CONT | family:SIGN |  |  |  |  |  | yes |
 | 1139 | Hay-Filled Sturdy Feeding Trough | Nature | floor | both | 100 g | 246871 | 203036 GO_BURNING_TREE_3 | category |  |  |  |  |  | yes |
 | 1142 | Jagged Orgrimmar Trellis | Nature | floor | both | 150 g | 251638 | 203035 GO_BURNING_TREE_2 | category |  |  |  |  |  | yes |
 | 1145 | Large Razorwind Farmer's Hay Pile | Nature | floor | both | 25 g | 260486 | 203034 GO_BURNING_TREE_1 | category |  |  |  |  |  | yes |
@@ -346,6 +344,7 @@ stand-in was picked by category rather than by likeness.
 | 1218 | Wooden Planter Pot | Nature | floor | both | 25 g | 252004 | 203034 GO_BURNING_TREE_1 | category |  |  |  |  |  | yes |
 | 1220 | Arched Violet Bellflowers | Nature | floor | both | 25 g | 245300 | 203036 GO_BURNING_TREE_3 | category |  |  |  |  |  | yes |
 | 1221 | Autumn Leaf Pile | Nature | floor | both | 50 g | 248648 | 203036 GO_BURNING_TREE_3 | category |  |  |  |  |  | yes |
+| 1222 | Azsharan Firespear Tree | Nature | floor | both | 100 g | 248631 | 203035 GO_BURNING_TREE_2 | family:TREE |  |  |  |  |  | yes |
 | 1223 | Barrens Hosta Bush | Nature | floor | both | 25 g | 248630 | 191144 GO_INCONSPICUOUS_TREE | category |  |  |  |  |  | yes |
 | 1224 | Brumewood Hollow Large Garden Cluster | Nature | floor | both | 150 g | 266241 | 203036 GO_BURNING_TREE_3 | category |  |  |  |  |  | yes |
 | 1225 | Charming Laurel Tree | Nature | floor | both | 75 g | 245371 | 203036 GO_BURNING_TREE_3 | family:TREE |  |  |  |  |  | yes |
@@ -410,13 +409,11 @@ stand-in was picked by category rather than by likeness.
 | 1081 | Small Leather Rug | Rugs | floor | both | 50 g | 246225 | 195338 GO_QUARRY_BANNER | category |  |  |  |  |  | yes |
 | 1088 | Stitched Leather Rug | Rugs | floor | both | 75 g | 246038 | 178205 GO_BANNER | category |  |  |  |  |  | yes |
 | 1092 | Stormwind Hall Rug | Rugs | floor | both | 75 g | 242255 | 190475 GO_WINTERGRASP_FACTORY_BANNER_NE | category |  |  |  |  |  | yes |
-| 1178 | Rugged Brazier | Rugs | floor | both | 50 g | 245533 | 207408 GO_MAGIC_BRAZIER | family:BRAZIER |  |  |  |  |  | yes |
 | 1288 | Cherished Pet's Rug | Rugs | floor | both | 50 g | - | 207400 GO_HELLSCREAM_REACH_BANNER | category |  |  |  |  |  | catalogue only |
 | 1323 | Circular Elven Floor Rug | Rugs | floor | both | 50 g | 243242 | 195130 GO_HORDE_BANNER_HANGAR | category |  |  |  |  |  | yes |
 | 1345 | Homestone Doormat | Rugs | floor | both | 25 g | 264169 | 195130 GO_HORDE_BANNER_HANGAR | category |  |  |  |  |  | yes |
 | 1349 | Rectangular Elven Floor Rug | Rugs | floor | both | 75 g | 243243 | 195335 GO_ALLIANCE_BANNER_QUARRY_CONT | category |  |  |  |  |  | yes |
 | 1418 | Woven Forest Troll Rug | Rugs | floor | both | 15 Community Coupons | - | 195158 GO_HANGAR_BANNER | category |  |  |  |  |  | catalogue only |
-| 1449 | Reclamation" Unframed Painting | Rugs | floor | both | 1500 g | - | 195133 GO_WORKSHOP_BANNER | category |  |  |  |  |  | catalogue only |
 | 1508 | Bakar's Napping Rug | Rugs | floor | both | 10 Community Coupons | - | 195342 GO_HORDE_BANNER_REFINERY_CONT | category |  |  |  |  |  | catalogue only |
 | 1510 | Large Ornate Khanam's Rug | Rugs | floor | both | 10 Community Coupons | - | 195335 GO_ALLIANCE_BANNER_QUARRY_CONT | category |  |  |  |  |  | catalogue only |
 | 1517 | Ornate Khanam's Rug | Rugs | floor | both | 10 Community Coupons | - | 195339 GO_ALLIANCE_BANNER_REFINERY | category |  |  |  |  |  | catalogue only |
@@ -494,6 +491,7 @@ stand-in was picked by category rather than by likeness.
 | 1532 | Sealeather Sack | Storage | floor | both | 10 Community Coupons | - | 221884 GO_LIGHTWEIGHT_CRATE_OF_MOGU_21 | family:SACK |  |  |  |  |  | catalogue only |
 | 1534 | Tortollan Traveler's Chest | Storage | floor | both | 15 Community Coupons | - | 221869 GO_LIGHTWEIGHT_CRATE_OF_MANTID_28 | family:CHEST |  |  |  |  |  | catalogue only |
 | 1539 | Cozy Kobold Crate | Storage | floor | both | 10 Community Coupons | - | 221893 GO_STOUT_CRATE_OF_MOGU_12 | family:CRATE |  |  |  |  |  | catalogue only |
+| 1018 | Old Moonbrook Daylight Window | Structural | any | both | 20 Community Coupons | 280654 | 184635 GO_MAGTHERIDON_COLUMN_2 | category |  |  |  |  |  | yes |
 | 1019 | Old Moonbrook Nighttime Window | Structural | any | both | 20 Community Coupons | 282347 | 184636 GO_MAGTHERIDON_COLUMN_4 | category |  |  |  |  |  | yes |
 | 1039 | Goldshire Window | Structural | any | both | 50 g | 245356 | 184637 GO_MAGTHERIDON_COLUMN_5 | category |  |  |  |  |  | yes |
 | 1043 | Iron-Reinforced Door | Structural | any | both | 50 g | 244534 | 184635 GO_MAGTHERIDON_COLUMN_2 | category |  |  |  |  |  | yes |
@@ -606,6 +604,7 @@ stand-in was picked by category rather than by likeness.
 | 1070 | Razorwind Banner Pelt | Wall Art | wall | both | 50 g | 250692 | 195153 GO_ALLIANCE_BANNER_DOCK | family:BANNER |  |  |  |  |  | yes |
 | 1115 | Tusked Leather Tapestry | Wall Art | wall | both | 50 g | 250691 | 195133 GO_WORKSHOP_BANNER | category |  |  |  |  |  | yes |
 | 1134 | Founder's Point Navigation Sign | Wall Art | wall | both | 10 g | 249823 | 195393 GO_HORDE_BANNER | family:SIGN |  |  |  |  |  | yes |
+| 1137 | Founder's Point Street Sign | Wall Art | wall | both | 10 g | 249822 | 195144 GO_ALLIANCE_BANNER_HANGAR_CONT | family:SIGN |  |  |  |  |  | yes |
 | 1374 | Legerdemain Lounge Sign Board | Wall Art | wall | both | 10 Community Coupons | 248406 | 195132 GO_ALLIANCE_BANNER_HANGAR | family:SIGN |  |  |  |  |  | yes |
 | 1380 | Elaborate Heartsbane Ritual Markings | Wall Art | wall | both | 15 Tricky Treats | 282202 | 195152 GO_HORDE_BANNER_WORKSHOP_CONT | category |  |  |  |  |  | yes |
 | 1382 | Heartsbane Banner | Wall Art | wall | both | 25 Tricky Treats | 282208 | 178205 GO_BANNER | family:BANNER |  |  |  |  |  | yes |
@@ -617,6 +616,7 @@ stand-in was picked by category rather than by likeness.
 | 1444 | Autumnal Eversong" Unframed Painting | Wall Art | wall | both | 1500 g | - | 195132 GO_ALLIANCE_BANNER_HANGAR | category |  |  |  |  |  | catalogue only |
 | 1445 | Brunch and a Book" Unframed Painting | Wall Art | wall | both | 1500 g | - | 194959 GO_WINTERGRASP_FACTORY_BANNER_SE | category |  |  |  |  |  | catalogue only |
 | 1448 | Isolation" Unframed Painting | Wall Art | wall | both | 1500 g | - | 195393 GO_HORDE_BANNER | category |  |  |  |  |  | catalogue only |
+| 1449 | Reclamation" Unframed Painting | Wall Art | wall | both | 1500 g | - | 195133 GO_WORKSHOP_BANNER | category |  |  |  |  |  | catalogue only |
 | 1450 | River's Protectors" Unframed Painting | Wall Art | wall | both | 1500 g | - | 207391 GO_BARADINS_WARDEN_BANNER | category |  |  |  |  |  | catalogue only |
 | 1456 | The Fallen Protectors" Unframed Painting | Wall Art | wall | both | 1500 g | - | 195154 GO_ALLIANCE_BANNER_DOCK_CONT | category |  |  |  |  |  | catalogue only |
 | 1465 | Heartsbane Ritual Markings | Wall Art | wall | both | 500 g | 282092 | 195144 GO_ALLIANCE_BANNER_HANGAR_CONT | category |  |  |  |  |  | yes |
