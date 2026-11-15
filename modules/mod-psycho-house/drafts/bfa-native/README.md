@@ -10,11 +10,11 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 
 | Piece | Count | Where |
 | --- | --- | --- |
-| Decor rows | 721: 717 game objects the source tree declares, plus the four pet beds | `sql/world/03_decor_native.sql` |
+| Decor rows | 706: 702 game objects the source tree declares, plus the four pet beds | `sql/world/03_decor_native.sql` |
 | Vendors | 8 stalls of my own | `sql/world/04_vendors_native.sql` |
-| Vendor stock rows | 721, every native decor piece sold somewhere | same file |
+| Vendor stock rows | 706, every native decor piece sold somewhere | same file |
 | Currency | gold only | `currency = 0` on every row |
-| Faction split | all 721 on both sides: every native stall serves both factions | `faction_mask` = 3 |
+| Faction split | all 706 on both sides: every native stall serves both factions | `faction_mask` = 3 |
 | House levels | 12, the same ladder the port uses, from the same generator | `sql/world/07_progression.sql` |
 | Exteriors | 12 shells, four kits in three sizes, gated 1 / 8 / 12 | same file |
 | Rooms | 17, each with its budget cost, level requirement and floorplan footprint | same file |
@@ -28,13 +28,13 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 | Client menu | The same fifteen-tab window - both drafts ship one core | `addon/HousingUI/Menu.lua` |
 | Substitution for missing art | none needed | the pieces are real game objects |
 
-## Where the 717 come from
+## Where the 702 come from
 
 `tools/housing/index_source_assets.py` walks the source tree and pulls out every named id
 constant. 767 of those constants are game objects that look like furniture, and 748 of them are
 distinct entries. This draft takes those 748 and drops the ones whose constant name marks them
 as traps, triggers, spawn markers, spell visuals, sound emitters, boss markers and instance
-props: 717 survive, and the four pet beds below make 721 rows.
+props: 702 survive, and the four pet beds below make 706 rows.
 
 Doors, gates and portcullises used to be dropped with them, and that was a mistake worth
 recording. They were the largest group the filter threw away - 321 door constants and 81 gate
@@ -50,7 +50,7 @@ still occupy a slot. That is why the decorated SQL now ends with a report: it li
 in 2000-2959 whose `gameobject_template` row is missing or has `displayId` 0. It is expected to
 return nothing, and a row there is a piece to delete rather than a piece to place.
 
-A decor id is the entry's position in all 748, not in the 717 that survive the filter, so the
+A decor id is the entry's position in all 748, not in the 702 that survive the filter, so the
 range 2000-2999 has gaps and a filter change does not renumber the catalogue. That matters
 because a decor id is what a placement, a stock row and a saved blueprint point at.
 `tools/housing/verify_drafts.py` recomputes every id from the index and fails on a mismatch.
@@ -60,7 +60,12 @@ The four pet beds are the exception: the index calls no cage a decorative game o
 anything the harvest can reach.
 
 Names in the SQL are the constant names with the `GO_` prefix stripped and the words
-title-cased, because the constant is all the source gives me. The last statement in
+title-cased, because the constant is all the source gives me. Eight rows share six of those
+names - `Door 1` three times, plus `Door 2`, `Ice Wall` three times, `Wall of Ice`,
+`Maiden Door` and `Collision Wall` twice each - because the tree declares one constant with
+several entry numbers in different files. It is not a duplicate row: the entries differ, the
+install-time `UPDATE` below replaces all of them with the real template names, and the
+catalogue only looks repetitive if it is read straight out of the SQL. The last statement in
 `03_decor_native.sql` replaces them with the real name the moment the world database is
 present:
 
@@ -83,8 +88,8 @@ name and writes them into `housing_vendor.creature_entry`. Nothing is invented: 
 that is not in `creature_template` simply matches zero rows.
 
 Decor is split across the eight stalls by `gameobject_entry % 8`, so each stall carries a
-mixed bag rather than a category. That is on purpose: with 336 pieces a category split would
-leave one stall with four items. The four pet beds are the one exception and all four sit on
+mixed bag rather than a category. That is on purpose: with 702 pieces a category split would
+leave the thin categories with four items. The four pet beds are the one exception and all four sit on
 the Pet Handler, which is what a pet stall is for.
 
 ## Economy
@@ -93,10 +98,15 @@ Gold only, and the ladder is mine:
 
 | Price | Pieces |
 | --- | --- |
-| 10g | lighting, storage, books, accents |
-| 25g | seating, rugs, wall art, nature, holiday |
-| 50g | structural, beds, pets |
-| 75g | tables |
+| 10g | storage, lighting, books, accents - 205 pieces |
+| 25g | seating, wall art, nature - 64 pieces |
+| 50g | structural, pets - 437 pieces |
+
+Nine of the thirteen retail categories are stocked here and four are empty - tables, beds,
+rugs and holiday - because the 8.3.7 tree names no table, desk, shelf, rug, carpet, bed,
+lantern, candle or flower constant at all. The pieces that would want those tabs land in the
+nearest one that exists: a bench for a bed, a keg for a table, a banner for a rug. A draft that
+priced an empty category would be listing a tab a player can never fill.
 
 Budget cost follows retail bands: 1 for anything at or below 25g, 3 up to 75g, 5 above.
 That keeps the retail placement budgets in doc 01 usable without translating prices.

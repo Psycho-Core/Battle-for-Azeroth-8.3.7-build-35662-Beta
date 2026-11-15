@@ -15,243 +15,248 @@
 -- list - the query is the only thing that needs editing. 39 vendors, ids 101 to 139, one
 -- model each so no two stalls are the same person.
 -- ---------------------------------------------------------------------------
+-- Every lookup is wrapped in COALESCE(..., 0): a subquery that matches nothing returns
+-- NULL and `creature_entry` is NOT NULL, so an unwrapped statement fails with error
+-- 1048 on a realm that has fewer vendor NPCs than this file has stalls.
+-- ---------------------------------------------------------------------------
+
 
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 0)
+     ORDER BY `entry` LIMIT 1 OFFSET 0), 0)
 WHERE `id` = 101;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 1)
+     ORDER BY `entry` LIMIT 1 OFFSET 1), 0)
 WHERE `id` = 102;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 2)
+     ORDER BY `entry` LIMIT 1 OFFSET 2), 0)
 WHERE `id` = 103;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 3)
+     ORDER BY `entry` LIMIT 1 OFFSET 3), 0)
 WHERE `id` = 104;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 4)
+     ORDER BY `entry` LIMIT 1 OFFSET 4), 0)
 WHERE `id` = 105;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 5)
+     ORDER BY `entry` LIMIT 1 OFFSET 5), 0)
 WHERE `id` = 106;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 6)
+     ORDER BY `entry` LIMIT 1 OFFSET 6), 0)
 WHERE `id` = 107;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 7)
+     ORDER BY `entry` LIMIT 1 OFFSET 7), 0)
 WHERE `id` = 108;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 8)
+     ORDER BY `entry` LIMIT 1 OFFSET 8), 0)
 WHERE `id` = 109;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 9)
+     ORDER BY `entry` LIMIT 1 OFFSET 9), 0)
 WHERE `id` = 110;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 10)
+     ORDER BY `entry` LIMIT 1 OFFSET 10), 0)
 WHERE `id` = 111;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 11)
+     ORDER BY `entry` LIMIT 1 OFFSET 11), 0)
 WHERE `id` = 112;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 12)
+     ORDER BY `entry` LIMIT 1 OFFSET 12), 0)
 WHERE `id` = 113;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 13)
+     ORDER BY `entry` LIMIT 1 OFFSET 13), 0)
 WHERE `id` = 114;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 14)
+     ORDER BY `entry` LIMIT 1 OFFSET 14), 0)
 WHERE `id` = 115;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 15)
+     ORDER BY `entry` LIMIT 1 OFFSET 15), 0)
 WHERE `id` = 116;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 16)
+     ORDER BY `entry` LIMIT 1 OFFSET 16), 0)
 WHERE `id` = 117;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 17)
+     ORDER BY `entry` LIMIT 1 OFFSET 17), 0)
 WHERE `id` = 118;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 18)
+     ORDER BY `entry` LIMIT 1 OFFSET 18), 0)
 WHERE `id` = 119;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 19)
+     ORDER BY `entry` LIMIT 1 OFFSET 19), 0)
 WHERE `id` = 120;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 20)
+     ORDER BY `entry` LIMIT 1 OFFSET 20), 0)
 WHERE `id` = 121;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 21)
+     ORDER BY `entry` LIMIT 1 OFFSET 21), 0)
 WHERE `id` = 122;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 22)
+     ORDER BY `entry` LIMIT 1 OFFSET 22), 0)
 WHERE `id` = 123;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 23)
+     ORDER BY `entry` LIMIT 1 OFFSET 23), 0)
 WHERE `id` = 124;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 24)
+     ORDER BY `entry` LIMIT 1 OFFSET 24), 0)
 WHERE `id` = 125;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 25)
+     ORDER BY `entry` LIMIT 1 OFFSET 25), 0)
 WHERE `id` = 126;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 26)
+     ORDER BY `entry` LIMIT 1 OFFSET 26), 0)
 WHERE `id` = 127;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 27)
+     ORDER BY `entry` LIMIT 1 OFFSET 27), 0)
 WHERE `id` = 128;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 28)
+     ORDER BY `entry` LIMIT 1 OFFSET 28), 0)
 WHERE `id` = 129;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 29)
+     ORDER BY `entry` LIMIT 1 OFFSET 29), 0)
 WHERE `id` = 130;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 30)
+     ORDER BY `entry` LIMIT 1 OFFSET 30), 0)
 WHERE `id` = 131;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 31)
+     ORDER BY `entry` LIMIT 1 OFFSET 31), 0)
 WHERE `id` = 132;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 32)
+     ORDER BY `entry` LIMIT 1 OFFSET 32), 0)
 WHERE `id` = 133;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 33)
+     ORDER BY `entry` LIMIT 1 OFFSET 33), 0)
 WHERE `id` = 134;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 34)
+     ORDER BY `entry` LIMIT 1 OFFSET 34), 0)
 WHERE `id` = 135;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 35)
+     ORDER BY `entry` LIMIT 1 OFFSET 35), 0)
 WHERE `id` = 136;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 36)
+     ORDER BY `entry` LIMIT 1 OFFSET 36), 0)
 WHERE `id` = 137;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 37)
+     ORDER BY `entry` LIMIT 1 OFFSET 37), 0)
 WHERE `id` = 138;
 
 UPDATE `housing_vendor` SET `creature_entry` =
-    (SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
+    COALESCE((SELECT `entry` FROM `creature_template` WHERE (`npcflag` & 128) <> 0
        AND `subname` IN ('General Goods', 'Trade Supplies', 'Tradesman', 'Decor')
-     ORDER BY `entry` LIMIT 1 OFFSET 38)
+     ORDER BY `entry` LIMIT 1 OFFSET 38), 0)
 WHERE `id` = 139;
 
 -- Report: which stalls still have no model after the run above.
 SELECT `id`, `name`, `creature_entry`, `role`
 FROM `housing_vendor`
-WHERE `id` BETWEEN 101 AND 139 AND (`creature_entry` IS NULL OR `creature_entry` = 0);
+WHERE `id` BETWEEN 101 AND 139 AND `creature_entry` = 0;

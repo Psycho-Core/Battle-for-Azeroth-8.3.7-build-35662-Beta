@@ -18,7 +18,7 @@ Artisanal Display Tent,Accents,192565,GO_MOORABI_STATUE,Ornamental,category,medi
 Astalor's Hookah,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Autumn Leaf Pile,Nature,203036,GO_BURNING_TREE_3,Large Foliage,category,medium
 "Autumnal Eversong"" Unframed Painting",Wall Art,195132,GO_ALLIANCE_BANNER_HANGAR,Ornamental,category,medium
-Azsharan Firespear Tree,Lighting,203035,GO_BURNING_TREE_2,Large Foliage,family:TREE,high
+Azsharan Firespear Tree,Nature,203035,GO_BURNING_TREE_2,Large Foliage,family:TREE,high
 Bakar's Dinner,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Bakar's Favorite Ball,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Bakar's Napping Rug,Rugs,195342,GO_HORDE_BANNER_REFINERY_CONT,Ornamental,category,medium
@@ -78,7 +78,7 @@ Consortium Energy Barrel,Storage,170607,GO_BAR_KEG_SHOT,Food and Drink,family:BA
 Consortium Energy Collector,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Consortium Energy Crate,Storage,221898,GO_LIGHTWEIGHT_CRATE_OF_MOGU_25,Storage,family:CRATE,high
 Consortium Glowpost,Lighting,195402,GO_BRAZIER_1,Small Lights,category,medium
-Counterspiral Wooden Stairs,Tables,170607,GO_BAR_KEG_SHOT,Food and Drink,category,medium
+Counterspiral Wooden Stairs,Structural,184638,GO_MAGTHERIDON_COLUMN_0,Walls and Columns,category,medium
 Covered Wooden Desk,Tables,185119,GO_DUST_COVERED_CHEST,Storage,keyword,medium
 Covered Wooden Table,Tables,185119,GO_DUST_COVERED_CHEST,Storage,keyword,medium
 Cozy Bird Nest,Pets,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
@@ -185,7 +185,7 @@ Founder's Point Navigation Sign,Wall Art,195393,GO_HORDE_BANNER,Ornamental,famil
 Founder's Point Signpost,Structural,184639,GO_MAGTHERIDON_COLUMN_1,Walls and Columns,category,medium
 Founder's Point Standing Torch,Lighting,178247,GO_NAGA_BRAZIER,Small Lights,family:TORCH,high
 Founder's Point Street Light,Lighting,195424,GO_BRAZIER_4,Small Lights,family:LIGHT,high
-Founder's Point Street Sign,Nature,195144,GO_ALLIANCE_BANNER_HANGAR_CONT,Ornamental,family:SIGN,high
+Founder's Point Street Sign,Wall Art,195144,GO_ALLIANCE_BANNER_HANGAR_CONT,Ornamental,family:SIGN,high
 Framed Moonbrook Quilt,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Fresh Canvas,Accents,188166,GO_KAEL_STATUE_2,Ornamental,category,medium
 Furlbrow Farm Pumpkin Trio,Holiday,195336,GO_HORDE_BANNER_QUARRY,Ornamental,category,medium
@@ -317,7 +317,7 @@ Old Broken Founder's Point Fence,Structural,184639,GO_MAGTHERIDON_COLUMN_1,Walls
 Old Founder's Point Fence,Structural,184638,GO_MAGTHERIDON_COLUMN_0,Walls and Columns,category,medium
 Old Founder's Point Fencepost,Structural,184635,GO_MAGTHERIDON_COLUMN_2,Walls and Columns,category,medium
 Old Moonbrook Creeping Ivy,Nature,203034,GO_BURNING_TREE_1,Large Foliage,category,medium
-Old Moonbrook Daylight Window,Lighting,195402,GO_BRAZIER_1,Small Lights,category,medium
+Old Moonbrook Daylight Window,Structural,184635,GO_MAGTHERIDON_COLUMN_2,Walls and Columns,category,medium
 Old Moonbrook Nighttime Window,Structural,184636,GO_MAGTHERIDON_COLUMN_4,Walls and Columns,category,medium
 Ominous Heartsbane Banner,Wall Art,195132,GO_ALLIANCE_BANNER_HANGAR,Ornamental,family:BANNER,high
 Ominous Heartsbane Shrine,Wall Art,192566,GO_GAL_DARAH_STATUE,Ornamental,family:SHRINE,high
@@ -401,7 +401,7 @@ Razorwind Tumbleweed,Accents,192564,GO_SLAD_RAN_STATUE,Ornamental,category,mediu
 Razorwind Wall Mirror,Structural,209066,GO_FIRE_WALL_BALEROC,Walls and Columns,family:WALL,high
 Razorwind Wheelbarrow,Storage,221826,GO_LIGHTWEIGHT_CRATE_OF_MANTID_14,Storage,category,medium
 Reaching Violet Bellflowers,Nature,203037,GO_BURNING_TREE_4,Large Foliage,category,medium
-"Reclamation"" Unframed Painting",Rugs,195133,GO_WORKSHOP_BANNER,Ornamental,category,medium
+"Reclamation"" Unframed Painting",Wall Art,195133,GO_WORKSHOP_BANNER,Ornamental,category,medium
 Rectangular Elegant Table,Tables,170607,GO_BAR_KEG_SHOT,Food and Drink,category,medium
 Rectangular Elven Floor Rug,Rugs,195335,GO_ALLIANCE_BANNER_QUARRY_CONT,Ornamental,category,medium
 Red Gift Bow,Holiday,195396,GO_ALLIANCE_BANNER,Ornamental,category,medium
@@ -415,7 +415,7 @@ Restful Wooden Bench,Seating,186896,GO_BENCH_1,Seating,family:BENCH,high
 Roasted Ram Leg,Accents,184596,GO_KAEL_STATUE_RIGHT,Ornamental,category,medium
 Round Stitched Cushion,Accents,192566,GO_GAL_DARAH_STATUE,Ornamental,category,medium
 Round-Top Boulder,Nature,203035,GO_BURNING_TREE_2,Large Foliage,category,medium
-Rugged Brazier,Rugs,207408,GO_MAGIC_BRAZIER,Small Lights,family:BRAZIER,high
+Rugged Brazier,Lighting,207408,GO_MAGIC_BRAZIER,Small Lights,family:BRAZIER,high
 Rugged Stool,Seating,195416,GO_CHAIR_5,Seating,family:STOOL,high
 Runed Stone Placard,Accents,184597,GO_KAEL_STATUE_LEFT,Ornamental,category,medium
 Runetotem's Bounty Large Garden Cluster,Nature,191144,GO_INCONSPICUOUS_TREE,Large Foliage,category,medium

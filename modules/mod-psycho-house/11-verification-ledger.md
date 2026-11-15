@@ -1873,23 +1873,24 @@ numbers and compares them with the words. Mutation-tested both ways: one row fli
 number in the sentence changed; both reported, both reverted.
 
 **The catalogue.** Draft B's filter dropped every door, gate and portcullis by name. That was
-402 of the 748 distinct decor-shaped entries, the largest group in the index, and the argument
-was that they are interactive. It is a false argument: a door standing in a yard is a piece of
+402 of the 748 distinct decor-shaped entries - 393 of them doors and gates, the largest group in
+the index - and the argument was that they are interactive. It is a false argument: a door standing in a yard is a piece of
 a house, and the interactivity is a script the realm attaches rather than a property of the
 object. Removing three words from the reject tuple took the catalogue from 332 fetched pieces
-to 717, and the draft from 336 rows to 721.
+to 717, and the draft from 336 rows to 721. (A later pass took it back to 702 and 706 rows: see
+6.46. The three words stayed removed; what left were collision objects, sky walls and raid
+encounter objects, and the difference is that those are not furniture at all.)
 
 | Finding | Why it was one |
 | --- | --- |
 | a door with no model would stand invisible | the filter cannot see `displayId`, and a piece with no model still costs budget and still occupies a placement. `03_decor_native.sql` now ends with a report listing every catalogue row whose template is missing or has no model; it is expected to return nothing, and a row there is a piece to delete |
 | ids could have moved | they did not, and that is the reason the id rule exists: a decor id is the entry's rank among all 748 decor-shaped entries, not among the survivors, so re-admitting 402 entries added rows in the gaps without touching a single existing id. `verify_drafts.py` recomputed every id and every documented count and passed |
-| the docs described the old filter | draft B's README, doc 10, doc 03 and the summary table in `README.md` all stated 336/332 and gave the old reason. All four now state 721/717 and the argument for the change, and the install simulation runs the regenerated SQL in order: 11 files, 31 tables, 1 683 rows, nothing lost |
+| the docs described the old filter | draft B's README, doc 10, doc 03 and the summary table in `README.md` all stated 336/332 and gave the old reason. All four now state the post-filter counts and the argument for the change (they read 721/717 then, and 706/702 after 6.46), and the install simulation runs the regenerated SQL in order: 11 files, 31 tables, 1 683 rows, nothing lost |
 | the native draft had no walk through | doc 16 is the page for somebody holding the draft: what is in the box, the install order including the bind pass, the first hour in game, how the catalogue is generated and how to add a row by hand above the merge band, what is covered, and a symptom-to-cause table for the seven failures that actually happen |
 
 Mutation-tested this half: the four channel-page faults above, and the regeneration itself is
-checked by four tools - `verify_drafts.py` for ids and counts, `simulate_install.py` for order
-and rows, `check_drafts.py` for the catalogue read as data, `check_mariadb.py` for the server
-rules. The suite is at 0 findings across 20 checks, and every checker in `tools/housing` is at 0.
+checked by three tools - `verify_drafts.py` for ids, counts and the catalogue read as data,
+`simulate_install.py` for order and rows, `check_mariadb.py` for the server rules. The suite is at 0 findings across 20 checks, and every checker in `tools/housing` is at 0.
 
 ### 6.45 The fifty-second revision: the furniture was not furniture
 
@@ -1952,3 +1953,79 @@ conf header said 350 catalogue pieces against 717.
 Suite after the pass: `audit.py` 0 findings across 20 checks, `verify_drafts.py` 0 with the new
 check, `simulate_install.py` 13 files / 31 tables / 1 815 rows for the port, and every other
 checker in `tools/housing` at 0.
+
+### 6.46 The fifty-third revision: a sixth of the catalogue was filed by accident
+
+The same request as 6.45, pointed at the native draft: "audit bfa-native". Every gate was
+green before the pass and the draft could be rebuilt from the tree byte for byte, so the
+findings are all in what the gates were not looking at.
+
+**The categoriser matched inside other words.** `category()` walked `CATEGORY_RULES` in order
+and returned the first keyword contained in the lower-cased name, with no word boundary, and
+price, budget cost, surface and stock all key on the category. Replaying the function against
+the current catalogue showed 148 of 721 rows landing in a tab that does not describe them; 111
+of those are one wrong rule each:
+
+| Rows | Name contains | Landed in | Should be | Cause |
+| --- | --- | --- | --- | --- |
+| 72 | `Lightweight Crate of ...` | Lighting, surface 3, 50 g | Storage, surface 0 | "light" in lightweight |
+| 9 | `... Encounter ...` | Tables, 75 g | Structural | "counter" in encounter |
+| 7 | `Wintergrasp ... Tower` | Holiday | Structural | "winter" in Wintergrasp |
+| 7 | `Firewall`, `Hellfire`, `Jadefire` | Lighting | Structural | "fire" in firewall |
+| 6 | `Zuramat`, `Ozumat` | Rugs | Structural | "mat" in Zuramat |
+| 4 | `Kologarn` | Nature | Structural | "log" in Kologarn |
+| 2 | `Bjarngrim`, `Nazjar` | Storage | Structural | "jar" in Bjarngrim |
+| 4 | `Roostportcullis` | Pets | Structural | "roost" in Roostportcullis |
+
+The fix is not to shorten the keyword lists - Bellflower, Fencepost, Bedroll and Bookcase are
+real pieces found by substring, and deleting keywords deletes them. It is a whole-word pass
+first (with singular and plural), then a substring pass over the words `CATEGORY_DENY` keeps
+out: lightweight, encounter, counterspiral, street, zuramat, ozumat, bjarngrim, nazjar,
+kologarn, roostportcullis, wintergrasp, firewall, hellfire, jadefire. `Structural` also gained
+bridge, tower, portcullis, doorway, ramp and balcony, which is where the compound names belong.
+
+**Fifteen objects in the catalogue are not furniture.** Four `COLLISION_*` walls, two
+`SKYWALL`s and nine `ENCOUNTER_*` triggers - the nine are the "counter" rows above - are
+invisible or definitionally model-less, so the missing-template report at the end of
+`03_decor_native.sql` could never come back clean. `COLLISION`, `SKYWALL` and `ENCOUNTER` join
+the reject tuple. The three words removed in 6.44 stay removed: a door is a piece of a house, a
+collision plane is not.
+
+After both fixes the catalogue is **706 rows - 702 harvested plus four pet beds** - with
+Structural 433, Storage 152, Wall Art 34, Lighting 25, Accents 24, Seating 23, Nature 7, Books
+4, Pets 4. Tables, Rugs, Holiday and Beds are now empty, and doc 16 says so instead of listing
+them as present. Prices are 50 g on 437 rows, 10 g on 205 and 25 g on 64; budget 3 on 437, 1 on
+269. Stock is 706 rows, one per catalogue row, across the same eight stalls (94, 75, 86, 83, 83,
+97, 96, 92).
+
+**Two bind files could abort against a real server.** `bind_native_vendors.sql` and
+`bind_town_center_vendors.sql` assigned bare scalar subqueries into `creature_entry`, which is
+`NOT NULL`. A subquery that matches nothing returns NULL and MariaDB stops at error 1048 with
+the file half applied - and the second file has 39 lookups against a `subname` list that a
+normal realm may not fill 39 times. Every one of the 47 statements is now
+`COALESCE((SELECT ... LIMIT 1 [OFFSET n]), 0)`, the convention `bind_housing_content.sql`
+already used, and the two reports test `= 0` instead of `IS NULL OR = 0` on a column that
+cannot hold NULL. Checked by parsing both files (sqlglot: 9 and 40 statements) and by reading
+the first and last statement of each; neither file has been executed against a live server here.
+
+**The stand-in guard now runs on this draft.** `check_standins` was added for the port in 6.45
+and gated on `draft == "midnight-port"`, so the native catalogue - which stands on harvested
+objects by construction - was never checked against the index verdicts. It also kept the last
+verdict it read per entry, so an entry the index lists twice with opposite verdicts (181125:
+`GO_VACCUUM_EXIT_GATE` decor=yes, `GO_PASSAGE_GOTHIK` decor=no) was decided by row order. It
+now runs for both drafts, takes any `decor=yes` as the verdict, and allows the documented
+2950-2959 pet-bed band that the draft itself names. Mutation-tested: an entry the index calls
+non-decor (289642) and an entry it does not list (999999) each produce one finding, and both
+mutations were reverted.
+
+Also corrected: doc 16 told the reader to run a draft-check script that has never
+existed under any name (the capability is `audit.py --only drafts`), quoted 1 683 install rows against 1 653,
+and listed music, mounts, mannequins, rugs, tables and beds as shipping. "402 constants" for
+doors and gates was wrong in five places; it is 393 entries, with 402 being everything the old
+filter dropped. The draft README said 336 pieces against 702, and listed Beds in the 50 g band.
+Eight rows share six display names because the tree declares one constant with several entry
+numbers - documented in the draft README, where the install-time `UPDATE` that fixes them lives.
+
+Suite after the pass: `audit.py` 0 findings across 20 checks, `verify_drafts.py` 0,
+`simulate_install.py` 0 with the native draft at 11 files / 31 tables / 1 653 rows, and every
+other checker in `tools/housing` at 0.

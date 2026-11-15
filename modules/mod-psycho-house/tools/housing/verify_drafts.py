@@ -395,24 +395,38 @@ NATIVE_RANK = native_rank()
 
 
 def check_standins(base, draft, findings_before=0):
-    """Every stand-in game object in the port must be one the index calls decor.
+    """Every catalogue row must stand on a game object the index calls decor.
 
-    The port places retail pieces as 8.3.7 game objects, and the index already carries a
-    verdict per constant. Nothing used to compare the two, so 176 of the 571 rows stood on
-    objects the index itself calls non-decor - a shed on a dungeon door, a bookcase on a
+    The port places retail pieces as 8.3.7 game objects and the native draft places its own;
+    the index already carries a verdict per constant, and nothing used to compare the two.
+    That gap cost the port 176 of its 571 rows - a shed on a dungeon door, a bookcase on a
     raid elevator - because `map_decor_go.py` drew its candidates from every named object in
-    the tree and a keyword hit on a room word beat a real chair. The floor is simple now: if
-    the index says `decor=no`, it cannot be furniture, and the row is wrong.
+    the tree and a keyword hit on a room word beat a real chair.
+
+    Two rules the first version of this check got wrong:
+
+    * an entry can be listed twice in the index with two different verdicts (181125 is
+      `GO_VACCUUM_EXIT_GATE` with `decor=yes` and `GO_PASSAGE_GOTHIK` with `decor=no`), so
+      the verdict is "any row says yes", not "the last row read says yes";
+    * the four native pet beds are hand-added cages that the index calls no decor at all, so
+      the draft's own documented exception is allowed rather than failing the build every run.
     """
     path = os.path.join(HERE, "generated", "source-asset-index.csv")
     decor = {}
     for row in csv.DictReader(open(path, newline="", encoding="utf-8")):
-        if row["kind"] == "gameobject" and row["entry"]:
-            decor[int(row["entry"])] = row["decor"]
+        if row["kind"] != "gameobject" or not row["entry"]:
+            continue
+        entry = int(row["entry"])
+        decor[entry] = decor.get(entry, False) or row["decor"] == "yes"
 
-    catalogue = read(os.path.join(base, "04_decor_retail.sql"))
+    # Draft B names the four cage entries itself and gives them ids 2950-2959, above anything
+    # the harvest can reach. Doc 10 and its README both say so; this is that decision, checked
+    # rather than trusted: the ids must be the band the builder uses.
+    PET_BED_BAND = (2950, 2959)
+
+    catalogue = read(os.path.join(base, "04_decor_retail.sql" if draft == "midnight-port"
+                                 else "03_decor_native.sql"))
     checks = 2
-    rows = 0
     unknown = 0
     wrong = []
 
@@ -420,12 +434,14 @@ def check_standins(base, draft, findings_before=0):
         decor_id, name, entry = match.group(1), match.group(2), int(match.group(3))
         if not entry:
             continue
-        rows += 1
         if entry not in decor:
             unknown += 1
             continue
-        if decor[entry] != "yes":
-            wrong.append("{} ({}) on {}".format(name, decor_id, entry))
+        if decor[entry]:
+            continue
+        if draft == "bfa-native" and PET_BED_BAND[0] <= int(decor_id) <= PET_BED_BAND[1]:
+            continue
+        wrong.append("{} ({}) on {}".format(name, decor_id, entry))
 
     if unknown:
         fail(draft, "{} decor rows stand on a game object the index does not list".format(
@@ -894,8 +910,7 @@ def main():
         checks_run += check_stock_side(base, draft, findings_before=len(findings))
         checks_run += check_ids(base, draft,
                                 (1000, 1999) if draft == "midnight-port" else (2000, 2999))
-        if draft == "midnight-port":
-            checks_run += check_standins(base, draft)
+        checks_run += check_standins(base, draft)
 
     # every item id the town centre catalogue knows must reach draft A
     items_csv = os.path.join(HERE, "data", "town-center-items.csv")

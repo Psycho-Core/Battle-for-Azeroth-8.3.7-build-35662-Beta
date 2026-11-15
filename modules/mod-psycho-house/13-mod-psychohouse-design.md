@@ -370,7 +370,7 @@ different that covers the same need; `no` means it is absent and the reason is s
 | Neighbourhood | no | there is no shared neighbourhood, no directory, no plot market |
 | Map and terrain | replaced | GM Island, configured, on a map the client already loads. No custom ADT |
 | Furniture | smaller | any object the realm has, up to `PsychoHouse.Objects.Max` (20 by default). No catalogue, no category pages, no budget cost per piece |
-| Decor catalogue | no | the full product's catalogue is 571 ported pieces and 721 native ones. Here the catalogue is `gameobject_template` itself |
+| Decor catalogue | no | the full product's catalogue is 571 ported pieces and 706 native ones. Here the catalogue is `gameobject_template` itself |
 | Placement budget | replaced | the limit *is* the budget: N pieces, no cost model, no currency |
 | Placement scale and rotation | same | a piece has an orientation and a clamped scale, checked on the server |
 | Furniture removal | same | by slot, stable identity, lowest free slot reused |

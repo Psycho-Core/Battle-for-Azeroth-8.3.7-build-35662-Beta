@@ -39,7 +39,7 @@ the three ways a plot can get a position, including the anchor file.
 5. world database, in this order:
      sql/world/01_schema.sql              the module's own tables
      sql/world/02_world_content.sql       town centre, biomes, amenities, pets
-     sql/world/03_decor_native.sql        the catalogue: 721 pieces
+     sql/world/03_decor_native.sql        the catalogue: 706 pieces
      sql/world/04_vendors_native.sql      eight stalls and their stock
      sql/world/06_quests.sql              four quest rows
      sql/world/07_progression.sql         levels, shells, rooms, portals, dyes, Endeavors
@@ -83,7 +83,7 @@ The addon is not required for any of it. Every action in the window has a comman
 which is deliberate: a client with the addon missing can still play, and a player who prefers
 typing never has to open a window.
 
-## 4. Where the 721 pieces come from, and how to change the list
+## 4. Where the 706 pieces come from, and how to change the list
 
 The catalogue is generated from `generated/source-asset-index.csv`, which
 `tools/housing/index_source_assets.py` writes by walking the source tree and pulling out every
@@ -97,9 +97,13 @@ python3 tools/housing/verify_drafts.py                # recompute every id and c
 
 767 of the index's rows are game objects that look like furniture, and they are 748 distinct
 entries. The builder drops entries whose constant name marks them as traps, triggers, spawn
-markers, spell visuals, sound emitters, boss markers or instance props; 717 survive, and the
-four pet beds make 721 catalogue rows. Doors, gates and portcullises are no longer dropped -
-they are 402 constants and they are the reason the catalogue grew from 332 this round.
+markers, spell visuals, sound emitters, boss markers or instance props; 702 survive, and the
+four pet beds make 706 catalogue rows. Doors, gates and portcullises are no longer dropped -
+they are 393 distinct entries and they are why Structural is by far the largest tab in the catalogue.
+Collision objects, sky walls and raid encounter objects are dropped, because none of the three
+is furniture: a `COLLISION_*` object exists to block movement and has no model at all, a
+`SKYWALL` is a zone ceiling, and an `ENCOUNTER_*` object is a raid door or an invisible
+trigger that opens when a boss dies.
 
 Three things follow from that, and each one is a rule rather than a preference:
 
@@ -140,15 +144,17 @@ INSERT INTO `housing_vendor_stock` (`vendor_id`, `decor_id`, `price`) VALUES (20
 | --- | --- |
 | Walls, floors, roofs | 12 shells, four kits in three sizes, bought as a level |
 | Rooms inside the shell | 17 room shapes, each with a budget cost and a footprint |
-| Doors, gates, columns, windows | yes - doors and gates arrive with this round, as Structural |
-| Furniture: seating, tables, storage, beds | yes, from the same catalogue |
-| Lighting, accents, wall art, rugs | yes |
-| Nature: foliage, rocks, water pieces | yes, whatever the index calls decor-shaped |
+| Doors, gates, columns, windows | 433 Structural pieces: doors, gateways, portcullises, columns, walls, bridges, towers |
+| Furniture: seating and storage | 23 seating and 152 storage pieces, from the same catalogue |
+| Furniture: tables and beds | nothing - the 8.3.7 tree names no table, desk, shelf or bed constant at all |
+| Lighting, accents, wall art | 25 lighting, 24 accent and 34 wall-art pieces, 4 books |
+| Rugs | nothing - no rug or carpet constant exists; a rug-shaped piece takes a banner |
+| Nature: foliage, rocks | 7 pieces; the tree has trees, one bush and no flower |
 | Pets and pet beds | four beds, plus the pet system |
 | Dyes | six colour rows; a piece is dyable when its name has a colour word and a sibling exists |
 | Night set | a second entry per piece for the dark Armillary, where the realm has one |
-| Music | a jukebox amenity and its track list |
-| Mounts and mannequins | stands, from the same catalogue |
+| Music | nothing yet: `DecorFlagJukebox` and a sound id are still reserved, and no amenity plays anything |
+| Mounts and mannequins | nothing yet: the two flags are reserved and no row sets them |
 
 What it does not carry: custom art, custom terrain, imported Midnight pieces, and any item id
 from retail. That is the point of this draft rather than a gap in it - the port draft next to it
@@ -171,10 +177,10 @@ exists for the pieces this one cannot show.
 ```
 python3 tools/housing/verify_drafts.py       every id, every count, every documented number
 python3 tools/housing/simulate_install.py    the file order, executed in memory: 11 files,
-                                             31 tables, 1 683 rows, nothing lost
-python3 tools/housing/check_drafts.py        the catalogue read as data: stock on a piece its
-                                             vendor's faction can buy, both factions can buy a
-                                             pet bed, every quest target exists
+                                             31 tables, 1 653 rows, nothing lost
+python3 tools/housing/audit.py --only drafts  the catalogue read as data: stock on a piece
+                                             its vendor's faction can buy, both factions can
+                                             buy a pet bed, every quest target exists
 python3 tools/housing/check_mariadb.py       the MariaDB rules every file obeys
 python3 tools/housing/audit.py               twenty checks, both addons run in Lua 5.1
 ```
