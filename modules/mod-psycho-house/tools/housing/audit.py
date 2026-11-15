@@ -6,7 +6,7 @@ Run from the module root:
     python3 tools/housing/audit.py            # full run, exits 1 on a failure
     python3 tools/housing/audit.py --quiet    # only failures
 
-Fifteen checks, in the order a reviewer would want them:
+Sixteen checks, in the order a reviewer would want them:
 
   ascii    every tracked text file is pure ASCII
   voice    no first-person plural, no second-person address, no tooling talk
@@ -22,6 +22,7 @@ Fifteen checks, in the order a reviewer would want them:
   drafts   the two generated drafts against each other's invariants and doc 10's counts
   install  each draft's install order executed as one transaction, then every file re-run
   addon    the addon itself, loaded and driven inside a model of the 8.3.7 client
+  copies   each draft ships the module's own src/ and addon/, byte for byte
 
 The script never edits anything. It prints one line per finding so a bad number
 can be fixed in place instead of hunted for.
@@ -449,6 +450,33 @@ def check_install(findings):
                 findings.append(("install", rel(script), line.strip()))
 
 
+def check_copies(findings):
+    """A draft's `src/` and `addon/` are the module's, byte for byte.
+
+    `build_drafts.py` copies both into each draft, which is what makes a draft a thing an
+    operator can install on its own. The copy step is only run when the drafts are
+    regenerated, so an addon fix that lands after the last regeneration ships the fixed file
+    in the module and the broken one in both drafts - which is exactly what happened to the
+    five fixes from the forty-sixth revision until this check existed.
+    """
+    for draft in ("midnight-port", "bfa-native"):
+        for folder in ("src", "addon"):
+            source = os.path.join(ROOT, folder)
+            target = os.path.join(ROOT, "drafts", draft, folder)
+
+            for root, _, files in os.walk(source):
+                for name in sorted(files):
+                    if name.endswith(".pyc"):
+                        continue
+                    path = os.path.join(root, name)
+                    copy = os.path.join(target, os.path.relpath(path, source))
+                    if not os.path.exists(copy):
+                        findings.append(("copies", rel(copy), "missing from the draft"))
+                    elif read(path) != read(copy):
+                        findings.append(("copies", rel(copy),
+                                         "differs from the module's own copy"))
+
+
 def check_addon(findings):
     """Run the addon: load it in a 5.1 client model, feed it the protocol, click the window.
 
@@ -484,6 +512,7 @@ CHECKS = {
     "drafts": check_drafts,
     "install": check_install,
     "addon": check_addon,
+    "copies": check_copies,
 }
 
 

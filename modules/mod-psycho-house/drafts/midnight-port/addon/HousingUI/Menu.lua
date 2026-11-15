@@ -1320,7 +1320,10 @@ local function RefreshEndeavor()
     endeavorBarText:SetText(string.format("%d of %d tasks, %d%%", done, total, percent))
 
     if (endeavor.ends or 0) > 0 then
-        local left = math.max(0, (endeavor.ends or 0) - (os.time and os.time() or 0))
+        -- Server time, not the local clock: the rotation ends for the realm, and `os` does not
+        -- exist in a client at all - indexing it raised every time an Endeavor was running.
+        local now = GetServerTime and GetServerTime() or (time and time() or 0)
+        local left = math.max(0, (endeavor.ends or 0) - now)
         endeavorDone:SetText(string.format("%s%d task(s) left, %d day(s) until the rotation gives way%s",
             DIM, math.max(0, total - done), math.floor(left / 86400), RESET))
     else
@@ -2004,7 +2007,7 @@ roomsIntro:SetText("The exterior shell is the house itself; rooms are placed ins
 NewButton(roomsPane, "Refresh", 80, 0, -64, function()
     H.shells = {}
     H.rooms = {}
-    H.placed = {}
+    H.roomPlacements = {}
     H.Send("C:SHELLS")
     H.Send("C:ROOMS")
 end)
@@ -2129,7 +2132,7 @@ local function BuildPlan()
     end
 
     local sorted = {}
-    for _, placed in ipairs(H.placed or {}) do
+    for _, placed in ipairs(H.roomPlacements or {}) do
         sorted[#sorted + 1] = placed
     end
 
@@ -2155,6 +2158,13 @@ local function BuildPlan()
             Menu.planRows[1] = row
         end
 
+        -- The empty-plan row is the same frame the room rows reuse, and a room row carries a
+        -- Remove button. Left alone, the button outlived the empty plan and the next refresh
+        -- clicked Remove on a row that had no room on it.
+        if row.remove then
+            row.remove:Hide()
+        end
+
         row:SetPoint("TOPLEFT", roomContent, "TOPLEFT", 0, -Menu.planOffset)
         row.label:SetText("the plan is empty: Add a shape and it lands on the first cell it fits")
         row:Show()
@@ -2174,9 +2184,14 @@ local function BuildPlan()
             row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
             row.label:SetWidth(330)
             row.label:SetJustifyH("LEFT")
-            row.remove = NewButton(row, "Remove", 70, 370, 0, nil)
             Menu.planRows[index] = row
         end
+
+        -- A row that started life as the empty-plan line has no Remove button yet.
+        if not row.remove then
+            row.remove = NewButton(row, "Remove", 70, 370, 0, nil)
+        end
+        row.remove:Show()
 
         row:SetPoint("TOPLEFT", roomContent, "TOPLEFT", 0, -(Menu.planOffset + (index - 1) * 24))
         row.label:SetText(string.format("%s - cell %d,%d, floor %d",
@@ -2257,7 +2272,7 @@ end
 Menu.onShow.rooms = function()
     H.shells = {}
     H.rooms = {}
-    H.placed = {}
+    H.roomPlacements = {}
     H.Send("C:SHELLS")
     H.Send("C:ROOMS")
 end
