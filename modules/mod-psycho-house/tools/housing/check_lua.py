@@ -26,7 +26,21 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ADDON = os.path.join(HERE, "addon", "HousingUI")
+
+# Every addon this repository ships, as (folder, .toc name, the global each one declares).
+# The neighbourhood addon lives at the repository root; the per-character module keeps its own
+# inside its draft, because it ships with the module rather than with the realm.
+ADDONS = [
+    (os.path.join(HERE, "addon", "HousingUI"), "HousingUI.toc", "HousingUI"),
+    (os.path.join(HERE, "drafts", "mod-psychohouse", "addon", "PsychoHouse"),
+     "PsychoHouse.toc", "PsychoHouse"),
+]
+
+# Set by main() before anything runs; kept module-level so the per-file checks can read it
+# without threading a parameter through every function.
+ADDON = ADDONS[0][0]
+TOC = ADDONS[0][1]
+ROOT_GLOBAL = ADDONS[0][2]
 
 findings = []
 
@@ -98,7 +112,7 @@ def check_blocks(name, text):
 
 def saved_variables():
     """Names the .toc declares as SavedVariables are globals on purpose."""
-    toc = os.path.join(ADDON, "HousingUI.toc")
+    toc = os.path.join(ADDON, TOC)
     if not os.path.exists(toc):
         return set()
     with open(toc, encoding="utf-8") as handle:
@@ -180,7 +194,7 @@ def check_globals(name, text):
     """
     body = strip_lua(text)
     declared = set(re.findall(r"^\s*local\s+([A-Za-z_]\w*)", body, re.M))
-    allowed = {"HousingUI"} | saved_variables()
+    allowed = {ROOT_GLOBAL} | saved_variables()
     depth = 0
     for number, line in enumerate(body.splitlines(), 1):
         start_depth = depth
@@ -200,9 +214,9 @@ def check_globals(name, text):
 
 
 def check_toc():
-    toc = os.path.join(ADDON, "HousingUI.toc")
+    toc = os.path.join(ADDON, TOC)
     if not os.path.exists(toc):
-        fail("addon", "HousingUI.toc is missing")
+        fail("addon", "{} is missing".format(TOC))
         return
     with open(toc, encoding="utf-8") as handle:
         for line in handle:
@@ -228,7 +242,7 @@ def check_bindings():
         xml = handle.read()
 
     lua = ""
-    toc = os.path.join(ADDON, "HousingUI.toc")
+    toc = os.path.join(ADDON, TOC)
     if os.path.exists(toc):
         with open(toc, encoding="utf-8") as handle:
             for line in handle:
@@ -247,23 +261,34 @@ def check_bindings():
 
 
 def main():
+    global ADDON, TOC, ROOT_GLOBAL
     total = 0
-    for name in sorted(os.listdir(ADDON)):
-        if not name.endswith(".lua"):
+
+    for ADDON, TOC, ROOT_GLOBAL in [(a, t, g) for a, t, g in ADDONS]:
+        if not os.path.isdir(ADDON):
+            fail("addon", "{} is missing".format(ADDON))
             continue
-        path = os.path.join(ADDON, name)
-        with open(path, encoding="utf-8") as handle:
-            text = handle.read()
-        if any(ord(char) > 127 for char in text):
-            fail(name, "non-ASCII byte")
-        lines = check_blocks(name, text)
-        check_globals(name, text)
-        check_forward(name, text)
-        total += lines
-        print("{:<28} {:>4} lines".format(name, lines))
-    check_toc()
-    check_bindings()
-    print("\n{} finding(s)".format(len(findings)))
+
+        print("{}".format(os.path.basename(ADDON)))
+
+        for name in sorted(os.listdir(ADDON)):
+            if not name.endswith(".lua"):
+                continue
+            path = os.path.join(ADDON, name)
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+            if any(ord(char) > 127 for char in text):
+                fail(name, "non-ASCII byte")
+            lines = check_blocks(name, text)
+            check_globals(name, text)
+            check_forward(name, text)
+            total += lines
+            print("  {:<26} {:>4} lines".format(name, lines))
+
+        check_toc()
+        check_bindings()
+
+    print("\n{} line(s), {} finding(s)".format(total, len(findings)))
     for line in findings:
         print("  " + line)
     return 1 if findings else 0

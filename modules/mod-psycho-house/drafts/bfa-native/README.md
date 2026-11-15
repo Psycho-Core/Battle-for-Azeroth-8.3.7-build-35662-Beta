@@ -10,11 +10,11 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 
 | Piece | Count | Where |
 | --- | --- | --- |
-| Decor rows | 336: 332 game objects the source tree declares, plus the four pet beds | `sql/world/03_decor_native.sql` |
+| Decor rows | 721: 717 game objects the source tree declares, plus the four pet beds | `sql/world/03_decor_native.sql` |
 | Vendors | 8 stalls of my own | `sql/world/04_vendors_native.sql` |
-| Vendor stock rows | 336, every native decor piece sold somewhere | same file |
+| Vendor stock rows | 721, every native decor piece sold somewhere | same file |
 | Currency | gold only | `currency = 0` on every row |
-| Faction split | all 336 on both sides: every native stall serves both factions | `faction_mask` = 3 |
+| Faction split | all 721 on both sides: every native stall serves both factions | `faction_mask` = 3 |
 | House levels | 12, the same ladder the port uses, from the same generator | `sql/world/07_progression.sql` |
 | Exteriors | 12 shells, four kits in three sizes, gated 1 / 8 / 12 | same file |
 | Rooms | 17, each with its budget cost, level requirement and floorplan footprint | same file |
@@ -28,22 +28,32 @@ argument for starting from what 8.3.7 already has rather than from what Midnight
 | Client menu | The same fifteen-tab window - both drafts ship one core | `addon/HousingUI/Menu.lua` |
 | Substitution for missing art | none needed | the pieces are real game objects |
 
-## Where the 332 come from
+## Where the 717 come from
 
 `tools/housing/index_source_assets.py` walks the source tree and pulls out every named id
-constant. 767 of those constants are game objects that look like furniture. This draft
-takes those 767, drops the ones whose constant name marks them as doors, gates and
-portcullises, traps, spawn markers, spell visuals and instance props, and keeps 332 that can
-be dropped in a yard without looking wrong. The list is in
-`../../generated/source-asset-index.csv`; the filter is the `reject` tuple in
-`tools/housing/build_drafts.py`, so changing my mind about what counts as decor is a
-one-line edit and a re-run.
+constant. 767 of those constants are game objects that look like furniture, and 748 of them are
+distinct entries. This draft takes those 748 and drops the ones whose constant name marks them
+as traps, triggers, spawn markers, spell visuals, sound emitters, boss markers and instance
+props: 717 survive, and the four pet beds below make 721 rows.
 
-A decor id is the entry's position in all 767, not in the 332 that survive the filter, so
-the range 2000-2999 has gaps and a filter change does not renumber the catalogue. That
-matters because a decor id is what a placement, a stock row and a saved blueprint point at.
-`tools/housing/verify_drafts.py` recomputes all 332 ids from the index and fails on a
-mismatch.
+Doors, gates and portcullises used to be dropped with them, and that was a mistake worth
+recording. They were the largest group the filter threw away - 321 door constants and 81 gate
+constants, counted twice where a name says both - and the argument was that they are
+interactive. That is true of a door set into a wall and false of a door standing in a yard:
+the interactivity is a script the realm attaches, not a property of the object, and a house with
+no door in its catalogue is a house with a hole in it. They now come in as Structural, which is
+also the answer to the second-most-asked question about this draft: the catalogue is large
+enough to furnish a house out of, not just to decorate one.
+
+The risk in taking them is a door whose template has no model, which would stand invisible and
+still occupy a slot. That is why the decorated SQL now ends with a report: it lists every row
+in 2000-2959 whose `gameobject_template` row is missing or has `displayId` 0. It is expected to
+return nothing, and a row there is a piece to delete rather than a piece to place.
+
+A decor id is the entry's position in all 748, not in the 717 that survive the filter, so the
+range 2000-2999 has gaps and a filter change does not renumber the catalogue. That matters
+because a decor id is what a placement, a stock row and a saved blueprint point at.
+`tools/housing/verify_drafts.py` recomputes every id from the index and fails on a mismatch.
 
 The four pet beds are the exception: the index calls no cage a decorative game object, so
 178147, 181714, 187369 and 246506 are named in the builder and given ids 2950-2953, above

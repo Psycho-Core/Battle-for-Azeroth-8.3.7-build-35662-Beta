@@ -745,6 +745,134 @@ def check_spawn_phasing():
                             "`true`".format(target, target))
 
 
+PROTOCOL_DOC = "ADDON-PROTOCOL.md"
+PROTOCOL_CPP = os.path.join("src", "mod_psychohouse_addon.cpp")
+PROTOCOL_LUA = os.path.join("addon", "PsychoHouse")
+
+
+def documented_records():
+    """Read ADDON-PROTOCOL.md's two record tables into {name: (mandatory, optional)}.
+
+    The tables are the contract, so they are parsed rather than restated: a field added here
+    and nowhere else fails the build, and a field added in the code but not here does too.
+    """
+    path = os.path.join(DRAFT, PROTOCOL_DOC)
+    if not os.path.exists(path):
+        fail("protocol", PROTOCOL_DOC + " is missing")
+        return {}
+
+    records = {}
+    for line in read(path).splitlines():
+        line = line.strip()
+        if not line.startswith("| `") or ":" not in line:
+            continue
+
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        name = cells[0].strip("`")
+
+        if not re.match(r"^[CS]:[A-Z]+$", name):
+            continue
+
+        try:
+            mandatory = int(cells[1])
+        except (IndexError, ValueError):
+            fail("protocol", "row for `{}` has no field count".format(name))
+            continue
+
+        optional = 0
+        if len(cells) > 2 and re.fullmatch(r"\d+", cells[2]):
+            optional = int(cells[2])
+
+        records[name] = (mandatory, optional)
+
+    return records
+
+
+def cpp_records():
+    """{(name): max placeholders} for every record the module speaks, both directions."""
+    path = os.path.join(DRAFT, PROTOCOL_CPP)
+    if not os.path.exists(path):
+        fail("protocol", "the module's addon source is missing: " + PROTOCOL_CPP)
+        return {}, set()
+
+    text = read(path)
+    client = set(re.findall(r'op == "(C:[A-Z]+)"', text))
+
+    server = {}
+    for match in re.finditer(r'"(S:[A-Z]+)\|([^"]*)"', text):
+        name = match.group(1)
+        fields = len(re.findall(r"\{[^}]*\}", match.group(2)))
+        server[name] = max(server.get(name, 0), fields)
+
+    return server, client
+
+
+def lua_records():
+    """The records the addon dispatches and the ones it sends."""
+    folder = os.path.join(DRAFT, PROTOCOL_LUA)
+    if not os.path.isdir(folder):
+        fail("protocol", "the addon is missing: " + PROTOCOL_LUA)
+        return set(), set()
+
+    handled, sent = set(), set()
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith(".lua"):
+            continue
+        text = read(os.path.join(folder, name))
+        handled.update(re.findall(r'handlers\["(S:[A-Z]+)"\]', text))
+        sent.update(re.findall(r'"(C:[A-Z]+)"', text))
+
+    return handled, sent
+
+
+def check_protocol():
+    """The document, the server switch and the addon must agree about the wire.
+
+    Three files, one protocol, and no compiler between them: this is the only place a record
+    that exists on one side and not the other is noticed before a player sees a dead button.
+    """
+    documented = documented_records()
+    if not documented:
+        return
+
+    server, client = cpp_records()
+    handled, sent = lua_records()
+
+    for name in sorted(client):
+        if name not in documented:
+            fail("protocol", "the module answers `{}` but the document does not list it".format(name))
+
+    for name in sorted(server):
+        if name not in documented:
+            fail("protocol", "the module sends `{}` but the document does not list it".format(name))
+            continue
+
+        mandatory, optional = documented[name]
+        if not mandatory <= server[name] <= mandatory + optional:
+            fail("protocol", "`{}` is documented with {} mandatory (+{}) field(s) but the "
+                            "module formats {}".format(name, mandatory, optional, server[name]))
+
+    for name in sorted(handled):
+        if name not in documented:
+            fail("protocol", "the addon dispatches `{}`, which the document does not list".format(name))
+
+    for name in sorted(documented):
+        if name.startswith("S:") and name not in handled:
+            fail("protocol", "`{}` is documented but the addon does not dispatch it".format(name))
+
+    for name in sorted(sent):
+        if name not in documented:
+            fail("protocol", "the addon sends `{}`, which the document does not list".format(name))
+
+    # A record the addon sends that the module never answers is a button that does nothing.
+    for name in sorted(sent):
+        if name not in client:
+            fail("protocol", "the addon sends `{}` but the module has no branch for it".format(name))
+
+    if "" in handled or not handled:
+        fail("protocol", "the addon's handler table is empty - the parser or the addon is wrong")
+
+
 def check_conf():
     dist = os.path.join(DRAFT, "conf", "mod_psychohouse.conf.dist")
     if not os.path.exists(dist):
@@ -809,10 +937,11 @@ def main():
     check_core_calls(args.repo)
     check_includes()
     check_spawn_phasing()
+    check_protocol()
 
     print("{} SQL files, {} tables, {} facilities, {} build tables cross-checked".format(
         len(texts), len(tables), len(rows), len(vocab)))
-    print("phase range and conf keys cross-checked against the code")
+    print("phase range, conf keys and the addon protocol cross-checked against the code")
     print("\n{} finding(s)".format(len(findings)))
     for line in findings:
         print("  " + line)

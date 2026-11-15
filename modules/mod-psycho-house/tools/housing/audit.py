@@ -218,7 +218,10 @@ def check_doc_refs(findings):
             for target in DOC_REF.findall(text):
                 cleaned = target.split(":")[0]
                 candidates = [os.path.join(ROOT, cleaned),
-                              os.path.join(os.path.dirname(path), cleaned)]
+                              os.path.join(os.path.dirname(path), cleaned),
+                              # The third draft keeps its documents beside its sources, and a
+                              # tool that tests that draft names them from here.
+                              os.path.join(ROOT, "drafts", "mod-psychohouse", cleaned)]
 
                 if any(os.path.exists(candidate) for candidate in candidates):
                     continue
@@ -514,6 +517,156 @@ def check_addon(findings):
                 findings.append(("addon", rel(script), line[len("finding: "):]))
 
 
+def check_channels(findings):
+    """The channel page's count is its own table.
+
+    "Channels: 0 of 34" is a claim about a list, and a list that is edited by hand drifts from
+    the sentence above it. This reads the table, the headline and the three group lines, and
+    fails when they disagree - the same rule the rest of this folder applies to every other
+    number it states.
+    """
+    path = os.path.join(ROOT, "drafts", "midnight-port", "CHANNELS.md")
+    if not os.path.exists(path):
+        findings.append(("channels", "drafts/midnight-port/CHANNELS.md", "the page is missing"))
+        return
+
+    text = read(path).decode("ascii", "replace")
+    rows = {}
+    for line in text.splitlines():
+        match = re.match(r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|", line)
+        if match:
+            rows[int(match.group(1))] = {
+                "name": match.group(2),
+                "auth": match.group(3),
+                "cells": [cell.strip() for cell in line.strip("|").split("|")],
+            }
+
+    if not rows:
+        findings.append(("channels", "CHANNELS.md", "the channel table could not be read"))
+        return
+
+    numbers = sorted(rows)
+    if numbers != list(range(1, len(numbers) + 1)):
+        findings.append(("channels", "CHANNELS.md",
+                         "the channel numbers are not 1..{}: {}".format(len(numbers), numbers)))
+
+    headline = re.search(r"Channels: 0 of (\d+)", text)
+    if not headline:
+        findings.append(("channels", "CHANNELS.md", "the headline count is missing"))
+    elif int(headline.group(1)) != len(rows):
+        findings.append(("channels", "CHANNELS.md",
+                         "the headline says {} channels and the table has {}".format(
+                             headline.group(1), len(rows))))
+
+    for number, row in sorted(rows.items()):
+        status = row["cells"][-1].strip("`")
+        if status not in ("none", "spec"):
+            findings.append(("channels", "CHANNELS.md",
+                             "channel {} has status `{}`, which is not one this page defines".format(
+                                 number, status)))
+        for cell in row["cells"]:
+            if not cell:
+                findings.append(("channels", "CHANNELS.md",
+                                 "channel {} has an empty cell".format(number)))
+
+    # The three group lines name channel numbers. Each bullet is a paragraph of its own, so it
+    # is split on its own marker rather than parsed with a pattern across the whole page.
+    oauth_rows = {number for number, row in rows.items() if "OAuth" in row["auth"]}
+
+    bullets = {}
+    for chunk in text.split("\n* **")[1:]:
+        label = chunk.split("**", 1)[0]
+        # Only the first sentence: the rest of a bullet explains and may cite other numbers
+        # ("section 4", "3 by webhook token"), and those are not members of the group.
+        body = chunk.split("\n* **")[0].split("\n\n")[0].split(".")[0]
+        bullets[label] = set(int(n) for n in re.findall(r"\d+", body))
+
+    if "OAuth channels" not in bullets:
+        findings.append(("channels", "CHANNELS.md", "the OAuth group line is missing"))
+    elif bullets["OAuth channels"] != oauth_rows:
+        findings.append(("channels", "CHANNELS.md",
+                         "the OAuth group lists {} and the table says {}".format(
+                             sorted(bullets["OAuth channels"]), sorted(oauth_rows))))
+
+    for label in ("Token channels", "Protocol channels"):
+        if label not in bullets:
+            findings.append(("channels", "CHANNELS.md", "the {} line is missing".format(label)))
+            continue
+        for number in bullets[label]:
+            if number not in rows:
+                findings.append(("channels", "CHANNELS.md",
+                                 "the {} line names channel {}, which the table does not have".format(
+                                     label, number)))
+
+
+def check_parity(findings):
+    """The parity sentence counts its own table, so it cannot drift from it.
+
+    Doc 13 sec.9e claims thirteen systems with the same rule, six smaller, six replaced and
+    fourteen absent. That is a claim about thirty-nine rows, and a row changed from `same` to
+    `no` without the sentence moving would make the document wrong in the one paragraph written
+    to prove it is right.
+    """
+    path = os.path.join(ROOT, "13-mod-psychohouse-design.md")
+    if not os.path.exists(path):
+        findings.append(("parity", "13-mod-psychohouse-design.md", "the document is missing"))
+        return
+
+    text = read(path).decode("utf-8", "replace")
+    if "| System | Here | Note |" not in text:
+        findings.append(("parity", "13-mod-psychohouse-design.md", "the parity table is missing"))
+        return
+
+    table = text.split("| System | Here | Note |", 1)[1].split("The one place this table could lie", 1)[0]
+    statuses = []
+    for line in table.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) == 3 and cells[1] in ("same", "smaller", "replaced", "no"):
+            statuses.append(cells[1])
+
+    if not statuses:
+        findings.append(("parity", "13-mod-psychohouse-design.md", "the parity table has no rows"))
+        return
+
+    counted = {name: statuses.count(name) for name in ("same", "smaller", "replaced", "no")}
+    words = {"thirteen": 13, "six": 6, "fourteen": 14, "thirty-nine": 39}
+
+    sentence = re.search(r"The table has ([a-z-]+) rows: ([a-z-]+) systems carry the same rule, "
+                         r"([a-z-]+) a deliberately\s*smaller one, ([a-z-]+) are replaced by "
+                         r"something that covers the same need, and ([a-z-]+) are absent", text)
+    if not sentence:
+        findings.append(("parity", "13-mod-psychohouse-design.md",
+                         "the parity sentence was not found in a readable form"))
+        return
+
+    claimed = [words.get(group) for group in sentence.groups()]
+    actual = [len(statuses), counted["same"], counted["smaller"], counted["replaced"], counted["no"]]
+
+    if claimed != actual:
+        findings.append(("parity", "13-mod-psychohouse-design.md",
+                         "the sentence says {} and the table says {}".format(claimed, actual)))
+
+
+def check_psychohouse_addon(findings):
+    """Run the per-character module's addon in the 5.1 model as well.
+
+    The neighbourhood addon and the module's addon are separate programs on separate prefixes,
+    so a clean `addon` run says nothing about the second one. Same rule as above: no
+    interpreter is a reported finding, not a pass.
+    """
+    import subprocess
+
+    script = os.path.join(ROOT, "tools", "housing", "check_psychohouse_addon.py")
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    out = result.stdout + result.stderr
+    if result.returncode == 2:
+        findings.append(("psychoaddon", rel(script), "not run: " + out.strip().splitlines()[0]))
+    elif result.returncode != 0:
+        for line in out.splitlines():
+            if line.startswith("  ") and line.strip():
+                findings.append(("psychoaddon", rel(script), line.strip()))
+
+
 CHECKS = {
     "ascii": check_ascii,
     "voice": check_voice,
@@ -532,6 +685,9 @@ CHECKS = {
     "addon": check_addon,
     "copies": check_copies,
     "worklist": check_worklist,
+    "psychoaddon": check_psychohouse_addon,
+    "channels": check_channels,
+    "parity": check_parity,
 }
 
 

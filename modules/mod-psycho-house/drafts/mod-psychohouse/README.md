@@ -5,11 +5,16 @@ for each character that buys one, in a phase of its own. Not per guild and not p
 two characters in the same guild own two houses in two phases, and a house opens only for the
 character that bought it. Written for BfA 8.3.7 build 35662.
 
-It is not a room builder. It is a key, a plot of island, and a Steward who furnishes it: bank,
+It is not a room builder. It is a key, a plot of island, a Steward who furnishes it: bank,
 auctioneer, mailbox, innkeeper, stable master, spirit healer, forge, anvil, barber chair, guild
-vault, a repair vendor, and the portal that matches the owner's faction. Eleven services and
-two portals, thirteen rows in one table. Decor, budgets, rooms, dyes, Endeavors and the addon
-belong to the neighbourhood module, not to this one.
+vault, a repair vendor, and the portal that matches the owner's faction - eleven services and
+two portals, thirteen rows in one table. On top of that the character may stand furniture of
+their own in the yard: any object the realm already has, up to a number the realm sets in the
+configuration. A catalogue of decor, budgets, rooms, dyes, blueprints and Endeavors belong to
+the neighbourhood module; an object and a place to put it do not.
+
+The interface is three surfaces over the same functions: two gossip menus, eight commands, and
+a small addon channel with a window bundled in `addon/PsychoHouse`.
 
 Nothing in here is a guessed id. The two NPCs are entries I made up because they are mine
 (900200 and 900201); every other creature and object is resolved out of the realm's own world
@@ -22,6 +27,8 @@ database by a statement that says what it is looking for, and the run prints wha
 | Buy the house | the Keeper NPC, or `.psychobuy` | 1 000 gold, config |
 | Travel to it | the Keeper, or `.psychohome` | free |
 | Furnish it | the Steward NPC, one service at a time | per row in `psychohouse_facility` |
+| Stand furniture in it | `.psychoplace`, or the addon window | free, up to `PsychoHouse.Objects.Max` pieces |
+| Take furniture out | `.psychostand <slot>`, or the addon window | free |
 | Sell it back | the Keeper, or `.psychosell` | half the house price, config |
 
 Once the house is bought, walking into the island area puts the character into the house's
@@ -38,15 +45,20 @@ to orphan and no grid bookkeeping to get wrong.
    without a hyphen is the only name that compiles
    (../../tools/housing/install.py --draft mod-psychohouse --root <source> does 2 and 5 as
    well, and picks modules/PsychoHouse or src/server/scripts/PsychoHouse by what it finds)
-3. re-run cmake, rebuild, install
-4. paste the keys from conf/mod_psychohouse.conf.dist into <config>/worldserver.conf,
+3. apply patches/0001-phsh-addon-route.patch from the source root
+   (one declaration and one early return in ChatHandler.cpp; without it everything works
+   except the addon window, and .psychodiag says so)
+4. re-run cmake, rebuild, install
+5. copy addon/PsychoHouse/ into the client's Interface/AddOns/ as PsychoHouse
+   (optional - the gossip menus and the commands do not need it)
+6. paste the keys from conf/mod_psychohouse.conf.dist into <config>/worldserver.conf,
    inside [worldserver], without the section header that file is not carrying anyway
-5. apply, in order:
+7. apply, in order:
      sql/world/01_schema.sql              world database
      sql/world/02_creatures.sql           world database
      sql/world/03_bind_facilities.sql     world database, then read its report
      sql/characters/01_characters_schema.sql   characters database
-6. restart, then .psychodiag to see the catalogue state
+8. restart, then .psychodiag to see the catalogue state
 ```
 
 Step 4 is not a formality: this core reads exactly one configuration file and keeps only its
@@ -102,11 +114,48 @@ hand: the resolver only fires where `entry` is still 0, so a hand-set entry is n
 overwritten. The two model statements delete their row before inserting, so they are the
 exception - change them in the file rather than in the table.
 
+## Furniture, and the number that limits it
+
+The thirteen facility rows are the building: a bank, a forge, a portal. Furniture is whatever
+else the character wants standing in the yard, and it is deliberately not a catalogue. A piece
+is an entry from `gameobject_template` that the realm already ships, placed at absolute
+coordinates inside the house phase, and the module checks four things before it stands:
+
+| Check | Why |
+| --- | --- |
+| `PsychoHouse.Objects.Max` | the limit. Read on every placement, so changing it and running `.psychoreload` takes effect without a restart; 0 removes the feature entirely |
+| `PsychoHouse.Objects.Radius` | distance from the anchor in three dimensions. Without it a house is a way to put a mailbox anywhere on the island, or a bank under the terrain |
+| the template | entry must resolve in `gameobject_template` and carry a display id. A template with no model would spawn nothing and still take a slot |
+| the scale band | `PsychoHouse.Objects.Scale.Min` / `.Max`. Clamped rather than rejected, so a client with a stale slider still places its piece |
+
+A piece is stored in `psychohouse_object` as one row keyed on `(guid, slot)`. The slot is the
+identity, not the entry: a piece keeps its number for as long as it stands, the lowest free slot
+is reused, and a removal always names exactly one piece. The lowest free slot matters more than
+it looks - a house that has had pieces removed and re-added over a year would otherwise climb
+past its own limit one slot at a time.
+
+Nothing is written to the world database. The object is created at run time into the house
+phase, exactly like the facilities, so selling the house deletes its furniture with it and
+leaves nothing to orphan.
+
+## The addon
+
+`addon/PsychoHouse` is a 8.3.7 addon with one window: the house state, the standing objects
+with a Remove button on each, an entry box that places a piece where the character is standing,
+and the facility list with a Buy button per row. It talks over the addon channel on the `PHSH`
+prefix; the protocol is written out in `ADDON-PROTOCOL.md`.
+
+The client cannot read world coordinates, which is why the window's placement is "here" rather
+than a position it computes: the module reads the character's position and applies the same
+four checks. A player who wants a specific spot types the numbers once with `.psychoplace` and
+reads them back from `.psychostand`; the addon's list shows the same slot numbers.
+
 ## Tables
 
 World: `psychohouse_facility`, 13 rows, offsets from the house anchor, price in copper, a
-faction mask, an entry. Characters: `psychohouse_owner`, one row per house, and
-`psychohouse_purchase`, one row per bought facility.
+faction mask, an entry. Characters: `psychohouse_owner`, one row per house,
+`psychohouse_purchase`, one row per bought facility, and `psychohouse_object`, one row per
+standing piece of furniture.
 
 `psychohouse_owner.phase` is allocated at purchase, stored, and unique. The range is
 50000-64999: 15 000 houses, inside the uint16 phase space this build uses, above every retail
@@ -165,6 +214,8 @@ whatever is not there.
 | `.psychohouse` | status of the current character's house |
 | `.psychobuy` / `.psychosell` | buy or sell the house |
 | `.psychohome` | travel to it |
+| `.psychoplace <entry> <x> <y> <z> <o> [scale]` | stand one object in the yard |
+| `.psychostand [slot]` | list the standing objects, or remove the one in that slot |
 | `.psychodiag` | GM: catalogue state, bound and unbound facilities, loaded houses |
 | `.psychoreload` | GM: re-read the conf and the catalogue table |
 
@@ -173,9 +224,11 @@ keyboard path, not a second feature set.
 
 ## What this draft deliberately does not do
 
-- no decor, placement, budgets, rooms, dyes, Endeavors or blueprints - that is the
-  neighbourhood module, and this one carries no part of it;
-- no addon: the entire interface is two gossip menus and six commands;
+- no decor catalogue, budgets, rooms, dyes, blueprints or Endeavors - that is the
+  neighbourhood module, and this one carries no part of it. Furniture here is one object and
+  one place, with no set, no catalogue page and no budget: the limit is the whole economy of it;
+- no custom art or custom objects. Every piece is an entry the realm already ships, and the
+  catalogue of what may stand is `gameobject_template`, not a list in this folder;
 - no guild involvement of any kind. A guild has no house here and cannot buy one;
 - no visitors. A house's phase is entered by its owner only. Guest lists are the neighbourhood
   module's job, and doing them twice would mean two permission models;
@@ -188,18 +241,18 @@ none of them claims the result was built:
 
 ```
 python3 tools/housing/check_cpp.py --src drafts/mod-psychohouse/src --sql drafts/mod-psychohouse/sql
-  5 files, 3 classes, 28 methods defined on the manager, braces balanced, includes resolved,
-  every table named in a query created by this draft
+  7 files, 4 classes, 4 tables created by this draft, 38 methods on the manager, braces
+  balanced, includes resolved, every table named in a query created by this draft
 
 python3 tools/housing/check_psychohouse.py
-  4 SQL files, 3 tables, 13 facilities, 3 build tables cross-checked: every INSERT column
+  4 SQL files, 4 tables, 13 facilities, 3 build tables cross-checked: every INSERT column
   against its table, every value count against its column list, every unbound facility
   against a resolver, the phase range against the uint16 space and against the neighbourhood
   range, every config key against the code that reads it
 
 python3 tools/housing/check_psychohouse.py (continued, the MariaDB-facing part)
-  printf dialect: every database call with arguments goes through PQuery/PExecute, carries no
-  `{}` placeholder, and has as many conversions as arguments
+  printf dialect: every database call with arguments goes through PQuery/DirectPExecute,
+  carries no `{}` placeholder, and has as many conversions as arguments
   the house key is 64-bit in the header, in the character table and in the schema of
   `characters` itself
   every CREATE TABLE pins ENGINE, CHARSET and COLLATE
@@ -211,6 +264,19 @@ python3 tools/housing/check_psychohouse.py (continued, the spawn-facing part)
   same tick is a race the read can win
   AddPhase(x, ..., false) only where AddToMap(x) follows, because a summon is already in the
   world and needs the visibility update that false suppresses
+
+python3 tools/housing/check_psychohouse.py (continued, the addon protocol)
+  ADDON-PROTOCOL.md, the switch in src/mod_psychohouse_addon.cpp and the handler table in
+  addon/PsychoHouse/core.lua are read as three lists and compared: 12 client records and 8
+  server records on each side, and every server record's documented field count checked
+  against the number of fields the module actually formats
+
+python3 tools/housing/check_psychohouse_addon.py
+  the addon itself, run in a Lua 5.1 interpreter against the model of the 8.3.7 client in
+  tools/housing/wow_env.lua: 80 checks - it loads, registers the prefix once, greets the
+  server, dispatches every documented record, ignores a record under another prefix, prints
+  nothing for a record it does not know, builds its rows, and every button and edit box sends
+  exactly the record the protocol says
 ```
 
 Mutation-tested: seven deliberate faults - a misspelled build column, an unknown kind, a
@@ -219,7 +285,11 @@ base, a missing config key, and a wrong `is_object` - were all caught, as were f
 round: a bare scalar subquery, a `[psychohouse]` header, a 32-bit house key, a `{}` placeholder
 in a live call, and a table with no `COLLATE`. Two more were added after them: `PExecute` put
 back at all five write sites, and one summon phased with `false`. Those five and that one were
-reported.
+reported. Three more were added with the addon: a documented record removed from the C++ switch,
+a field dropped from a server record, and a handler removed from the Lua table; each was
+reported by name. One fault was added to the addon itself - the pipe split changed back to
+`gmatch("([^|]*)")`, which inserts an empty field at every separator - and the run reported the
+shifted values on fourteen checks.
 
 Separately, and once, all four SQL files were parsed with a MySQL-dialect SQL parser
 (sqlglot) to confirm they are statements rather than text that looks like statements. That is
@@ -233,6 +303,10 @@ Not checked, and not claimed:
   claimed is narrower: every core call it makes was read out of this tree and its signature
   matched, and the calls this build does not have - the old integer phase mask, the
   per-player data map, the old config accessor, the pre-BfA rest call - do not appear in it;
+- whether the addon behaves in a real client. It is run, not tested in a game: the model
+  answers what the addon asks and nothing else, the frames are tables, and the two things a
+  model cannot show - how the window looks and how the client routes an addon whisper to
+  itself - stay unproven until it is in one;
 - whether GM Island area 876 is still 876 in a given realm's content. That is why the zone
   and area are configuration;
 - whether the resolved banker looks right. That is what the report at the end of
@@ -243,14 +317,21 @@ Not checked, and not claimed:
 ```
 drafts/mod-psychohouse/
   README.md
+  ADDON-PROTOCOL.md                         the PHSH channel: 12 client and 8 server records
   conf/mod_psychohouse.conf.dist            keys to paste into worldserver.conf
+  patches/0001-phsh-addon-route.patch        one declaration and one early return, ChatHandler.cpp
   sql/world/01_schema.sql                   facility table and its 13 rows
   sql/world/02_creatures.sql                the two NPCs, every column the loader reads
   sql/world/03_bind_facilities.sql          resolvers for entries and models, then the report
-  sql/characters/01_characters_schema.sql   owner and purchase tables
+  sql/characters/01_characters_schema.sql   owner, purchase and object tables
   src/mod_psychohouse.h                     constants, records, the manager
   src/mod_psychohouse.cpp                   config, catalogue, phases, spawn, buy, sell
+  src/mod_psychohouse_objects.cpp           furniture: place, remove, spawn, list
+  src/mod_psychohouse_addon.cpp             the PHSH channel
   src/mod_psychohouse_gossip.cpp            the Keeper and the Steward
   src/mod_psychohouse_hooks.cpp             world, player and command scripts
   src/loader.cpp                            AddPsychoHouseScripts()
+  addon/PsychoHouse/PsychoHouse.toc         the client window
+  addon/PsychoHouse/core.lua                the wire
+  addon/PsychoHouse/panel.lua               the window
 ```

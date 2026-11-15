@@ -345,6 +345,14 @@ def check_constants(cpp_files, headers):
     fine as long as the loader reads it.
     """
     defines = os.path.join(HERE, "src", "game", "Housing", "HousingDefines.h")
+
+    # A run over another draft's sources says nothing about this module's constant header: the
+    # readers live in the files the override left out, so every constant would read as dead.
+    # Skipped rather than reported, and said out loud so the skip is visible.
+    if os.path.abspath(os.path.dirname(SRC)) != os.path.abspath(os.path.join(HERE, "src")):
+        print("  constants: not checked - this run reads sources outside this module")
+        return []
+
     with open(defines, encoding="utf-8") as handle:
         text = handle.read()
     names = re.findall(r"^\s*constexpr\s+[\w:<>\s]+?\s+(k[A-Za-z0-9]+)\s*=", text, re.M)

@@ -274,9 +274,11 @@ non-placeable kinds: **767 game objects** and **221 creatures**.
 | Furnishings > Tables and Desks | 4 |
 | (remaining families) | 4 |
 
-Doors are the largest family and the least useful: 337 of the 767 are door and gateway
-constants, which is why the native draft rejects them by name and starts from the 430 that
-are left.
+Doors are the largest family: 337 of the 767 are door and gateway constants. They were
+rejected by name at first and are not any more. A door is a real object with a real model, and
+the interactivity that made it look like machinery is a script the realm attaches, not a
+property of the piece; a house with no door in its catalogue is a house with a hole in it. The
+native draft places them as Structural, which brings it from 332 pieces to 717.
 
 Two files carry the full list:
 

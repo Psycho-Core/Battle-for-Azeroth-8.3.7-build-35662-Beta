@@ -44,3 +44,33 @@ CREATE TABLE IF NOT EXISTS `psychohouse_purchase` (
   KEY `facility` (`facility`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='Facilities bought for a house';
+
+-- Objects a player put in their own house.
+--
+-- `slot` is the identity, not `entry`: `(guid, slot)` is the primary key, so a piece keeps its
+-- number for as long as it stands and a removal always names exactly one piece. The range is
+-- whatever `PsychoHouse.Objects.Max` was when the piece went down - the table does not cap it,
+-- the module does - and the lowest free slot is reused, so a house that has had pieces
+-- removed and re-added does not climb past its own limit.
+--
+-- The position is absolute, not an offset from the anchor, because that is what a client sends
+-- and what `.psychostand` prints back. The radius check in the module is what keeps an absolute
+-- position inside the yard.
+--
+-- No foreign key to `psychohouse_owner`: rows are deleted in the same call that deletes the
+-- house, and a FK would only make the sell path fail on a realm where the two tables were
+-- created at different times.
+
+CREATE TABLE IF NOT EXISTS `psychohouse_object` (
+  `guid`  bigint unsigned NOT NULL COMMENT 'psychohouse_owner.guid',
+  `slot`  tinyint unsigned NOT NULL COMMENT '0-199, stable for the life of the piece',
+  `entry` int unsigned NOT NULL COMMENT 'gameobject_template.entry',
+  `x`     float NOT NULL DEFAULT 0,
+  `y`     float NOT NULL DEFAULT 0,
+  `z`     float NOT NULL DEFAULT 0,
+  `o`     float NOT NULL DEFAULT 0 COMMENT 'orientation in radians',
+  `scale` float NOT NULL DEFAULT 1,
+  PRIMARY KEY (`guid`, `slot`),
+  KEY `entry` (`entry`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  COMMENT='Objects a player placed in their own house';

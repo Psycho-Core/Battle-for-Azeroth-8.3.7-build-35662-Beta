@@ -81,7 +81,12 @@ namespace PsychoHouse
         WrongFaction,
         NotEnoughLevel,
         Storage,
-        Failed
+        Failed,
+        // Appended with the object feature; nothing above them is renumbered.
+        ObjectLimit,
+        BadObject,
+        OutOfRange,
+        NoSuchObject
     };
 
     char const* ResultText(HouseResult result);
@@ -103,6 +108,19 @@ namespace PsychoHouse
         uint8       Sort = 0;
     };
 
+    /// One object a player put in their own house. The slot is the identity: the table is
+    /// keyed on (guid, slot), so a piece keeps its number for as long as it stands.
+    struct Placement
+    {
+        uint8  Slot = 0;
+        uint32 Entry = 0;
+        float  X = 0.0f;
+        float  Y = 0.0f;
+        float  Z = 0.0f;
+        float  O = 0.0f;
+        float  Scale = 1.0f;
+    };
+
     /// One character's house, cached while the character is in the world.
     struct Owner
     {
@@ -116,6 +134,8 @@ namespace PsychoHouse
         ObjectGuid  Steward;
         std::vector<uint16>                    Bought;
         std::unordered_map<uint16, ObjectGuid> Spawned;
+        std::map<uint8, Placement>             Objects;        // player-placed, by slot
+        std::map<uint8, ObjectGuid>            ObjectSpawns;   // the same slots on the map
     };
 
     class PsychoHouseMgr
@@ -154,6 +174,23 @@ namespace PsychoHouse
         HouseResult BuyFacility(Player* player, uint16 facilityId);
         bool TeleportHome(Player* player);
 
+        /// Player-placed objects. The limit is a setting: `PsychoHouse.Objects.Max` per house,
+        /// 0 turns the feature off, and the radius is how far from the anchor a piece may stand
+        /// so a house cannot be used as a second bank in the middle of the island.
+        uint8 ObjectLimit() const { return _objectLimit; }
+        float ObjectRadius() const { return _objectRadius; }
+        std::map<uint8, Placement> const& GetObjects(Owner const* owner) const;
+
+        HouseResult PlaceObject(Player* player, uint32 entry, float x, float y, float z,
+            float o, float scale);
+        HouseResult RemoveObject(Player* player, uint8 slot);
+
+        /// One line per standing object, for the command, the addon and the diagnostics.
+        std::string ObjectList(Player* player);
+
+        /// The addon channel. Its own prefix, and the only entry point from the core.
+        void HandleAddonMessage(Player* player, std::string const& message);
+
         std::string Diagnostics();
 
     private:
@@ -164,7 +201,12 @@ namespace PsychoHouse
         void SpawnSteward(Player* player, Owner* owner);
         void DespawnHouse(Owner* owner);
         void SpawnFacility(Player* player, Owner* owner, Facility const& facility);
+        void SpawnObjects(Player* player, Owner* owner);
+        void SpawnObject(Player* player, Owner* owner, Placement const& placement);
+        void DespawnObjects(Owner* owner);
         bool LoadPurchases(Owner* owner);
+        bool LoadObjects(Owner* owner);
+        uint8 FreeSlot(Owner const* owner) const;
         bool FacilityFitsTeam(Facility const& facility, Owner const* owner) const;
         uint16 AllocatePhase(uint64 guid, uint32 account, uint8 team, std::string const& name);
 
@@ -183,6 +225,10 @@ namespace PsychoHouse
         float                       _stewardO = 0.0f;
         uint32                      _housePrice = 10000000;
         uint8                       _refundPercent = 50;
+        uint8                       _objectLimit = 20;      // objects per house, 0 = off
+        float                       _objectRadius = 18.0f;  // yards from the anchor
+        float                       _objectScaleMin = 0.5f;
+        float                       _objectScaleMax = 3.0f;
 
         std::vector<Facility>              _facilities;
         std::map<uint16, Facility>         _facilityById;

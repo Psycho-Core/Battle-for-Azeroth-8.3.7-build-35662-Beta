@@ -82,3 +82,36 @@ PsychoHouse.Steward.Offset.X = 1.5
 PsychoHouse.Steward.Offset.Y = -2.5
 PsychoHouse.Steward.Offset.Z = 0.0
 PsychoHouse.Steward.Offset.O = 0.0
+
+####################################################################################
+#  Player-placed objects
+#
+#  The Steward sells the building - a bank, a forge, a portal. This is the furniture: whatever
+#  the character wants standing in their own yard, up to a limit the realm sets here. A piece
+#  is a game object the realm already has, so `PsychoHouse.Objects.Max` is the only thing
+#  standing between a house and an empty map.
+#
+#  The limit is read every time a piece is placed and again on `.psychoreload`, so it can be
+#  changed without a restart. Set it to 0 to switch the feature off: `.psychoplace` then
+#  answers "done" for nothing and both the command and the addon stop placing.
+####################################################################################
+
+# PsychoHouse.Objects.Max
+#   How many objects one house may hold. 0 removes the feature. Above 200 is clamped, because
+#   each piece is a real game object in the same phase and every player standing in the house
+#   receives all of them at once.
+#   Default: 20
+PsychoHouse.Objects.Max = 20
+
+# PsychoHouse.Objects.Radius
+#   Distance in yards from PsychoHouse.Anchor that a piece may stand. Measured in three
+#   dimensions, so a piece cannot be put under the terrain or in the air above the yard.
+#   Default: 18.0
+PsychoHouse.Objects.Radius = 18.0
+
+# PsychoHouse.Objects.Scale.Min / .Max
+#   The scale range a player may ask for. The value in the command is clamped into this band
+#   rather than rejected, so a client with a stale slider still places its piece.
+#   Defaults: 0.5 / 3.0
+PsychoHouse.Objects.Scale.Min = 0.5
+PsychoHouse.Objects.Scale.Max = 3.0

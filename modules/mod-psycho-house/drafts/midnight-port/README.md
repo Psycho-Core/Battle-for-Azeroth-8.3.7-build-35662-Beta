@@ -170,6 +170,11 @@ each path twice, at two prices, and buys the cheaper one.
   ship an objective each, because their quest is a kill or a loot the core can count.
 - Retail exterior shells (house skins) have no 8.3.7 equivalent. The draft uses the shell
   rooms from doc 06.
+- The integration surface is a specification and nothing else: `CHANNELS.md` lists thirty-four
+  chat channels at 0 of 34, the `channel_agent` record that binds an agent to one of them, the
+  OAuth start and callback routes, and the pipeline for pulling data and art out of a retail
+  client. None of it is implemented, no credential exists, and the page says so in its first
+  paragraph.
 
 - What answers when clicked. Ten scripts are selected by `ScriptName`, never by entry, so
   no creature or object is created and none is overwritten - every binding is an `UPDATE ...

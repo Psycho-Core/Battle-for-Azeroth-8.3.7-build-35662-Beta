@@ -1,7 +1,8 @@
 # 10 - The draft modules
 
 I built the housing system three times on purpose, and the third one is a different product
-rather than a different content pack: one island house per character, gossip only, no addon.
+rather than a different content pack: one island house per character, gossip, two commands for
+its furniture and a window of its own.
 Section 8 is that one. The first two are two content packs over one C++ core. One draft is the port: retail content, retail
 prices, retail item ids, every piece of it traceable to a Midnight vendor page. The other
 is the native draft: nothing from retail survives, and every id in it already exists in
@@ -12,7 +13,7 @@ they are the same mod with two content packs, not two codebases.
 drafts/
   midnight-port/     draft A - retail content on an 8.3.7 server
   bfa-native/        draft B - 8.3.7 content only, no port
-  mod-psychohouse/   draft C - one house per character, its own module, no addon
+  mod-psychohouse/   draft C - one house per character, its own module and addon
 ```
 
 ## 1. What the two drafts share
@@ -66,16 +67,18 @@ The from-scratch build. No retail ids at all.
 
 | Piece | Value |
 | --- | --- |
-| Decor rows | 336: 332 game objects that already exist in my tree, plus the four pet beds below |
+| Decor rows | 721: 717 game objects that already exist in my tree, plus the four pet beds below |
 | Vendors | 8 stalls of my own design |
-| Stock lines | 336, every piece sold somewhere |
+| Stock lines | 721, every piece sold somewhere |
 | Quest rows | the same four ids and the same beats, so a character can switch drafts without losing the chain |
 | Currency | gold only |
 | Names | the constant in the SQL, replaced at load from `gameobject_template.name` |
 | Vendor models | bound from `creature_template` by subname, never by a guessed npc id |
 
-The 332 are what is left of the 767 decor-shaped game object constants after dropping
-doors, gates and portcullises, traps, spawn markers, spell visuals and instance props. The
+The 717 are what is left of the 748 decor-shaped game object constants after dropping traps,
+triggers, spawn markers, spell visuals, sound emitters, boss markers and instance props.
+Doors, gates and portcullises are no longer dropped: they are 402 of the constants, the largest
+group in the index, and a house with no door in its catalogue is a house with a hole in it. The
 four pet beds are added rather than harvested, because all four cages in the index are
 scenery for a quest cage rather than a bed, and a bed is a decor row with a
 `housing_decor_creature` row behind it - so the native draft takes the four cage models and
@@ -85,7 +88,7 @@ An id in this draft is the entry's position in the whole decor-shaped set, not i
 one, so the range 2000-2999 has gaps where the filter dropped a piece and every surviving id
 survives the next filter change. The four beds sit at 2950-2959, above the range the harvest
 can reach, because the cages are not decor-shaped by the index's own reckoning. `verify_drafts.py`
-recomputes all 332 ids from `generated/source-asset-index.csv` and fails on a mismatch. The filter lives in
+recomputes every id from `generated/source-asset-index.csv` and fails on a mismatch. The filter lives in
 `tools/housing/build_drafts.py` as a single tuple of words, so the catalogue is a policy
 decision I can change and re-generate in seconds.
 
@@ -96,7 +99,7 @@ decision I can change and re-generate in seconds.
 | Needs retail data | yes, by definition | no |
 | Needs client patches | for art, yes | no |
 | Runs on a clean 8.3.7 install | yes, every row already has an 8.3.7 stand-in game object | yes, immediately |
-| Number of decor pieces | 571, split 395 Horde / 176 Alliance | 336, both factions |
+| Number of decor pieces | 571, split 395 Horde / 176 Alliance | 721, both factions |
 | Number of vendors | 39 | 8 |
 | Item ids referenced | 439 distinct retail ids on 450 rows | 0 |
 | Currency | gold + 3363 + item 33226 | gold |
@@ -193,15 +196,16 @@ the core it runs on and the phase range it deliberately avoids. Doc 13 is the de
 | --- | --- | --- | --- |
 | Ownership | plot in a neighbourhood, per account | same | one house per character |
 | Where | neighbourhood map | same | GM Island, map 1 |
-| Interface | addon, 24 opcodes | same | two gossip menus, five commands |
+| Interface | addon, 24 opcodes | same | two gossip menus, eight commands, and a window of its own on the PHSH channel (12 client records, 8 server records) |
 | Content | retail item ids and prices | 8.3.7 ids only | 13 facility rows, entries resolved from the realm |
 | Phases | 10000-46374 | same | 50000-64999 |
-| Furniture | yes | yes | no - services only |
+| Furniture | yes, a catalogue of pieces | yes, 721 pieces | yes, any object the realm has, up to a configured limit (20 by default) |
 | Install | `install.py --draft midnight-port` | `install.py --draft bfa-native` | `install.py --draft mod-psychohouse` |
 
 `install.py` covers all three since the seventeenth audit pass; until then it refused C, which
-is the one doc 13 sec.11 says ships first. C has no game tree and no addon, so the installer
-copies its flat `src/` into the scripts folder and says so in the closing notes. The one step
+is the one doc 13 sec.11 says ships first. C has no game tree - its addon sits inside its own
+draft folder rather than at the module root - so the installer copies its flat `src/` into the
+scripts folder and says so in the closing notes. The one step
 that matters on any of them: the scripts folder must be `PsychoHouse` and not
 `mod-psychohouse`, because the build derives `AddPsychoHouseScripts()` from the folder name and
 a hyphen does not compile.
