@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Fifteen checks, one line each, exit code 1 on a finding:
+Sixteen checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -28,6 +28,7 @@ Fifteen checks, one line each, exit code 1 on a finding:
 | `floorplan` | The room placement rules restated in Python and run over the seventeen shapes the drafts ship: the Initial Room Collection fits a level-1 budget, nothing is placed above a floor with no stairwell under it, one room per cell, and the plan stays one piece |
 | `install` | Each draft's install order, executed as one in-memory transaction: no statement before its table exists, no two files inserting the same key, no row lost, and - the rule that found this revision's defect - every file re-run on its own leaving the row counts where the full install left them |
 | `addon` | The addon executed rather than read: `tools/housing/wow_env.lua` builds a model of the 8.3.7 client - frames and their methods, `bit` in 5.1 arithmetic, a controllable clock, a global read that records a name instead of inventing one - `Menu.lua` and `Core.lua` load into it, one line per server opcode from doc 15 is delivered, every slash command is typed and every button and edit box on all fifteen tabs is clicked with data and with none. 83 assertions, and both directions of the protocol compared with doc 15. A machine with no Lua 5.1 is reported as `not run`, not as a pass |
+| `copies` | Each draft's `src/` and `addon/` are the module's own, byte for byte. `build_drafts.py` copies them, so an addon fix that lands after the last regeneration ships fixed in the module and broken in both drafts - which is exactly what the five fixes from the forty-sixth revision did until this check existed |
 | `drafts` | The two generated drafts read as SQL rather than as documents: every `housing_decor_creature` row names a piece the draft ships and every flagged piece has one, every stock line sits on a piece its own vendor's faction can buy, both factions can buy a pet bed, and the eleven counts doc 10 states equal the rows the SQL inserts |
 
 Current result:
@@ -48,8 +49,9 @@ floorplan    ok
 drafts       ok
 install      ok
 addon        ok
+copies       ok
 
-0 finding(s) across 15 check(s)
+0 finding(s) across 16 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -1733,6 +1735,7 @@ removed that last hedge as far as it can be removed here.
 | Check | Result |
 | --- | --- |
 | `check_addon.py` | 83 checks, 0 findings; 63/63 client opcodes sent, 40/40 server opcodes dispatched |
+| `copies` | 0 findings after the two drafts' addon folders were regenerated; mutation-tested by appending a line to one draft's `Core.lua` |
 | `audit.py` | 0 findings across 15 checks |
 | first run, before the fixes | 7 findings: 5 in the addon, 2 in the test's own assumptions |
 
