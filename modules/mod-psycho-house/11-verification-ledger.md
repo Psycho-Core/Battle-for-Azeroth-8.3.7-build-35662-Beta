@@ -1701,7 +1701,7 @@ was true of a fourth that a new checker then found.
 
 | checker | result |
 | --- | --- |
-| `simulate_install.py` | 0 findings; 23 files simulated in two orders, 2 728 rows, every file re-run |
+| `simulate_install.py` | 0 findings; 27 files simulated in three install orders (12 + 11 + 4), 2 741 rows, every file re-run |
 | `check_mariadb.py` | 0 findings; 33 files parsed with sqlglot 30.31 (MySQL dialect), where it used to skip |
 | `verify_drafts.py` | 0 findings; unchanged rules, both drafts regenerated after the delete-range fix |
 | `audit.py` | 0 findings across 14 checks |

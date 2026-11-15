@@ -39,6 +39,10 @@ except ImportError:                                     # pragma: no cover - rep
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 DRAFTS = os.path.join(ROOT, "drafts")
+
+# The neighbourhood module in two flavours, and the small per-character module that shares
+# nothing with them but the folder. All three are installed from SQL, so all three are replayed.
+ALL_DRAFTS = ("midnight-port", "bfa-native", "mod-psychohouse")
 VOCAB = os.path.join(ROOT, "generated", "sql-columns.json")
 
 
@@ -89,7 +93,10 @@ def install_order(draft):
         for line in block.splitlines():
             # `path   (a note)` - the note is commentary, the first word is the instruction.
             words = line.strip().split()
-            if words and words[0].endswith(".sql"):
+            if words and words[0].endswith(".sql") and words[0] not in order:
+                # Once each: a draft that also prints its file list as a block would
+                # otherwise be imported twice, and the second pass can hide a duplicate key
+                # behind the first pass's DELETE.
                 order.append(words[0])
 
     if not order:
@@ -472,10 +479,10 @@ def check_delete_ranges(draft):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--draft", choices=["midnight-port", "bfa-native"])
+    parser.add_argument("--draft", choices=ALL_DRAFTS)
     args = parser.parse_args()
 
-    drafts = [args.draft] if args.draft else ["midnight-port", "bfa-native"]
+    drafts = [args.draft] if args.draft else list(ALL_DRAFTS)
 
     checks = 0
     for draft in drafts:

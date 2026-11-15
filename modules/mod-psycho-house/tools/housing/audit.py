@@ -72,6 +72,11 @@ QUOTED = re.compile(r"`[^`]*`|\*[^*]*\*|\"[^\"]*\"|'[^']*'")
 
 # Paths that only exist after the module is copied into the target tree under its final
 # name. They are correct in the docs and dead here, so they are listed rather than hidden.
+# Paths a documented build step creates rather than the repository: the Lua interpreter that
+# tools/housing/build_lua.sh puts in tools/housing/bin/ is git-ignored on purpose, so a link to
+# it is correct in a prepared checkout and dead in a fresh clone.
+BUILD_OUTPUTS = ("tools/housing/bin/", "tools/housing/bin/lua51")
+
 TARGET_PATHS = ("src/game/PsychoHouse", "src/scripts/PsychoHouse", "src/server/game/PsychoHouse", "src/server/scripts/PsychoHouse")
 
 MD_LINK = re.compile(r"\[[^\]]*\]\(([^)#][^)]*)\)")
@@ -236,6 +241,8 @@ def check_links(findings):
             if os.path.exists(candidate) or os.path.exists(os.path.join(ROOT, target)):
                 continue
             # Paths into the game source tree are outside this module by design.
+            if target.startswith(BUILD_OUTPUTS):
+                continue
             if target.startswith(("src/server/", "sql/updates/", "../")) or target.startswith(TARGET_PATHS):
                 continue
             if "*" in target and glob.glob(os.path.join(ROOT, target)):
