@@ -83,7 +83,6 @@ void PsychoHouseMgr::LoadConfig()
 {
     _enabled       = sConfigMgr->GetBoolDefault("PsychoHouse.Enable", true);
     _mapId         = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Map", 1)));
-    _zoneId        = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Zone", 876)));
     _areaId        = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Area", 876)));
     _housePrice    = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Price.House", 10000000)));
     _refundPercent = uint8(std::min(100, std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Refund.Percent", 50))));

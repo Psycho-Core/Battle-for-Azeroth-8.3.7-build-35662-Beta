@@ -171,6 +171,28 @@ P6  art pass: custom WMO/ADT housing zone       (client patch, replaces the anch
 Estimated 14-18 weeks of evenings for P0-P5 against a codebase that already compiles and
 runs; P6 is art-bound, not code-bound.
 
+## Audit pass, fifty-fourth revision
+
+The question was narrower than the last two: are the three draft configs right for the draft
+each one ships with? The key sets were already exact - 42, 42 and 22, no duplicates, no stray
+section header, every key read by the code that draft installs, checked in both directions by
+`verify_drafts.py` and `check_psychohouse.py`. What was wrong was the prose around the values,
+and one key that did nothing.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 246 | **Both neighbourhood configs described the Town Center as a luxury.** "0/0 disables the leave teleport" is true and useless: the shipped 0/0 also makes `TeleportToNeighborhood` refuse with *not allowed here*, so nobody can enter the neighbourhood at all, and in anchor mode - which is what draft B ships - every plot is a ring around that point, so 55 plots stand at the world origin. Draft A is not exempt: its plots come from spawn rows, but the hub is still unauthored and the arrival still refuses | The comment in both files now says what 0/0 actually does and that a land position has to be set first; doc 16 step 3 and both draft READMEs carry the same instruction |
+| 247 | **Draft B ships switched off and never said so.** Its conf sets `Housing.Enable = 0`, doc 16 says to "paste every key", and neither the conf nor doc 16 nor the draft README ever says to change it - so the walk-through produced an inert realm. Draft A's README has said `Housing.Enable = 1` for many revisions | The `Enable` block in both files now states that the file ships 0 and that pasting alone changes nothing; doc 16 step 3 lists it with the Town Center as the two keys to edit before starting, and draft B's README says the same |
+| 248 | **"Default:" meant two different things.** In `mod_psychohouse.conf.dist` it is the value the C++ falls back to, and all 21 match the code. In the two neighbourhood files it is the value the draft ships - which is fine, except draft B annotates `Housing.Map.Mode` as `"anchor"` when the code falls back to `"native"`, and both annotate `Housing.Map.Id` as 900 or 0 when the code falls back to 0. A reader could not tell which convention a line followed | The convention is now stated in both headers, and draft B's names the two values that differ from the code on purpose. Relabelling 42 comments was the alternative and would have made the files harder to read for no gain |
+| 249 | **`PsychoHouse.Zone` was read, stored, exposed as `ZoneId()` and never called.** Twenty-two settings, one of which promised something and did nothing; the config prose around it said zone and area are both configuration | The key, the field and the accessor are gone, and doc 13 says 21 keys with a line explaining why there is no zone key. `check_psychohouse.py` fails on a key either way round, mutation-tested by re-adding the key (reported) and by deleting `Objects.Radius` (reported) |
+| 250 | **Draft A's header counted rows, not ids.** "450 retail decor item ids on 571 decor rows" - 450 is the number of rows that carry an item id and there are 439 distinct ones. The last revision spent a finding on exactly this kind of conflation (402 rows against 393 doors) | The header says 450 of 571 rows, 439 distinct |
+
+Verified as correct rather than changed: every key in all three files, the draft-specific prose
+counts (draft A's 39 vendors, 972 of 1 056 stock lines, 571 rows, four Endeavors with four
+milestones each, Community Coupon 3363; draft B's 702 pieces and eight stalls), no duplicate
+keys anywhere, and no key collision between the two modules if both are installed - one reads
+`Housing.*`, the other `PsychoHouse.*`.
+
 ## Audit pass, fifty-third revision
 
 The same question as the round before, asked of the other draft: "audit bfa-native". Every gate

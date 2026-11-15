@@ -34,7 +34,12 @@ the three ways a plot can get a position, including the anchor file.
     reports what it wrote; the addon is a plain folder copy)
 2. re-run cmake, rebuild, install
 3. paste every key from conf/mod-psycho-house.conf.dist into <config>/worldserver.conf,
-   inside [worldserver], without a section header
+   inside [worldserver], without a section header - then edit two of them, because the file
+   ships a realm that is not this one:
+     Housing.Enable = 1        the file ships 0, and a module with Enable 0 does nothing
+     Housing.TownCenter.X/Y/Z  a land point on Housing.Map.Id. The file ships 0/0, which
+                               leaves every plot on a ring around the world origin and makes
+                               the arrival call refuse with "not allowed here"
 4. characters database:   sql/characters/01_characters_schema.sql
 5. world database, in this order:
      sql/world/01_schema.sql              the module's own tables

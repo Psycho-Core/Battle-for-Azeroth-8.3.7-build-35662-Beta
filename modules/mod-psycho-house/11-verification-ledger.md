@@ -2029,3 +2029,73 @@ numbers - documented in the draft README, where the install-time `UPDATE` that f
 Suite after the pass: `audit.py` 0 findings across 20 checks, `verify_drafts.py` 0,
 `simulate_install.py` 0 with the native draft at 11 files / 31 tables / 1 653 rows, and every
 other checker in `tools/housing` at 0.
+
+### 6.47 The fifty-fourth revision: the configs were right about the keys and wrong about the values
+
+The question was narrow - are the three draft configs correct for the draft each one carries -
+and the mechanical answer was already yes. Three files, three key sets, nothing to fix:
+
+| File | Keys | Code that reads them | Result |
+| --- | --- | --- | --- |
+| `drafts/midnight-port/conf/mod-psycho-house.conf.dist` | 42 | `src/game/Housing` (the module) | exact, both directions |
+| `drafts/bfa-native/conf/mod-psycho-house.conf.dist` | 42 | same module | exact, both directions |
+| `drafts/mod-psychohouse/conf/mod_psychohouse.conf.dist` | 22 | `drafts/mod-psychohouse/src` | exact, both directions |
+
+No duplicate keys in any of the three, no section header in the two that must be pasted rather
+than merged, and no collision between the two modules - one reads `Housing.*`, the other
+`PsychoHouse.*`, so a realm running both can paste both sets into `worldserver.conf`.
+
+**The Town Center was described as a luxury.** Both neighbourhood files said "0/0 disables the
+\"leave\" teleport", and both shipped 0/0. What that actually means: `TeleportToNeighborhood`
+returns `NotAllowedHere` - the command says *not allowed here* - so nobody can reach the
+neighbourhood, and in anchor mode, which is exactly what draft B ships, `AnchorForPlot`
+computes every plot as a ring around this point, so the whole neighbourhood stands at the world
+origin. Editorialising about the teleport while the entry path refuses is the kind of comment
+that costs an afternoon. Both files now say what 0/0 does and that a land position on
+`Housing.Map.Id` has to be set first; doc 16 step 3 and both draft READMEs carry the same
+instruction, because a config comment is not read by the person following the walk-through.
+
+**Draft B shipped switched off, and no document said so.** `Housing.Enable = 0` in both
+neighbourhood files is deliberate - a module that switches itself on is a module that starts
+spawning into a map the operator has not authored. Draft A's README has said
+`Housing.Enable = 1` for many revisions; draft B's README, its conf header and doc 16's "paste
+every key" never mentioned it, so the documented path ended with an inert realm and no error to
+read. The `Enable` block now says it in both files, doc 16 lists it beside the Town Center as
+one of the two keys to edit, and draft B's README repeats it.
+
+**Two conventions under one word.** In `mod_psychohouse.conf.dist`, "Default:" is the value the
+C++ falls back to and all 21 match the code, including the clamps around them. In the two
+neighbourhood files it is the value the draft ships. That is a reasonable pair of meanings, but
+draft B annotates `Housing.Map.Mode` as `"anchor"` while the code falls back to `"native"`, and
+both annotate `Housing.Map.Id` as 900 or 0 while the code falls back to 0 - so on some lines
+the annotation was a fact about the file and on others a fact about the code, and nothing said
+which. Both headers now state the convention, and draft B's names its two deliberate
+divergences. Rewriting 42 comments to say "shipped value" everywhere would have been worse to
+read.
+
+**One setting that promised and did nothing.** `PsychoHouse.Zone` was read into `_zoneId`,
+stored on the manager, and exposed by a `ZoneId()` accessor that no caller anywhere used -
+grep found the accessor's declaration and nothing else. Twenty-two settings, one inert; the
+config prose even said "zone and area are configuration". The key, the field and the accessor
+are gone, doc 13's parity row says 21 keys, and the prose says why there is no zone key: the
+area is what the module watches. Mutation-tested both ways - re-adding the key is reported as
+"the .conf.dist ships `PsychoHouse.Zone` but nothing reads it", and deleting
+`PsychoHouse.Objects.Radius` is reported as "code reads ... but the .conf.dist does not ship
+it".
+
+**One number that counted rows as ids.** Draft A's header said "450 retail decor item ids on
+571 decor rows". 450 is the count of rows that carry an item id; the distinct ids are 439. The
+previous revision spent a finding on exactly this conflation (402 rows quoted where 393 door
+entries exist), so it is worth not repeating it in the file an operator reads first. The header
+now says 450 of 571 rows, 439 distinct.
+
+Checked as correct and left alone: draft A's prose counts (39 vendors, 972 priced stock lines
+of 1 056 captured, 571 decor rows, four Endeavors with four milestones each, Community Coupon
+currency 3363) recomputed from its own SQL; draft B's 702 pieces and eight stalls; and
+`Housing.Map.Mode` / `Housing.Map.Id` being the only two values either draft sets against the
+code's own fallback, which is the anchor-mode decision both READMEs already explain.
+
+Suite after the pass: `audit.py` 0 findings across 20 checks, `verify_drafts.py` 0,
+`check_psychohouse.py` 0, `check_cpp.py` 0, `check_psychohouse_addon.py` 80 checks passed,
+`simulate_install.py` 0 with 13 + 11 + 4 files and 1 815 + 1 653 + 13 rows, and every other
+checker in `tools/housing` at 0.

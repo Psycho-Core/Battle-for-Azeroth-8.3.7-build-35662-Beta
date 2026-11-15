@@ -43,16 +43,14 @@ PsychoHouse.Refund.Percent = 50
 #  facility position in `psychohouse_facility` is an offset from this point, and the two
 #  NPCs have their own offsets below. Moving a whole house is these four numbers.
 #
-#  Zone and area are configuration, not code: they are content, and a realm that has
-#  reassigned either should not need a rebuild. The area is what the module watches - a
-#  character entering area 876 is inside the house area.
+#  The area is configuration, not code: it is content, and a realm that has reassigned it
+#  should not need a rebuild. The area is what the module watches - a character entering
+#  area 876 is inside the house area. There is no zone key: the zone the area sits in
+#  changes nothing the module does, and a setting that nothing reads is worse than none.
 ####################################################################################
 
 # Default: 1 (Kalimdor)
 PsychoHouse.Map = 1
-
-# Default: 876
-PsychoHouse.Zone = 876
 
 # Default: 876
 PsychoHouse.Area = 876

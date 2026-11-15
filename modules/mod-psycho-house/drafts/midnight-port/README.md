@@ -229,7 +229,7 @@ sql/bind/bind_decor_variants.sql         (optional, fills the dye variant table)
 sql/bind/bind_night_variants.sql         (optional, pairs each piece with its lit twin)
 ```
 
-Then `Housing.Enable = 1`, `.house`, and the addon: copy `addon/HousingUI` into the client's
+Then `Housing.Enable = 1`, a `Housing.TownCenter` on the map the draft is pointed at, `.house`, and the addon: copy `addon/HousingUI` into the client's
 `Interface/AddOns/PsychoHouse` (the installer stages it in the source tree and prints the
 path). `/house` opens the housing window; the House button sits next to the minimap.
 

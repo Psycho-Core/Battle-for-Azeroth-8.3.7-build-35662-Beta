@@ -5,13 +5,15 @@
 #   below are the ones this draft ships with.
 #
 #   This draft carries the retail content: 39 vendors, 972 priced stock lines out of the
-#   1 056 captured, 450 retail decor item ids on 571 decor rows, the retail house levels
+#   1 056 captured, a retail item id on 450 of its 571 decor rows (439 distinct), the retail house levels
 #   1-12 as reference, four Endeavor milestones and the Community Coupon currency. It is
 #   the version that answers "make it look like Midnight".
 ###################################################################################################
 
 #   Housing.Enable
-#       Description: Enable the player housing module.
+#       Description: Enable the player housing module. The file ships 0, so pasting these
+#                    keys alone changes nothing: housing stays off, every hook stays inert,
+#                    and `.housing` says so, until this line is 1.
 #       Default:     0 (disabled) - 1 (enabled)
 
 Housing.Enable = 0
@@ -57,7 +59,13 @@ Housing.Interior.Z = 0.0
 Housing.Interior.O = 0.0
 
 #   Housing.TownCenter.X / .Y / .Z / .O
-#       Description: Town Center landing point. 0/0 disables the "leave" teleport.
+#       Description: Town Center landing point, and the origin of the computed plot ring in
+#                    anchor mode. Leaving X and Y at 0.0 does more than switch off one
+#                    teleport: the arrival call refuses with "not allowed here" because the
+#                    hub is not authored yet, and in anchor mode every plot is laid on a
+#                    ring around this point - so the whole neighbourhood would stand at the
+#                    world origin. Set X, Y and Z to a land position on Housing.Map.Id
+#                    before the first character travels there.
 #       Default:     0.0
 
 Housing.TownCenter.X = 0.0
