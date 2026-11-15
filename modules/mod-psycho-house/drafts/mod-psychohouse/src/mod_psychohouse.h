@@ -150,7 +150,6 @@ namespace PsychoHouse
         bool Enabled() const { return _enabled; }
         uint32 HousePrice() const { return _housePrice; }
         uint32 MapId() const { return _mapId; }
-        uint32 ZoneId() const { return _zoneId; }
         uint32 AreaId() const { return _areaId; }
 
         std::vector<Facility> const& GetFacilities() const { return _facilities; }
@@ -212,7 +211,6 @@ namespace PsychoHouse
 
         bool                        _enabled = false;
         uint32                      _mapId = 1;
-        uint32                      _zoneId = 876;
         uint32                      _areaId = 876;
         Position                    _anchor;
         float                       _keeperX = -1.5f;

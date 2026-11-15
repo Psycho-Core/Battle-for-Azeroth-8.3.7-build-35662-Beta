@@ -123,7 +123,7 @@ was checked against this tree:
 | profession trainers are resolved, not shipped | a BfA trainer needs a `creature_trainer` binding to current-rank spells; a table this folder cannot know. Resolving one from a realm that has them is honest; inventing one is not |
 | nineteen service objects and creatures are resolved from the realm | the alternative is typing entry numbers from memory, and a wrong entry is an invisible NPC or a mailbox that is a chair |
 | the two NPCs write 78 columns of `creature_template` | that is exactly the column list this build's template loader reads, so the rows cannot carry a field the server ignores, and cannot miss one it needs |
-| zone and area are configuration | area 876 is content. A realm that has moved GM Island should not need a rebuild |
+| the area is configuration | area 876 is content. A realm that has moved GM Island should not need a rebuild. There is no zone key: nothing in the module reads one |
 | `GetIntDefault` / `GetFloatDefault`, not a templated key lookup | this build's config object has no template form. The newer API does not exist here |
 
 ## 7. The two NPCs
@@ -390,7 +390,7 @@ different that covers the same need; `no` means it is absent and the reason is s
 | Travel | same | the Keeper and `.psychohome`, with the same locked-to-owner rule |
 | Addon | smaller | one window on its own prefix: state, objects, remove, place-here, facilities, buy. Twelve client records and eight server records |
 | Commands | smaller | eight, against sixty-six. Every one of the eight does something the window or the NPC also does |
-| Configuration | same | 22 keys in `worldserver.conf`, read with the same defaults-and-clamps discipline; reloadable without a restart |
+| Configuration | same | 21 keys in `worldserver.conf`, read with the same defaults-and-clamps discipline; reloadable without a restart |
 | Diagnostics | same | `.psychodiag` prints catalogue state, bound and unbound facilities, loaded houses, the object limit and whether the addon route is present |
 | Spawn repair | same | a world tick re-creates anything the map lost, because every spawn is transient |
 | Character schema | smaller | three tables: owner, purchase, object. Same 64-bit key, same collation discipline, same repeatable-file rule |

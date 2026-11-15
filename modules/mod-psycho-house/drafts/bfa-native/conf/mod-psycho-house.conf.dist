@@ -1,7 +1,10 @@
 ###################################################################################################
 #   mod-psycho-house - draft B, built only from what 8.3.7 build 35662 already has
 #
-#   Copy the keys that matter into worldserver.conf. Every key is optional.
+#   Copy the keys that matter into worldserver.conf. Every key is optional; "Default" is the
+#   value this draft ships, and the C++ uses it only when the key is absent. Two values differ
+#   from what the C++ falls back to on its own - Map.Mode and Map.Id - because a clean 8.3.7
+#   install has no housing map; both comments say so.
 #
 #   This draft carries no retail ids at all. The decor catalogue is 702 game objects that
 #   already exist in my source tree as named constants, the vendors are my own eight
@@ -10,7 +13,9 @@
 ###################################################################################################
 
 #   Housing.Enable
-#       Description: Enable the player housing module.
+#       Description: Enable the player housing module. The file ships 0, so pasting these
+#                    keys alone changes nothing: housing stays off, every hook stays inert,
+#                    and `.housing` says so, until this line is 1.
 #       Default:     0 (disabled) - 1 (enabled)
 
 Housing.Enable = 0
@@ -57,7 +62,13 @@ Housing.Interior.Z = 0.0
 Housing.Interior.O = 0.0
 
 #   Housing.TownCenter.X / .Y / .Z / .O
-#       Description: Town Center landing point. 0/0 disables the "leave" teleport.
+#       Description: Town Center landing point, and the origin of the computed plot ring in
+#                    anchor mode. Leaving X and Y at 0.0 does more than switch off one
+#                    teleport: the arrival call refuses with "not allowed here" because the
+#                    hub is not authored yet, and in anchor mode every plot is laid on a
+#                    ring around this point - so the whole neighbourhood would stand at the
+#                    world origin. Set X, Y and Z to a land position on Housing.Map.Id
+#                    before the first character travels there.
 #       Default:     0.0
 
 Housing.TownCenter.X = 0.0

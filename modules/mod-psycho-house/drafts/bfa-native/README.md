@@ -158,4 +158,7 @@ expects them, and stages the addon - copy it into the client's `Interface/AddOns
 `/house` opens the housing window; the House button sits next to the minimap.
 `Housing.Map.Mode = "anchor"` is the default here because a clean 8.3.7 install has no
 housing map; point `Housing.Map.Id` at any map with room for the plot anchors and author
-them in the world DB.
+them in the world DB. Two keys need an edit before anything happens: `Housing.Enable`, which
+ships 0, and `Housing.TownCenter.X/Y/Z`, which ship 0/0 - in anchor mode the 55 plots are a
+ring around that point, so 0/0 puts the neighbourhood at the world origin and the arrival call
+refuses it.
