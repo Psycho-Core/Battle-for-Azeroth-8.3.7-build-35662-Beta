@@ -39,17 +39,26 @@ custom content servers add maps. Steps 1 and 5 still need real assets and the ex
 This is the operational point I care most about. I designed the module so the **map is a config value** rather than an assumption:
 
 ```
-PsychoHouse.Enable          = 1
-PsychoHouse.MapId           = 900
-PsychoHouse.InteriorMapId   = 900
-PsychoHouse.AnchorMode      = 1     # place plots on hand-chosen coordinates
-PsychoHouse.AnchorFile      = data/psycho_house/anchors_founders_point.txt
+Housing.Enable              = 1
+Housing.Map.Mode            = "anchor"   # the housing map is borrowed, not authored
+Housing.Map.Id              = 1          # any map the client can already load
+Housing.Interior.Map        = 0          # 0 = the same map
+Housing.TownCenter.X        = -1200.0
+Housing.TownCenter.Y        = 900.0
+Housing.TownCenter.Z        = 45.0
+Housing.Anchor.File         = "anchors_founders_point.txt"
 ```
 
-In anchor mode, plot anchors, the amenity hub and the vendor positions come from a text
-file, so housing works on **any** map I pick - a borrowed zone, a garrison map, an empty
-test map - with correct phasing and correct persistence. The custom map then swaps in
-later by changing three config values and deleting one file.
+`Housing.Anchor.File` is where a hand-placed layout goes. One line per plot,
+`index x y z o`, `#` for a comment; an index that is not listed keeps its computed ring
+position, so the file can be filled in a few plots at a time and the neighbourhood is never
+half-broken. `data/anchors.example.txt` is the format with twelve synthetic plots in it.
+
+The town centre, the amenity ring, the biome rings and the hunt caches are all measured from
+`Housing.TownCenter`, and every one of them has a computed fallback, so housing works on
+**any** map I pick - a borrowed zone, a garrison map, an empty test map - with correct phasing
+and correct persistence. The custom map then swaps in later by changing the map id, clearing
+this file, and shipping the art.
 
 Practical plan:
 

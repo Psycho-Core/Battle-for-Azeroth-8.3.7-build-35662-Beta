@@ -23,6 +23,7 @@ one instead of falling through.
 | `Housing.Enable` | `0` | master switch; 0 leaves every hook in place but inert | reload |
 | `Housing.Map.Mode` | `"native"` | native expects the map in Map.db2; anchor runs on an existing map with computed anchors | reload |
 | `Housing.Map.Id` | `900` | map id of the neighbourhood; must exist in Map.db2, or housing disables itself | reload |
+| `Housing.Anchor.File` | `""` | text file of hand-placed plot anchors for a borrowed map: `index x y z o` per line, `#` comments; a plot not listed falls back to the computed ring | reload; the path is read by the worldserver process |
 | `Housing.Interior.Map` | `0` | interior map; 0 means the same map as Housing.Map.Id | reload |
 | `Housing.Interior.X` | `0.0` | interior anchor, X | reload |
 | `Housing.Interior.Y` | `0.0` | interior anchor, Y | reload |

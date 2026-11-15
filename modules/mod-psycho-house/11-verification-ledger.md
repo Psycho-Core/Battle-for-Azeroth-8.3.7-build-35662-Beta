@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Sixteen checks, one line each, exit code 1 on a finding:
+Seventeen checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -23,12 +23,13 @@ Sixteen checks, one line each, exit code 1 on a finding:
 | `csv` | Item ids are unique per vendor, every stock vendor exists in `data/vendor_npc_ids.csv`, and any vendor without stock rows is named rather than skipped |
 | `sql` | No blank field and no unbalanced quote in any generated `INSERT` tuple |
 | `mapping` | Every decor row has a non-zero game object entry, a known constant name, and one of the five match classes |
-| `reference` | The conf keys, the loader's reads and doc 14 are the same set in both directions, and the counts in the prose agree with them: 41 settings in two drafts, 41 recorded, 41 documented |
+| `reference` | The conf keys, the loader's reads and doc 14 are the same set in both directions, and the counts in the prose agree with them: 42 settings in two drafts, 42 recorded, 42 documented |
 | `claims` | Every code span in the completeness entry and in doc 02's matrix is checked against an oracle - opcode against the protocol tables, `Housing.*` against the conf, `table.column` against the schema, `Class::Member` against the source |
 | `floorplan` | The room placement rules restated in Python and run over the seventeen shapes the drafts ship: the Initial Room Collection fits a level-1 budget, nothing is placed above a floor with no stairwell under it, one room per cell, and the plan stays one piece |
 | `install` | Each draft's install order, executed as one in-memory transaction: no statement before its table exists, no two files inserting the same key, no row lost, and - the rule that found this revision's defect - every file re-run on its own leaving the row counts where the full install left them |
 | `addon` | The addon executed rather than read: `tools/housing/wow_env.lua` builds a model of the 8.3.7 client - frames and their methods, `bit` in 5.1 arithmetic, a controllable clock, a global read that records a name instead of inventing one - `Menu.lua` and `Core.lua` load into it, one line per server opcode from doc 15 is delivered, every slash command is typed and every button and edit box on all fifteen tabs is clicked with data and with none. 83 assertions, and both directions of the protocol compared with doc 15. A machine with no Lua 5.1 is reported as `not run`, not as a pass |
 | `copies` | Each draft's `src/` and `addon/` are the module's own, byte for byte. `build_drafts.py` copies them, so an addon fix that lands after the last regeneration ships fixed in the module and broken in both drafts - which is exactly what the five fixes from the forty-sixth revision did until this check existed |
+| `worklist` | `generated/midnight-port-worklist.md` and its CSV still match the catalogue they are generated from: 571 pieces, 450 with a retail item id, 121 catalogue-only, 177 stand-in game objects. Run with `--check`, so an edited worklist fails rather than lying about which pieces exist |
 | `drafts` | The two generated drafts read as SQL rather than as documents: every `housing_decor_creature` row names a piece the draft ships and every flagged piece has one, every stock line sits on a piece its own vendor's faction can buy, both factions can buy a pet bed, and the eleven counts doc 10 states equal the rows the SQL inserts |
 
 Current result:
@@ -50,8 +51,9 @@ drafts       ok
 install      ok
 addon        ok
 copies       ok
+worklist     ok
 
-0 finding(s) across 16 check(s)
+0 finding(s) across 17 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -1736,6 +1738,7 @@ removed that last hedge as far as it can be removed here.
 | --- | --- |
 | `check_addon.py` | 83 checks, 0 findings; 63/63 client opcodes sent, 40/40 server opcodes dispatched |
 | `copies` | 0 findings after the two drafts' addon folders were regenerated; mutation-tested by appending a line to one draft's `Core.lua` |
+| `worklist` | 0 findings; mutation-tested by hand-editing a row, which it reported as stale |
 | `audit.py` | 0 findings across 15 checks |
 | first run, before the fixes | 7 findings: 5 in the addon, 2 in the test's own assumptions |
 
@@ -1745,3 +1748,41 @@ placement 1's key; the Rooms tab reused its empty-plan row without a Remove butt
 second draw; `SnapAngle` rounded up to a full turn at the seam; and fourteen commands sent an empty
 field when called bare while five others printed a usage line. All fixed in the addon, each with a
 README row, and the test asserts the property rather than the patch.
+
+### 6.42 The forty-eighth revision: the art question, made into a worklist and a file
+
+The question was "the port is complete, so how do I get the models". The honest answer has two
+halves, and only one of them was written down.
+
+- **Complete meant the system, not the art.** 571 catalogue pieces, 972 stock rows, 39 vendors,
+  every feature in doc 02 with code behind it - and not one Midnight M2, BLP, ADT or DB2 file,
+  because none may ship from here. What the drafts do instead is place every piece as a real
+  8.3.7 game object (177 distinct ones), so a house works and looks like furniture with 8.3.7
+  furniture in retail's slots. Doc 12 sec.0 now says that in those words rather than leaving
+  "complete" to be read as "ported".
+- **Which pieces, and what is still empty.** `tools/housing/port_worklist.py` generates
+  `generated/midnight-port-worklist.md` and a CSV from the catalogue itself: every piece with
+  its category, surface, placement, price, retail item id, stand-in game object and how that
+  stand-in was chosen, plus six empty columns - display id, M2, BLP, icon, patch, status - that
+  the port fills in. It also counts what is not catalogue work at all: 12 shells, 17 rooms, 23
+  amenities, 6 dyes, 4 pet beds, 10 portals. The audit fails if the worklist stops matching the
+  SQL it is generated from.
+- **How the files are obtained.** Doc 12 sec.3.2 names the source of every file type - CASC
+  readers and listfiles for the DB2 rows and the meshes, the 8.3.7 client for a borrowed icon,
+  an ADT/WMO editor for terrain - and the three decisions to settle before starting.
+- **Maps.** Doc 12 sec.4.8 has the three routes. Only the third needs a map file, and the
+  first is what ships: plot positions computed as rings around `Housing.TownCenter` on any map
+  the client can load. The middle route - hand-placed plots on a borrowed zone - was promised by
+  doc 07 sec.3 with config keys that did not exist (`PsychoHouse.AnchorMode`, `PsychoHouse.AnchorFile`
+  are not this module's key names). It exists now: `Housing.Anchor.File` is read at start-up,
+  one `index x y z o` per line with `#` comments, an unlisted index keeps its ring position, and
+  `data/anchors.example.txt` is the format with twelve synthetic plots in it. `check_reference.py`
+  parses that file under the loader's own rules and fails on a duplicate index, an index past
+  plot 54, or a line that is not four or five numbers.
+
+| Check | Result |
+| --- | --- |
+| `check_reference.py` | 42 settings in two drafts, 42 recorded, 42 documented; the anchor file parses; mutation-tested with a duplicate and an out-of-range index |
+| `check_cpp.py` | 0 findings after `LoadAnchorFile` and the layout change |
+| `port_worklist.py --check` | 0 findings; 571 pieces, 450 port candidates, 121 catalogue-only |
+| `audit.py` | 0 findings across 17 checks |

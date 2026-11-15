@@ -12,6 +12,7 @@ Four lists have to match, and nothing in the repo was keeping them in step:
              section 3
   client     the keys in the addon's DEFAULTS table and doc 14 section 4
   help       that in-game help is read out of the command table rather than typed out
+  anchors    the shipped example anchor file parses under the loader's own rules
 
 A setting that is in the conf and not in the loader is a key an operator can edit and
 nothing reads. A command that is dispatched and not in the doc is a command nobody can
@@ -144,6 +145,55 @@ def applied_keys():
     return dead
 
 
+ANCHOR_SAMPLE = os.path.join(HERE, "data", "anchors.example.txt")
+
+
+def anchor_lines():
+    """The example anchor file, parsed the way HousingMgr::LoadAnchorFile parses it.
+
+    The loader is C++ and cannot run here, so the two rules that matter are restated and the
+    file is held to them: four or five numbers per line, the first an index below kPlotCount,
+    no duplicate index, `#` starts a comment. A file that fails here would silently place a
+    plot on the ring instead of where the operator put it, which is the kind of mistake that
+    looks like a layout and reads as a bug report about phantoms.
+    """
+    limit = 55            # kPlotCount in HousingDefines.h
+    seen = {}
+    problems = []
+
+    try:
+        text = read(ANCHOR_SAMPLE)
+    except OSError:
+        return ["data/anchors.example.txt is missing"]
+
+    for number, line in enumerate(text.splitlines(), 1):
+        line = line.split("#", 1)[0]
+        words = line.split()
+        if not words:
+            continue
+        if len(words) not in (4, 5):
+            problems.append("line {}: {} fields, want 4 or 5".format(number, len(words)))
+            continue
+        try:
+            values = [float(word) for word in words]
+        except ValueError:
+            problems.append("line {}: not all numbers".format(number))
+            continue
+        index = values[0]
+        if index != int(index):
+            problems.append("line {}: plot index {} is not a whole number".format(number, index))
+            continue
+        if not 0 <= int(index) < limit:
+            problems.append("line {}: plot {} is outside 0..{}".format(number, int(index), limit - 1))
+        if int(index) in seen:
+            problems.append("line {}: plot {} is also on line {}".format(number, int(index), seen[int(index)]))
+        seen[int(index)] = number
+
+    if not seen:
+        problems.append("the example has no anchor lines")
+    return problems
+
+
 def command_rows():
     text = read(COMMANDS)
     block = text.split("static std::vector<ChatCommand> housingCommandTable")[1].split("};")[0]
@@ -195,6 +245,10 @@ def main():
         fail("{} is a setting and doc 14 section 1 does not list it".format(key))
     for key in sorted(documented - everything):
         fail("doc 14 lists {} and there is no such setting".format(key))
+
+    # ---- the anchor file ------------------------------------------------
+    for problem in anchor_lines():
+        fail(problem)
 
     # ---- commands ---------------------------------------------------------
     rows = command_rows()
