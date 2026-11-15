@@ -394,6 +394,50 @@ def native_rank():
 NATIVE_RANK = native_rank()
 
 
+def check_standins(base, draft, findings_before=0):
+    """Every stand-in game object in the port must be one the index calls decor.
+
+    The port places retail pieces as 8.3.7 game objects, and the index already carries a
+    verdict per constant. Nothing used to compare the two, so 176 of the 571 rows stood on
+    objects the index itself calls non-decor - a shed on a dungeon door, a bookcase on a
+    raid elevator - because `map_decor_go.py` drew its candidates from every named object in
+    the tree and a keyword hit on a room word beat a real chair. The floor is simple now: if
+    the index says `decor=no`, it cannot be furniture, and the row is wrong.
+    """
+    path = os.path.join(HERE, "generated", "source-asset-index.csv")
+    decor = {}
+    for row in csv.DictReader(open(path, newline="", encoding="utf-8")):
+        if row["kind"] == "gameobject" and row["entry"]:
+            decor[int(row["entry"])] = row["decor"]
+
+    catalogue = read(os.path.join(base, "04_decor_retail.sql"))
+    checks = 2
+    rows = 0
+    unknown = 0
+    wrong = []
+
+    for match in re.finditer(r"^\((\d+), '((?:[^']|'')*)', (\d+),", catalogue, re.M):
+        decor_id, name, entry = match.group(1), match.group(2), int(match.group(3))
+        if not entry:
+            continue
+        rows += 1
+        if entry not in decor:
+            unknown += 1
+            continue
+        if decor[entry] != "yes":
+            wrong.append("{} ({}) on {}".format(name, decor_id, entry))
+
+    if unknown:
+        fail(draft, "{} decor rows stand on a game object the index does not list".format(
+            unknown))
+
+    if wrong:
+        fail(draft, "{} decor rows stand on an object the index calls non-decor, e.g. {}".format(
+            len(wrong), "; ".join(wrong[:5])))
+
+    return checks
+
+
 def check_ids(base, draft, band, findings_before=0):
     """Decor ids: unique, inside the draft's band, and the same piece never given twice.
 
@@ -850,6 +894,8 @@ def main():
         checks_run += check_stock_side(base, draft, findings_before=len(findings))
         checks_run += check_ids(base, draft,
                                 (1000, 1999) if draft == "midnight-port" else (2000, 2999))
+        if draft == "midnight-port":
+            checks_run += check_standins(base, draft)
 
     # every item id the town centre catalogue knows must reach draft A
     items_csv = os.path.join(HERE, "data", "town-center-items.csv")

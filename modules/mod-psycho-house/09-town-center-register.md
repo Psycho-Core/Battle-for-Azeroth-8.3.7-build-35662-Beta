@@ -765,4 +765,4 @@ number.
 | Coordinates | Every coordinate carries its `/way` map id | verified, #2351 vs #2352 |
 | Prices | Printed only when the source prints them | 30 corrected against wowhead; 87 blanks remain, every one listed in section 7.6 |
 | Item ids | Id traced to the item page, none inferred | 739 ids resolved, 0 guessed; 317 rows still without one, counted in section 7.2 |
-| Decor to game object | Every mapped entry checked against the source index | 618 names mapped onto 187 game objects, 571 decor rows shipped, 0 invented entries |
+| Decor to game object | Every mapped entry checked against the source index | 618 names mapped onto 117 game objects, 571 decor rows shipped, 0 invented entries |
