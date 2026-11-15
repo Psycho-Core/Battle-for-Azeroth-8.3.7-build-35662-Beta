@@ -1,0 +1,40 @@
+mod-psychohouse: route the PHSH addon prefix to the module
+
+The addon window talks over the addon channel. The core delivers an addon message
+to the module that owns its prefix; this is the whole of what the core has to do
+about it - one declaration and one early return.
+
+Apply from the tree root with `git apply patches/0001-phsh-addon-route.patch`.
+Without it the module still loads, the commands still work and the gossip NPCs
+still work; only the addon window stays silent, which is what the module reports
+on `.psychodiag`.
+
+diff --git a/src/server/game/Handlers/ChatHandler.cpp b/src/server/game/Handlers/ChatHandler.cpp
+--- a/src/server/game/Handlers/ChatHandler.cpp
++++ b/src/server/game/Handlers/ChatHandler.cpp
+@@ -424,6 +424,11 @@ void WorldSession::HandleChatAddonMessageTargetedOpcode(WorldPackets::Chat::Chat
+         chatAddonMessageTargeted.Params.IsLogged, chatAddonMessageTargeted.Target);
+ }
+ 
++// Defined in mod-psychohouse. Declared here, and nowhere else in the core, so that a build
++// without the module fails at link time on a name that says what is missing.
++void PsychoHouseHandleAddonMessage(Player* player, std::string const& message);
++
+ void WorldSession::HandleChatAddonMessage(ChatMsg type, std::string prefix, std::string text, bool isLogged, std::string target /*= ""*/)
+ {
+     Player* sender = GetPlayer();
+@@ -433,6 +438,13 @@ void WorldSession::HandleChatAddonMessage(ChatMsg type, std::string prefix, std::string text, bool isLogged, std::string target /*= ""*/)
+     if (!sWorld->getBoolConfig(CONFIG_ADDON_CHANNEL))
+         return;
+ 
++    // The module's own prefix, checked before the generic routing so that a PHSH message never
++    // reaches a whisper, a group or a channel handler.
++    if (sender && prefix == "PHSH")
++    {
++        PsychoHouseHandleAddonMessage(sender, text);
++        return;
++    }
++
+     if (!sender)
+         return;
+ 

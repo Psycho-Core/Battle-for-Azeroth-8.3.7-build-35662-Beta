@@ -29,8 +29,44 @@
 #include "ScriptMgr.h"
 #include "WorldSession.h"
 
+#include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <string>
 #include <vector>
+
+namespace
+{
+    // Strict parsers for the command line. Both reject trailing rubbish and anything that is
+    // not finite, so a coordinate that is half a number can never reach the manager.
+    bool ParseId(char const* text, uint32& out)
+    {
+        if (!text || !*text)
+            return false;
+
+        for (char const* it = text; *it; ++it)
+            if (!std::isdigit(static_cast<unsigned char>(*it)))
+                return false;
+
+        out = uint32(std::strtoul(text, nullptr, 10));
+        return true;
+    }
+
+    bool ParseCoordinate(char const* text, float& out)
+    {
+        if (!text || !*text)
+            return false;
+
+        char* end = nullptr;
+        double const value = std::strtod(text, &end);
+
+        if (!end || *end != '\0' || !std::isfinite(value))
+            return false;
+
+        out = float(value);
+        return true;
+    }
+}
 
 class PsychoHouseWorldScript : public WorldScript
 {
@@ -125,6 +161,8 @@ public:
             { "psychobuy",    0, false, &HandleBuyCommand,  "Island house: buy" },
             { "psychosell",   0, false, &HandleSellCommand, "Island house: sell" },
             { "psychohome",   0, false, &HandleTeleCommand, "Island house: travel" },
+            { "psychoplace",  0, false, &HandlePlaceCommand, "Island house: put an object down" },
+            { "psychostand",  0, false, &HandleStandCommand, "Island house: list or remove objects" },
             { "psychodiag",   rbac::RBAC_PERM_COMMAND_GM, false, &HandleDiagCommand,   "Island house: catalogue state" },
             { "psychoreload", rbac::RBAC_PERM_COMMAND_GM, false, &HandleReloadCommand, "Island house: reload" },
         };
@@ -186,6 +224,80 @@ public:
         }
 
         handler->SendSysMessage("Travelling to the island house.");
+        return true;
+    }
+
+    // `.psychoplace <entry> <x> <y> <z> <o> [scale]` - the coordinates are absolute, the same
+    // pair the addon sends, so a position copied out of `.psychostand` can be put back
+    // unchanged. The manager does the checking: the limit, the template, the radius.
+    static bool HandlePlaceCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        if (!player)
+            return false;
+
+        if (!args || !*args)
+        {
+            handler->SendSysMessage("Usage: .psychoplace <entry> <x> <y> <z> <o> [scale]");
+            return true;
+        }
+
+        uint32 entry = 0;
+        float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f, scale = 1.0f;
+
+        // The first field is an unsigned id, the rest are floats. Parsed here with strtoul and
+        // strtod rather than a chat helper, because the command has to reject a half-parsed
+        // field: "16abc" is not entry 16 and "16222.9x" is not a coordinate.
+        char* cursor = strtok(const_cast<char*>(args), " ");
+        if (!cursor || !ParseId(cursor, entry))
+        {
+            handler->SendSysMessage("Usage: .psychoplace <entry> <x> <y> <z> <o> [scale]");
+            return true;
+        }
+
+        float* const fields[4] = { &x, &y, &z, &o };
+        for (float* field : fields)
+        {
+            cursor = strtok(nullptr, " ");
+            if (!cursor || !ParseCoordinate(cursor, *field))
+            {
+                handler->SendSysMessage("Usage: .psychoplace <entry> <x> <y> <z> <o> [scale]");
+                return true;
+            }
+        }
+
+        if ((cursor = strtok(nullptr, " ")) != nullptr && !ParseCoordinate(cursor, scale))
+            scale = 1.0f;
+
+        PsychoHouse::HouseResult const result =
+            sPsychoHouse->PlaceObject(player, entry, x, y, z, o, scale);
+
+        handler->SendSysMessage(PsychoHouse::ResultText(result));
+        return true;
+    }
+
+    // `.psychostand` lists what is standing; `.psychostand <slot>` removes that piece.
+    static bool HandleStandCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        if (!player)
+            return false;
+
+        if (!args || !*args)
+        {
+            handler->SendSysMessage(sPsychoHouse->ObjectList(player).c_str());
+            return true;
+        }
+
+        uint32 slot = 0;
+        if (!ParseId(args, slot) || slot > 0xFF)
+        {
+            handler->SendSysMessage("Usage: .psychostand [slot]");
+            return true;
+        }
+
+        PsychoHouse::HouseResult const result = sPsychoHouse->RemoveObject(player, uint8(slot));
+        handler->SendSysMessage(PsychoHouse::ResultText(result));
         return true;
     }
 

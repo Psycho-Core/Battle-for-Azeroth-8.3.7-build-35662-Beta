@@ -16,8 +16,10 @@ A character buys a key from a Keeper NPC for a thousand gold. The purchase alloc
 writes one row, and gives nothing else: the house itself is the island plus the phase. Walking
 into the area puts the character in that phase and spawns the Keeper, the Steward and every
 service bought so far; walking out despawns them. The Steward sells eleven services and the
-faction portal one at a time, each for its own price and its own confirmation. Selling the key
-back deletes the row, the purchases, and every spawn, and refunds a share of the price.
+faction portal one at a time, each for its own price and its own confirmation. On top of the
+building the character may stand furniture of their own: any object the realm already has, up
+to a limit the realm sets in the configuration. Selling the key back deletes the row, the
+purchases, the furniture and every spawn, and refunds a share of the price.
 
 ## 2. Why per character, and not per guild or per account
 
@@ -175,12 +177,12 @@ Four tools read the draft, and two of them were written for it.
 
 ```
 check_cpp.py --src drafts/mod-psychohouse/src --sql drafts/mod-psychohouse/sql
-  5 files, 3 classes, 28 methods defined on the manager, all declared in the header
+  7 files, 4 classes, 38 methods defined on the manager, all declared in the header
   braces, includes, fields[N] against SELECT column counts,
   every table named in a query created by this draft
 
 check_psychohouse.py
-  4 SQL files, 3 tables, 13 facilities, 3 build tables cross-checked
+  4 SQL files, 4 tables, 13 facilities, 3 build tables cross-checked
   34 core calls matched against their declarations in this source tree, and the includes
   those calls need; the calls this build does not have must not appear
   INSERT and UPDATE columns against the table they name, value counts against column
@@ -206,7 +208,20 @@ check_mariadb.py
   than their column, duplicate keys inside one file, a decor category straddling two surface
   bands, and the statements that are MariaDB-only or make an install unrepeatable
 
-audit.py        ASCII, voice, source voice, links, counts over every document in this folder
+check_psychohouse.py, added after the addon pass
+  ADDON-PROTOCOL.md, the switch in mod_psychohouse_addon.cpp and the handler table in
+  drafts/mod-psychohouse/addon/PsychoHouse/core.lua read as three lists and compared: the record names on every
+  side, and the documented field count against the number of fields the module formats.
+  A record the addon sends that the module does not answer is a button that does nothing,
+  so that direction is checked too
+
+check_psychohouse_addon.py, added in the same pass
+  the addon run in a Lua 5.1 interpreter against the model of the 8.3.7 client in
+  wow_env.lua: 80 checks over the prefix, the greeting, every documented record, a record
+  under another prefix, an unknown record, the rows, every button and the entry box
+
+audit.py        ASCII, voice, source voice, links, counts over every document in this folder,
+                and twenty checks that run the other tools, including both addons
 verify_drafts.py / check_lua.py / check_protocol.py   unchanged, and still clean
 ```
 
@@ -223,7 +238,11 @@ Both new checks were mutation-tested rather than trusted:
   table with no `COLLATE`: all five reported;
 - and once more with two faults added in the spawn pass - `DirectPExecute` turned back into
   `PExecute` at all five write sites, and one summon phased with `false`: five findings and
-  one finding respectively.
+  one finding respectively;
+- and again in the addon pass - a documented record deleted from the C++ switch, a field
+  dropped from a server record's format, and a handler removed from the Lua table: one, one
+  and two findings; and the addon's pipe split put back to `gmatch("([^|]*)")`, which inserts
+  an empty field at every separator: fourteen findings, all of them shifted values.
 
 ## 9a. MariaDB 11.8.6, and what changed because of it
 
@@ -268,6 +287,125 @@ Both new rules are enforced rather than remembered: `check_psychohouse.py` repor
 on any table the module owns, and reports `AddPhase(x, ..., false)` unless `AddToMap(x)`
 follows it. Both were mutation-tested - see sec. 9.
 
+## 9c. Furniture: one object, one place, one limit
+
+The thirteen rows are the building. Furniture is everything else a character wants standing in
+the yard, and the decision that shaped it is that there is no furniture catalogue. A piece is
+an entry the realm already has in `gameobject_template`, placed at absolute coordinates inside
+the house phase; the module checks four things before it stands:
+
+| Check | Why it is a check |
+| --- | --- |
+| `PsychoHouse.Objects.Max` | the limit, read on every placement. A realm that wants a furnished house sets 50, a realm that wants a handful of personal pieces sets 5, and 0 removes the feature without recompiling or restarting |
+| `PsychoHouse.Objects.Radius` | distance from the anchor in three dimensions. Without it the house is a way to put a mailbox anywhere on the island, or a bank under the terrain |
+| the template | the entry has to resolve and carry a display id. A template with no model spawns nothing and still takes a slot |
+| the scale band | `Min` and `Max`, clamped rather than rejected, so a client with a stale slider still places its piece |
+
+Three consequences that are worth writing down because they are choices:
+
+* **The slot is the identity.** `(guid, slot)` is the primary key and the spawn map is keyed by
+  it, so a piece keeps its number for as long as it stands and a removal always names exactly
+  one piece. The lowest free slot is reused; a house that has had pieces removed and re-added
+  for a year would otherwise climb past its own limit one slot at a time.
+* **The position is absolute, not an offset.** That is what a client sends and what the command
+  prints back, so a number copied out of `.psychostand` goes back into `.psychoplace` unchanged.
+  The radius check is what keeps an absolute position inside the yard.
+* **Nothing is written to the world database.** A piece is created at run time into the house
+  phase, exactly like the facilities, so selling the house deletes its furniture with it and
+  there is nothing to orphan. The limit is also why that is affordable: twenty pieces in one
+  phase is a handful of objects, not a second island.
+
+There is no budget, no decor set, no catalogue page and no dye. Those are the neighbourhood
+module's economy and they belong there; here the limit is the whole economy of it.
+
+## 9d. The addon, and the one line the core needs
+
+The interface is three surfaces over the same functions: two gossip menus, eight commands, and
+an addon channel. The third is the one a realm cannot guess at, so it is written down in
+`drafts/mod-psychohouse/ADDON-PROTOCOL.md`: 12 client records and 8 server records, all
+`|`-separated ASCII, all answered.
+
+The channel is a whisper carrying the `PHSH` prefix. The core has to hand that prefix to this
+module before the generic whisper, group and channel routing sees it, and that is the whole of
+the core's involvement: one declaration and one early return in `ChatHandler.cpp`, shipped as
+`patches/0001-phsh-addon-route.patch`. A realm that does not apply the patch still gets the
+module, the menus and the commands; the window stays silent and `.psychodiag` says so, which
+makes a silent window a diagnosis instead of a mystery.
+
+What the window is: the house state, the standing objects with a Remove button on each, an
+entry box that places a piece where the character is standing, and the facility list with a Buy
+button per row. The placement is "here" and not a position because a client cannot read world
+coordinates; the server reads the character's position and applies the same four checks, so the
+addon cannot place one piece more than the command can.
+
+What the addon never does is decide. Every button sends one record and waits, every round trip
+re-asks for state, and nothing is cached between sessions except the window position. A house
+can change while the window is closed - a sale, a reload, a piece removed from another client -
+and a stale list is worse than no list.
+
+## 9e. Parity: what this draft carries of the full product, and what it replaces
+
+This draft exists as a fail-safe for a much larger module - the one that owns neighbourhoods,
+plots, a decor catalogue, budgets, Endeavors, dyes, blueprints and a fifteen-tab addon. The
+question that matters when a smaller version is shipped beside a bigger one is not whether it is
+as large. It is whether every system a player touches has an answer here, even if the answer is
+a smaller one, so that a realm running this instead of the full product has no dead end.
+
+The table goes system by system. `same` means the system exists with the same rules; `smaller`
+means it exists with a deliberately reduced scope; `replaced` means this draft does something
+different that covers the same need; `no` means it is absent and the reason is stated.
+
+| System | Here | Note |
+| --- | --- | --- |
+| Ownership | replaced | per character rather than per account. The fail-safe is one house per character, and a character can only ever have one |
+| Purchase and sale | same | a price, a refund share, a row written and deleted in the same place |
+| Refund on sale | same | `PsychoHouse.Refund.Percent`, default 50, clamped 0-100 |
+| Phase isolation | same | one phase per house, 50000-64999, allocated and stored, never derived |
+| Ownership by faction | same | the two faction portals are bought separately and the `psychohouse_purchase` row records which |
+| Facilities and services | smaller | 13 rows: bank, auctioneer, mailbox, innkeeper, stable, spirit healer, forge, anvil, barber, guild vault, repair, and the two portals. The full product's list is the same shape with more rows, so a row here is a row there |
+| Facility prices | same | per row in the table, not in code, so a realm reprices without a rebuild |
+| Permission model | replaced | there is no guest list, because there are no visitors: a phase is entered by its owner. The full product needs a permission model because it has shared space; this one does not have the shared space |
+| Visitors and guests | no | by design, and the reason is in the row above |
+| Plot allocation | replaced | a house is one fixed anchor per realm, not a plot index in a neighbourhood. `PsychoHouse.Anchor.X/Y/Z/O` |
+| Neighbourhood | no | there is no shared neighbourhood, no directory, no plot market |
+| Map and terrain | replaced | GM Island, configured, on a map the client already loads. No custom ADT |
+| Furniture | smaller | any object the realm has, up to `PsychoHouse.Objects.Max` (20 by default). No catalogue, no category pages, no budget cost per piece |
+| Decor catalogue | no | the full product's catalogue is 571 ported pieces and 721 native ones. Here the catalogue is `gameobject_template` itself |
+| Placement budget | replaced | the limit *is* the budget: N pieces, no cost model, no currency |
+| Placement scale and rotation | same | a piece has an orientation and a clamped scale, checked on the server |
+| Furniture removal | same | by slot, stable identity, lowest free slot reused |
+| Houses and shells | no | a house is the plot; there is no level ladder, no 12 shells, no rooms |
+| Rooms | no | no interior grid, no floorplan, no stairwell rules. That machinery is the full product's |
+| Dyes | no | no dye groups, no variants. A piece is the object it is |
+| Night set | no | no second entry per piece |
+| Pets | no | no pet beds, no pet system |
+| Mounts and mannequins | no | no stands |
+| Jukebox and music | no | no track list |
+| Endeavors | no | no tasks, no rewards, no progress rows |
+| Achievements and milestones | no | no gates on the catalogue, because there is no catalogue to gate |
+| Hunts and quests | no | the story chain is the full product's. This draft has no quest rows at all |
+| Vendors and stock | replaced | the Steward sells the 13 facilities from a gossip menu. There is no stock table, because there is nothing to stock |
+| Currencies | same | gold only, through `ModifyMoney` |
+| Blueprints | no | no snapshots, no named layouts. The furniture rows are the state |
+| Travel | same | the Keeper and `.psychohome`, with the same locked-to-owner rule |
+| Addon | smaller | one window on its own prefix: state, objects, remove, place-here, facilities, buy. Twelve client records and eight server records |
+| Commands | smaller | eight, against sixty-six. Every one of the eight does something the window or the NPC also does |
+| Configuration | same | 22 keys in `worldserver.conf`, read with the same defaults-and-clamps discipline; reloadable without a restart |
+| Diagnostics | same | `.psychodiag` prints catalogue state, bound and unbound facilities, loaded houses, the object limit and whether the addon route is present |
+| Spawn repair | same | a world tick re-creates anything the map lost, because every spawn is transient |
+| Character schema | smaller | three tables: owner, purchase, object. Same 64-bit key, same collation discipline, same repeatable-file rule |
+| World schema | smaller | one table: facility. Written by hand, not generated |
+| Logging | same | one log category, `psychohouse`, with errors on a failed spawn and debug on an unknown addon op |
+
+The table has thirty-nine rows: thirteen systems carry the same rule, six a deliberately
+smaller one, six are replaced by something that covers the same need, and fourteen are absent.
+Every absence is a system that only means something inside a neighbourhood and a catalogue this
+draft does not have.
+
+The one place this table could lie is the word `same`: it asserts that a rule is implemented,
+not that it was executed. Compilation, a real database and a real client are outside what this
+workspace can do, and section 10 lists exactly what that leaves unproven.
+
 ## 10. What is still open, in order of how much it could hurt
 
 1. **The SQL has never been applied to a server.** There is none in this workspace. What is
@@ -286,6 +424,14 @@ follows it. Both were mutation-tested - see sec. 9.
 4. **Whether GM Island area 876 is 876 on a given realm.** Configurable, on purpose.
 5. **Whether the resolved services look right on the island.** That is what the report at the
    end of `03_bind_facilities.sql` is for, and it is a five-minute read, not a build.
+6. **The addon has been run, not played.** It loads and behaves against the model of the client
+   in `tools/housing/wow_env.lua`, including every documented record and every button, but the
+   model is not a client: how the window looks and how the client routes an addon whisper to
+   the character sending it stay unproven until it is in a game.
+7. **The core patch is one hunk in a file this folder does not own.** It is written against
+   the `ChatHandler.cpp` in this tree, checked by hand against that file's line for line, and
+   nothing re-checks it when the core moves; a rebase after a core update is a one-minute
+   read, and `git apply --check` says immediately whether it still applies.
 
 ## 11. Why this one ships first
 

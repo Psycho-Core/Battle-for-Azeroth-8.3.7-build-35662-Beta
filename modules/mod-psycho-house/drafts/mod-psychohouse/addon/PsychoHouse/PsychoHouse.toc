@@ -1,0 +1,10 @@
+## Interface: 80300
+## Title: PsychoHouse
+## Notes: Island house window for mod-psychohouse
+## Author: PsychoHouse
+## Version: 1.0.1
+## SavedVariables: PsychoHouseDB
+## X-Category: Interface Enhancements
+
+core.lua
+panel.lua

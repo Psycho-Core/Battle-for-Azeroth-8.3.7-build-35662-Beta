@@ -10,7 +10,7 @@ Run the mechanical part any time:
 python3 tools/housing/audit.py
 ```
 
-Seventeen checks, one line each, exit code 1 on a finding:
+Twenty checks, one line each, exit code 1 on a finding:
 
 | Check | What it enforces |
 | --- | --- |
@@ -30,6 +30,8 @@ Seventeen checks, one line each, exit code 1 on a finding:
 | `addon` | The addon executed rather than read: `tools/housing/wow_env.lua` builds a model of the 8.3.7 client - frames and their methods, `bit` in 5.1 arithmetic, a controllable clock, a global read that records a name instead of inventing one - `Menu.lua` and `Core.lua` load into it, one line per server opcode from doc 15 is delivered, every slash command is typed and every button and edit box on all fifteen tabs is clicked with data and with none. 83 assertions, and both directions of the protocol compared with doc 15. A machine with no Lua 5.1 is reported as `not run`, not as a pass |
 | `copies` | Each draft's `src/` and `addon/` are the module's own, byte for byte. `build_drafts.py` copies them, so an addon fix that lands after the last regeneration ships fixed in the module and broken in both drafts - which is exactly what the five fixes from the forty-sixth revision did until this check existed |
 | `worklist` | `generated/midnight-port-worklist.md` and its CSV still match the catalogue they are generated from: 571 pieces, 450 with a retail item id, 121 catalogue-only, 177 stand-in game objects. Run with `--check`, so an edited worklist fails rather than lying about which pieces exist |
+| `psychoaddon` | The third draft's addon executed as well: `drafts/mod-psychohouse/addon/PsychoHouse` loads into the same client model on its own prefix, every record in `ADDON-PROTOCOL.md` is delivered, every button is clicked, the entry box is set and pressed, a record under a foreign prefix is ignored and an unknown record prints nothing. 80 assertions. Run separately from `addon` because the two addons are separate programs on separate prefixes, and a clean run of one says nothing about the other |
+| `channels` | `drafts/midnight-port/CHANNELS.md` states its own count: the table's rows are numbered 1..n with no gap, the headline "0 of n" matches the row count, every row's status is one the page defines, no cell is empty, and the three group lines (OAuth, token, protocol) name channels that exist and describe the OAuth rows exactly |
 | `drafts` | The two generated drafts read as SQL rather than as documents: every `housing_decor_creature` row names a piece the draft ships and every flagged piece has one, every stock line sits on a piece its own vendor's faction can buy, both factions can buy a pet bed, and the eleven counts doc 10 states equal the rows the SQL inserts |
 
 Current result:
@@ -52,8 +54,11 @@ install      ok
 addon        ok
 copies       ok
 worklist     ok
+psychoaddon  ok
+channels     ok
+parity       ok
 
-0 finding(s) across 17 check(s)
+0 finding(s) across 20 check(s)
 ```
 
 This is the first pass where I have nothing open in the mechanical checks. What is still incomplete is incomplete in **volume**, not in consistency: the rows past the 50 row cap, counted exactly in section 5.
@@ -1785,4 +1790,103 @@ halves, and only one of them was written down.
 | `check_reference.py` | 42 settings in two drafts, 42 recorded, 42 documented; the anchor file parses; mutation-tested with a duplicate and an out-of-range index |
 | `check_cpp.py` | 0 findings after `LoadAnchorFile` and the layout change |
 | `port_worklist.py --check` | 0 findings; 571 pieces, 450 port candidates, 121 catalogue-only |
-| `audit.py` | 0 findings across 17 checks |
+| `audit.py` | 0 findings across 20 checks |
+
+### 6.43 The fifty-first revision: the per-character module grew a window
+
+The third draft had two NPCs, six commands and no way for a client to ask it anything. It now
+has furniture, a limit that a realm can change, and an addon channel of its own.
+
+- **Furniture, and the one number that governs it.** A piece is an entry the realm already has
+  in `gameobject_template`, placed at absolute coordinates inside the house phase, stored in
+  `psychohouse_object` keyed on `(guid, slot)`. `PsychoHouse.Objects.Max` is read on every
+  placement, so a realm can change it and run `.psychoreload` without a restart, and 0 removes
+  the feature. The radius, the template check and the scale band are the other three, and each
+  one exists because without it the feature is a hole: a house with no radius is a mailbox on
+  any map, a house with no template check takes a slot for an invisible object, and a house
+  with no scale band puts a castle in a yard.
+- **The slot, not the entry, is the identity.** `(guid, slot)` is the key, the spawn map is
+  keyed by it, and the lowest free slot is reused. Ids that renumber themselves are how saved
+  placements break, and the same rule is already written down for the decor catalogue in doc
+  12; this is the same rule in a second place rather than a new one.
+- **The channel, and the one core line.** `ADDON-PROTOCOL.md` states 12 client records and 8
+  server records; `mod_psychohouse_addon.cpp` implements them; `drafts/mod-psychohouse/addon/PsychoHouse` speaks them.
+  The prefix has to reach the module from `ChatHandler.cpp`, which is one declaration and one
+  early return, shipped as `patches/0001-phsh-addon-route.patch`. Without the patch the module,
+  the menus and the commands work and the window is silent - and `.psychodiag` says so.
+- **What was added to the tooling, and why each is a separate check.**
+  `check_psychohouse.py` reads the document, the C++ switch and the Lua handler table as three
+  lists and compares them, because three files describing one wire with no compiler between
+  them is exactly where a record goes missing. `check_psychohouse_addon.py` runs the addon in
+  a Lua 5.1 interpreter against `wow_env.lua`, 80 assertions, because a window that parses is
+  not a window that works. `check_lua.py` now walks a list of addon folders instead of one
+  hardcoded path, and `audit.py` gained an eighteenth check so the second addon is run by the
+  same pass as the first.
+
+| Finding | Why it was one |
+| --- | --- |
+| `mod_psychohouse_objects.cpp` queued its writes | `PExecute` enqueues; the piece was in the in-memory map before the row was on disk, so a crash between them left a slot that came back as furniture nobody could remove. Both writes are `DirectPExecute`, and the existing check caught them without being told about the new file |
+| the addon's pipe split shifted every field | `gmatch("([^|]*)")` yields an empty match at every separator, so `S:STATUS` delivered `phase` as 0 and every later field as its left neighbour. Found by running the addon, not by reading it: 14 checks failed on the mutation and none of them on the code as shipped |
+| a global the check called undeclared | `local out, current = {}, {}` is one statement the global check does not parse, and it reports the second name. Split into two lines; the check is right and the code was not |
+| the doc reference check did not know about this draft | `ADDON-PROTOCOL.md` sits beside the sources it describes, so `audit.py` now resolves a document named inside a tool against `drafts/mod-psychohouse/` as well as the root |
+| `check_cpp.py --src` reported 29 dead constants | not a defect in any file: overriding `--src` leaves out the module's readers, so every `HousingDefines.h` constant looked unread. The run now says the check does not apply instead of reporting noise |
+
+Mutation-tested in this revision: a record deleted from the C++ switch (one finding), a field
+dropped from a server record's format (one), a handler removed from the Lua table (two), and
+the pipe split put back (fourteen). All four reverted; the suite is at 0 findings across 18
+checks, 13 checkers at 0, and 80 assertions in the addon run.
+
+Not verifiable here, and not claimed: the module does not compile, no database exists to
+accept the new table, and the addon has been run in a model rather than in a client. The
+core patch is written against this tree's `ChatHandler.cpp` and nothing re-checks it when the
+core moves.
+
+### 6.44 The fifty-first revision, second half: the channels page, and the native catalogue widened
+
+Two pieces of work that share nothing except that both were holes.
+
+**The channels page.** `drafts/midnight-port/CHANNELS.md` is the specification for the
+integration surface, and its first paragraph says the count: 0 of 34, no credential in any
+store. It carries the thirty-four channels with their transports and identities, the
+`channel_agent` record and the adapter contract every one implements, the OAuth start and
+callback routes with the state, PKCE, refresh and revoke rules and the eight refusal codes,
+the signature scheme for each of the twelve webhook channels, the intent vocabulary the
+conversation layer offers, and the pipeline for getting DB2 rows, meshes, textures and icons
+out of a retail client with a manifest that makes two extractions comparable.
+
+It is a specification and nothing else, and the ledger is the right place to say so plainly:
+no adapter exists, no route is mounted, no token has ever been issued, and the extraction has
+never been run here because there is no client, no CASC reader and no listfile in this
+workspace. What can be checked is what a page about a list can always be checked for, and
+`audit.py` gained the `channels` check for it: the table's rows are numbered 1..n with no gap,
+the headline "0 of n" equals the row count, every status is one the page defines, no cell is
+empty, and the three group lines name channels that exist and describe the OAuth rows exactly.
+Mutation-tested four ways - headline to 33, a status to `done`, a row's auth changed away from
+OAuth, a row renumbered to 35 - all four reported, then reverted.
+
+The same pass added a twentieth check, `parity`, for doc 13 sec.9e. That section says what this
+draft carries of the full product system by system and ends with a sentence counting its own
+table - thirteen systems with the same rule, six smaller, six replaced, fourteen absent. A row
+flipped from `same` to `no` without the sentence moving would make the paragraph written to
+prove the draft complete the one paragraph that is wrong, so the check recomputes all four
+numbers and compares them with the words. Mutation-tested both ways: one row flipped, and one
+number in the sentence changed; both reported, both reverted.
+
+**The catalogue.** Draft B's filter dropped every door, gate and portcullis by name. That was
+402 of the 748 distinct decor-shaped entries, the largest group in the index, and the argument
+was that they are interactive. It is a false argument: a door standing in a yard is a piece of
+a house, and the interactivity is a script the realm attaches rather than a property of the
+object. Removing three words from the reject tuple took the catalogue from 332 fetched pieces
+to 717, and the draft from 336 rows to 721.
+
+| Finding | Why it was one |
+| --- | --- |
+| a door with no model would stand invisible | the filter cannot see `displayId`, and a piece with no model still costs budget and still occupies a placement. `03_decor_native.sql` now ends with a report listing every catalogue row whose template is missing or has no model; it is expected to return nothing, and a row there is a piece to delete |
+| ids could have moved | they did not, and that is the reason the id rule exists: a decor id is the entry's rank among all 748 decor-shaped entries, not among the survivors, so re-admitting 402 entries added rows in the gaps without touching a single existing id. `verify_drafts.py` recomputed every id and every documented count and passed |
+| the docs described the old filter | draft B's README, doc 10, doc 03 and the summary table in `README.md` all stated 336/332 and gave the old reason. All four now state 721/717 and the argument for the change, and the install simulation runs the regenerated SQL in order: 11 files, 31 tables, 1 683 rows, nothing lost |
+| the native draft had no walk through | doc 16 is the page for somebody holding the draft: what is in the box, the install order including the bind pass, the first hour in game, how the catalogue is generated and how to add a row by hand above the merge band, what is covered, and a symptom-to-cause table for the seven failures that actually happen |
+
+Mutation-tested this half: the four channel-page faults above, and the regeneration itself is
+checked by four tools - `verify_drafts.py` for ids and counts, `simulate_install.py` for order
+and rows, `check_drafts.py` for the catalogue read as data, `check_mariadb.py` for the server
+rules. The suite is at 0 findings across 20 checks, and every checker in `tools/housing` is at 0.

@@ -88,6 +88,19 @@ void PsychoHouseMgr::LoadConfig()
     _housePrice    = uint32(std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Price.House", 10000000)));
     _refundPercent = uint8(std::min(100, std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Refund.Percent", 50))));
 
+    // Player-placed objects. The limit is per house and deliberately a setting: a realm that
+    // wants a furnished house to be a project sets 50, a realm that wants a handful of
+    // personal pieces sets 5, and 0 removes the feature without recompiling.
+    _objectLimit    = uint8(std::min(200, std::max(0, sConfigMgr->GetIntDefault("PsychoHouse.Objects.Max", 20))));
+    _objectRadius   = sConfigMgr->GetFloatDefault("PsychoHouse.Objects.Radius", 18.0f);
+    _objectScaleMin = sConfigMgr->GetFloatDefault("PsychoHouse.Objects.Scale.Min", 0.5f);
+    _objectScaleMax = sConfigMgr->GetFloatDefault("PsychoHouse.Objects.Scale.Max", 3.0f);
+
+    if (_objectScaleMin <= 0.0f)
+        _objectScaleMin = 0.5f;
+    if (_objectScaleMax < _objectScaleMin)
+        _objectScaleMax = _objectScaleMin;
+
     float const x = sConfigMgr->GetFloatDefault("PsychoHouse.Anchor.X", 16222.97f);
     float const y = sConfigMgr->GetFloatDefault("PsychoHouse.Anchor.Y", 16267.80f);
     float const z = sConfigMgr->GetFloatDefault("PsychoHouse.Anchor.Z", 13.14f);
@@ -213,6 +226,7 @@ bool PsychoHouseMgr::LoadPurchases(Owner* owner)
         } while (result->NextRow());
     }
 
+    LoadObjects(owner);
     return !owner->Bought.empty();
 }
 
@@ -349,6 +363,13 @@ HouseResult PsychoHouseMgr::SellHouse(Player* player)
 
     CharacterDatabase.DirectPExecute("DELETE FROM `psychohouse_owner` WHERE `guid` = " UI64FMTD, guid);
     CharacterDatabase.DirectPExecute("DELETE FROM `psychohouse_purchase` WHERE `owner` = " UI64FMTD, guid);
+
+    // The furniture goes with the house. Without this the rows outlive the sale and the next
+    // house bought on the same character inherits the previous owner's yard. The delete runs
+    // even when the cached list is empty, because a character that never entered the world with
+    // this build loaded no objects and may still have rows from an older one.
+    CharacterDatabase.DirectPExecute("DELETE FROM `psychohouse_object` WHERE `guid` = " UI64FMTD, guid);
+    owner->Objects.clear();
 
     uint64 const refund = uint64(_housePrice) * _refundPercent / 100;
     if (refund)
@@ -512,6 +533,16 @@ void PsychoHouseMgr::RepairSpawns()
         if (owner.Steward.IsEmpty() || !map->GetCreature(owner.Steward))
             SpawnSteward(player, &owner);
 
+        for (auto const& standing : owner.Objects)
+        {
+            auto spawned = owner.ObjectSpawns.find(standing.first);
+            if (spawned != owner.ObjectSpawns.end() && !spawned->second.IsEmpty() &&
+                map->GetGameObject(spawned->second))
+                continue;
+
+            SpawnObject(player, &owner, standing.second);
+        }
+
         for (uint16 id : owner.Bought)
         {
             Facility const* facility = FindFacility(id);
@@ -569,6 +600,8 @@ void PsychoHouseMgr::SpawnHouse(Player* player, Owner* owner)
         if (Facility const* facility = FindFacility(id))
             SpawnFacility(player, owner, *facility);
     }
+
+    SpawnObjects(player, owner);
 }
 
 void PsychoHouseMgr::SpawnKeeper(Player* player, Owner* owner)
@@ -695,6 +728,8 @@ void PsychoHouseMgr::DespawnHouse(Owner* owner)
         if (Creature* steward = map->GetCreature(owner->Steward))
             steward->DespawnOrUnsummon();
     }
+
+    DespawnObjects(owner);
 
     owner->Spawned.clear();
     owner->Keeper.Clear();

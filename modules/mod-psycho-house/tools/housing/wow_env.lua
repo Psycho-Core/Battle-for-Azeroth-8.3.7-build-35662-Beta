@@ -484,8 +484,10 @@ function M.FireEvent(event, ...)
 end
 
 -- Deliver a server line the way the client would: prefix, text, channel, sender.
-function M.Deliver(text, sender)
-    M.FireEvent("CHAT_MSG_ADDON", "BFAH", text, "WHISPER", sender or "Server")
+-- The prefix defaults to the neighbourhood addon's, because that is the addon this file grew
+-- up around; a second caller passes its own.
+function M.Deliver(text, sender, prefix)
+    M.FireEvent("CHAT_MSG_ADDON", prefix or "BFAH", text, "WHISPER", sender or "Server")
 end
 
 function M.Slash(list, input)

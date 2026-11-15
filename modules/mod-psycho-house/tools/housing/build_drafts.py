@@ -497,7 +497,20 @@ def build_native():
 
     index = read_csv(os.path.join(GEN, "source-asset-index.csv"))
     gos = [r for r in index if r["kind"] == "gameobject" and r["decor"] == "yes"]
-    reject = ("DOOR", "GATE", "PORT CULLIS", "PORTCULLIS", "TRAP", "TRIGGER", "PORTAL",
+    # Words that mark an entry as machinery rather than as a thing: a trap that fires, a
+    # trigger volume, a spawn point, a sound emitter, a boss marker. None of them has a shape
+    # worth placing, and several have no model at all.
+    #
+    # DOOR, GATE and PORTCULLIS were in this tuple for three revisions and are not any more.
+    # They were the single largest group the filter threw away - 321 door entries and 81 gates -
+    # and the argument against them was that they are interactive. That is true of a door in a
+    # wall and false of a door standing in a yard, which is what a housing piece is: the
+    # interactivity is a script the realm attaches, not a property of the object. A house that
+    # cannot have a door or a gate is a house with a hole in it. They come back as Structural,
+    # with the rest of the building pieces, and the report at the end of 03_decor_native.sql
+    # prints every row whose template has no model, so one that does not resolve is visible in
+    # a SELECT rather than invisible in a yard.
+    reject = ("PORT CULLIS", "TRAP", "TRIGGER", "PORTAL",
               "INSTANCE", "CORPSE",
               "SPAWN", "SOUND", "SPELL", "AURA", "DUMMY", "BOSS", "GOSSIP",
               "MARKER", "EXPLOSION", "MISSILE", "PROJECTILE", "GRAVEYARD", "ZONE",
@@ -585,6 +598,15 @@ def build_native():
         bed_stock.append("({}, {}, {})".format(PET_HANDLER, decor_id, PET_BED_PRICE))
     bed_sql.append(",\n".join(bed_lines) + ";")
     dsql.append("\n".join(bed_sql))
+    dsql.append("\n-- Every row above must resolve to a template that has a model. This report is")
+    dsql.append("-- expected to return nothing; a row here is a piece that would stand in a yard")
+    dsql.append("-- invisible, which is worse than a piece that is missing from the catalogue.")
+    dsql.append("")
+    dsql.append("SELECT hd.`id`, hd.`gameobject_entry`, hd.`name` AS `catalogue_name`, gt.`name`")
+    dsql.append("FROM `housing_decor` hd")
+    dsql.append("LEFT JOIN `gameobject_template` gt ON gt.`entry` = hd.`gameobject_entry`")
+    dsql.append("WHERE hd.`id` BETWEEN 2000 AND 2959 AND (gt.`entry` IS NULL OR gt.`displayId` = 0);")
+    dsql.append("")
     dsql.append("\n-- Display names come from the world DB, not from the constant name:")
     dsql.append("UPDATE `housing_decor` hd JOIN `gameobject_template` gt")
     dsql.append("  ON gt.`entry` = hd.`gameobject_entry`")
